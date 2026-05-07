@@ -9,6 +9,7 @@ import {
 import { getPropertyBySlug, type PropertyRate } from '@/lib/properties';
 import { MONTH_NAMES, type Month } from '@db/enums';
 import fincaData from '../../../../finca.json';
+import BookNowForm from '@/components/finca/BookNowForm';
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
   'Starlink WiFi': Wifi,
@@ -81,6 +82,8 @@ export default async function PropertyDetailsPage({
         <WhatYouGet features={property.features} amenities={fincaData.amenities} />
 
         <Pricing rates={rates} cleaning_fee={cleaning_fee} />
+
+        <BookNowForm slug={property.slug} maxGuests={property.max_guests} />
       </div>
     </main>
   );

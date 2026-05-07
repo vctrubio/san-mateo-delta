@@ -1,0 +1,142 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import StatusBadge from '@/components/admin/StatusBadge';
+import BookingActionButtons from '@/components/admin/BookingActionButtons';
+import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
+import { getBookingById, listBookingEvents } from '@/lib/bookings';
+import { listPaymentsForBooking } from '@/lib/payments';
+
+export const dynamic = 'force-dynamic';
+
+function eur(cents: number) {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
+}
+
+export default async function AdminBookingDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const booking = await getBookingById(id);
+  if (!booking) notFound();
+  const [payments, events] = await Promise.all([
+    listPaymentsForBooking(id),
+    listBookingEvents(id),
+  ]);
+
+  return (
+    <div className="p-8 max-w-5xl">
+      <Link href="/admin/bookings" className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4">
+        <ArrowLeft className="w-3.5 h-3.5" /> back
+      </Link>
+
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Booking #{booking.id}</h1>
+            <StatusBadge status={booking.status} />
+          </div>
+          <p className="text-sm text-slate-500">
+            {booking.property_slug} · {booking.property_title} · {booking.date_check_in} → {booking.date_check_out}
+          </p>
+        </div>
+        <BookingActionButtons bookingId={booking.id} currentStatus={booking.status} size="md" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <Card label="Guest">
+          {booking.user_id ? (
+            <Link href={`/admin/users/${booking.user_id}`} className="block hover:text-ocean">
+              <div className="font-bold text-slate-900">{booking.user_name}</div>
+              <div className="text-[11px] text-slate-400 font-mono">{booking.user_email}</div>
+            </Link>
+          ) : (
+            <span className="italic text-slate-400">no user (admin booking)</span>
+          )}
+        </Card>
+        <Card label="Guests">
+          <div className="font-bold text-slate-900">
+            {booking.guests.adults}A · {booking.guests.children}C · {booking.guests.infants}I · {booking.guests.pets}🐾
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">max {booking.property_max_guests} on this property</div>
+        </Card>
+        <Card label="Pricing">
+          <div className="font-bold text-slate-900">{eur(booking.agreed_price_cents)}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">paid: {eur(booking.paid_cents)} · outstanding: {eur(Math.max(0, booking.agreed_price_cents - booking.paid_cents))}</div>
+        </Card>
+      </div>
+
+      <section className="mb-10">
+        <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Record payment (cash · admin)</h2>
+        <div className="rounded-2xl bg-white border border-slate-100 p-5">
+          <PaymentActionButtons
+            bookingId={booking.id}
+            agreedCents={booking.agreed_price_cents}
+            paidCents={booking.paid_cents}
+            status={booking.status}
+          />
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Payments ({payments.length})</h2>
+        <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+          {payments.length === 0 ? (
+            <div className="p-6 text-sm text-slate-400">No payments yet.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                  <th className="text-left px-4 py-2">Type</th>
+                  <th className="text-left px-4 py-2">Cash</th>
+                  <th className="text-right px-4 py-2">Amount</th>
+                  <th className="text-right px-4 py-2">Refunded</th>
+                  <th className="text-right px-4 py-2">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} className="border-t border-slate-50">
+                    <td className="px-4 py-2 font-mono text-[12px]">{p.type}</td>
+                    <td className="px-4 py-2 text-slate-500">{p.cash ? 'yes' : 'no'}</td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums">{eur(p.amount_cents)}</td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-rose-700">{p.refunded_cents > 0 ? `−${eur(p.refunded_cents)}` : '—'}</td>
+                    <td className="px-4 py-2 text-right text-[11px] font-mono text-slate-400">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Audit timeline ({events.length})</h2>
+        <ol className="space-y-2">
+          {events.map((e) => (
+            <li key={e.id} className="rounded-xl bg-white border border-slate-100 px-5 py-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-widest text-ocean">{e.event_type}</div>
+                {Object.keys(e.payload).length > 0 && (
+                  <pre className="text-[10px] font-mono text-slate-400 mt-1 whitespace-pre-wrap">{JSON.stringify(e.payload, null, 2)}</pre>
+                )}
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 shrink-0">{new Date(e.created_at).toLocaleString('en-GB')}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
+  );
+}
+
+function Card({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-white border border-slate-100 p-4">
+      <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2">{label}</h3>
+      {children}
+    </div>
+  );
+}
