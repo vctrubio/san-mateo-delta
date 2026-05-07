@@ -50,6 +50,6 @@ Rules:
 - All amounts are EUR cents stored as `BIGINT`. Never add a `currency` column.
 - Every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`. Mutable tables also have `updated_at` driven by the `set_updated_at` trigger.
 - Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`.
-- All app code that hits the database imports from `@/db/client` — single Neon Pool, no other connection paths.
+- All app code that hits the database imports from `@db/client` (the alias is wired in `tsconfig.json` to `./db/*`) — single Neon Pool, no other connection paths.
 - During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
 - The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.
