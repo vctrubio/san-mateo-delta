@@ -63,17 +63,12 @@ CREATE TABLE properties (
   title        TEXT        NOT NULL,
   description  TEXT        NOT NULL,
   features     JSONB       NOT NULL DEFAULT '[]'::jsonb,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE property_characteristics (
-  id           BIGSERIAL PRIMARY KEY,
-  property_id  BIGINT      NOT NULL UNIQUE REFERENCES properties(id) ON DELETE CASCADE,
   bedrooms     INT         NOT NULL CHECK (bedrooms >= 0),
   bathrooms    INT         NOT NULL CHECK (bathrooms >= 0),
   m2           INT         NOT NULL CHECK (m2 > 0),
-  max_guests   INT         NOT NULL CHECK (max_guests > 0)
+  max_guests   INT         NOT NULL CHECK (max_guests > 0),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Pricing architecture: see db/rates.md

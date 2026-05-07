@@ -47,22 +47,13 @@ const TABLES: Table[] = [
   {
     name: 'properties',
     domain: 'property',
-    summary: 'The four units inside Finca San Mateo.',
+    summary: 'The four units inside Finca San Mateo. Characteristics inlined (1:1, no join).',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'slug', type: 'TEXT', unique: true },
       { name: 'title', type: 'TEXT' },
       { name: 'description', type: 'TEXT' },
       { name: 'features', type: 'JSONB', note: 'Per-property highlights array' },
-    ],
-  },
-  {
-    name: 'property_characteristics',
-    domain: 'property',
-    summary: '1:1 with properties. Bedrooms, bathrooms, m², max_guests.',
-    columns: [
-      { name: 'id', type: 'BIGSERIAL', pk: true },
-      { name: 'property_id', type: 'BIGINT', fk: 'properties.id', unique: true },
       { name: 'bedrooms', type: 'INT' },
       { name: 'bathrooms', type: 'INT' },
       { name: 'm2', type: 'INT' },
@@ -315,7 +306,7 @@ function EnumStrip() {
 
 function RelationsLegend() {
   const groups: Record<string, string[]> = {
-    'properties → ': ['property_characteristics', 'property_rates', 'property_cleaning_fee'],
+    'properties → ': ['property_rates', 'property_cleaning_fee'],
     'bookings → ': ['booking_invitations', 'booking_service_fees', 'booking_payments', 'booking_events'],
     'booking_payments → ': ['payment_refunds'],
     'users → ': ['bookings.user_id', 'booking_invitations.accepted_user_id'],
@@ -343,7 +334,7 @@ export default function DebugSchemaPanel() {
           Debug Schema
         </h2>
         <p className="text-xs text-slate-500 mb-6">
-          11 tables · 4 enums · EUR cents everywhere · double-booking blocked by exclusion constraint.
+          10 tables · 4 enums · EUR cents everywhere · double-booking blocked by exclusion constraint.
         </p>
 
         <DomainLegend />

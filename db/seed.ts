@@ -167,26 +167,25 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
   const ids: Record<string, SeededProperty> = {};
   for (const p of PROPERTIES) {
     const { rows } = await pool.query<{ id: string }>(
-      `INSERT INTO properties (slug, title, description, features)
-       VALUES ($1, $2, $3, $4::jsonb)
+      `INSERT INTO properties (
+         slug, title, description, features,
+         bedrooms, bathrooms, m2, max_guests
+       )
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
              description = EXCLUDED.description,
-             features = EXCLUDED.features
+             features = EXCLUDED.features,
+             bedrooms = EXCLUDED.bedrooms,
+             bathrooms = EXCLUDED.bathrooms,
+             m2 = EXCLUDED.m2,
+             max_guests = EXCLUDED.max_guests
        RETURNING id`,
-      [p.slug, p.title, p.description, JSON.stringify(p.features)],
+      [p.slug, p.title, p.description, JSON.stringify(p.features),
+       p.bedrooms, p.bathrooms, p.m2, p.max_guests],
     );
     const propertyId = rows[0].id;
     ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };
-
-    await pool.query(
-      `INSERT INTO property_characteristics (property_id, bedrooms, bathrooms, m2, max_guests)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (property_id) DO UPDATE
-         SET bedrooms=EXCLUDED.bedrooms, bathrooms=EXCLUDED.bathrooms,
-             m2=EXCLUDED.m2, max_guests=EXCLUDED.max_guests`,
-      [propertyId, p.bedrooms, p.bathrooms, p.m2, p.max_guests],
-    );
 
     // Two seasonal rates per property. Low Season = everything except Jun/Jul/Aug;
     // High Season = Jun/Jul/Aug. See db/rates.md for the selection algorithm.
