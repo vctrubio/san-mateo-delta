@@ -2,6 +2,7 @@ import { pool } from './client';
 import {
   HIGH_SEASON_MONTHS,
   LOW_SEASON_MONTHS,
+  type BookingStatus,
   type Month,
 } from './enums';
 
@@ -88,7 +89,7 @@ type BookingSeed = {
   guest: 'maria' | 'tom' | null;   // null = admin booking, no user_id (e.g. owner family / maintenance block)
   in: string;                       // YYYY-MM-DD
   out: string;
-  status: 'request' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
+  status: BookingStatus;
   adults: number;
   children?: number;
   pets?: number;

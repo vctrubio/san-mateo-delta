@@ -68,19 +68,29 @@ Then:
 - 7 nights starting **Feb 14** → Low Season (€350/night). High Season excluded (wrong month). Long-Stay excluded (nights < 15).
 - 7 nights starting **Jul 14** → High Season (€480/night).
 - 21 nights starting **Mar 1** → Long-Stay Low (€280/night) wins by step 5 (higher `min_nights` than the regular Low Season rate).
-- 5 nights starting **Jul 30** → no rate matches (overlap into August requires the booking flow to either split-bill or pick the rate of the check-in month, depending on host policy — currently, **rate is determined by check-in month only**).
+- 5 nights starting **Aug 30** (crosses into September) → High Season (€480/night). The rate is determined by the **check-in month only**; the September portion is not split-billed.
+- 1 night starting **Feb 14** → no rate matches (both seeded rates require `min_nights >= 2`). The booking flow must surface "ask for quote" or reject the request.
 
 ## Booking total
 
+What the guest agreed to pay at booking time:
+
 ```
-agreed_price_cents
+bookings.agreed_price_cents
   = night_rate_cents × nights
-  + property_cleaning_fee.fee_cents (where active = true)
-  + Σ booking_service_fees.amount_cents   (any extras: late checkout, commission, …)
-  − Σ payment_refunds.amount_cents        (separate from the agreed price; tracks what was returned)
+  + property_cleaning_fee.fee_cents (the active row for this property)
+  + Σ booking_service_fees.amount_cents   (extras added during the stay: late checkout, commission, …)
 ```
 
-The `bookings.agreed_price_cents` column stores the snapshot at booking time. If a host changes a rate later, historical bookings keep the price they agreed to.
+What was actually collected is a separate concern, computed from the payments tables:
+
+```
+collected_cents
+  = Σ booking_payments.amount_cents
+  − Σ payment_refunds.amount_cents
+```
+
+`bookings.agreed_price_cents` is a **snapshot at booking time**. If a host changes a rate later, historical bookings keep the price they agreed to.
 
 ## Adding a new rate
 
