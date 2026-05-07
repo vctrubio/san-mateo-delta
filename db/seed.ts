@@ -26,7 +26,7 @@ const PROPERTIES: PropertySeed[] = [
     title: 'The Villa',
     description:
       'Our flagship villa. A masterpiece of coastal architecture featuring expansive living spaces and direct access to the estate gardens.',
-    features: ['Private Terrace', 'Fully Equipped Kitchen', 'Starlink WiFi', 'Master Suite'],
+    features: ['Fully Equipped Kitchen', 'Master Suite'],
     bedrooms: 3,
     bathrooms: 2,
     m2: 180,
