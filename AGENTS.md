@@ -26,3 +26,30 @@ Rules:
 - Route files import components via the `@/components/<area>/<Name>` alias (configured in `tsconfig.json` paths).
 - Group components by area (`landing/`, `debug/`, `booking/`, `admin/`...), not by type. Avoid a flat `src/components/` dump.
 - Static config (estate metadata, copy) lives in JSON at the repo root and is imported with relative paths.
+
+## Database
+
+Postgres on Neon. Schema is hand-rolled SQL — no ORM, no migration tool.
+
+```
+db/
+  schema.sql    # source of truth: CREATE TYPE / TABLE / INDEX / CONSTRAINT
+  drop.sql     # DROP everything in dependency order
+  client.ts    # Neon serverless Pool + sql() helper
+  reset.ts     # bun script: drop.sql then schema.sql
+  seed.ts      # bun script: insert demo data (4 properties, 3 users, 1 booking)
+  init.ts      # bun script: reset + seed (start-from-zero convenience)
+```
+
+Scripts:
+- `bun db:init`  — wipe + reapply schema + seed (use this 99% of the time during iteration)
+- `bun db:reset` — wipe + reapply schema only (no data)
+- `bun db:seed`  — seed only
+
+Rules:
+- All amounts are EUR cents stored as `BIGINT`. Never add a `currency` column.
+- Every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`. Mutable tables also have `updated_at` driven by the `set_updated_at` trigger.
+- Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`.
+- All app code that hits the database imports from `@/db/client` — single Neon Pool, no other connection paths.
+- During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
+- The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.
