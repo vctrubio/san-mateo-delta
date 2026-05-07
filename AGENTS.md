@@ -36,8 +36,10 @@ db/
   schema.sql    # source of truth: CREATE TYPE / TABLE / INDEX / CONSTRAINT
   drop.sql     # DROP everything in dependency order
   client.ts    # Neon serverless Pool + sql() helper
+  enums.ts     # TS mirrors of the SQL enums + Month constants. Import from @db/enums.
+  rates.md     # Pricing architecture: how property_rates is structured + the selection algorithm
   reset.ts     # bun script: drop.sql then schema.sql
-  seed.ts      # bun script: insert demo data (4 properties, 3 users, 1 booking)
+  seed.ts      # bun script: insert demo data (4 properties, 3 users, 12 bookings)
   init.ts      # bun script: reset + seed (start-from-zero convenience)
 ```
 
@@ -49,7 +51,8 @@ Scripts:
 Rules:
 - All amounts are EUR cents stored as `BIGINT`. Never add a `currency` column.
 - Every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`. Mutable tables also have `updated_at` driven by the `set_updated_at` trigger.
-- Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`.
+- Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`. Mirror the values in `db/enums.ts` so app code stays in lockstep — import lists and types from `@db/enums`, never hardcode them.
+- Pricing follows the model in `db/rates.md`: rates live in `property_rates`, are selected by month + min_nights, and cleaning is a separate flat fee per booking. Read it before touching pricing code.
 - All app code that hits the database imports from `@db/client` (the alias is wired in `tsconfig.json` to `./db/*`) — single Neon Pool, no other connection paths.
 - During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
 - The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.

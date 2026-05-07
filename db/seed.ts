@@ -1,4 +1,9 @@
 import { pool } from './client';
+import {
+  HIGH_SEASON_MONTHS,
+  LOW_SEASON_MONTHS,
+  type Month,
+} from './enums';
 
 type PropertySeed = {
   slug: string;
@@ -9,7 +14,8 @@ type PropertySeed = {
   bathrooms: number;
   m2: number;
   max_guests: number;
-  rate_cents: number;
+  low_cents: number;   // Low Season night rate (EUR cents)
+  high_cents: number;  // High Season night rate (EUR cents)
   cleaning_cents: number;
 };
 
@@ -24,7 +30,8 @@ const PROPERTIES: PropertySeed[] = [
     bathrooms: 2,
     m2: 180,
     max_guests: 6,
-    rate_cents: 35000,
+    low_cents:  35000,
+    high_cents: 48000,
     cleaning_cents: 12000,
   },
   {
@@ -37,7 +44,8 @@ const PROPERTIES: PropertySeed[] = [
     bathrooms: 1,
     m2: 110,
     max_guests: 4,
-    rate_cents: 24000,
+    low_cents:  24000,
+    high_cents: 33000,
     cleaning_cents: 9000,
   },
   {
@@ -50,7 +58,8 @@ const PROPERTIES: PropertySeed[] = [
     bathrooms: 1,
     m2: 60,
     max_guests: 2,
-    rate_cents: 16000,
+    low_cents:  16000,
+    high_cents: 22000,
     cleaning_cents: 6000,
   },
   {
@@ -63,10 +72,16 @@ const PROPERTIES: PropertySeed[] = [
     bathrooms: 1,
     m2: 45,
     max_guests: 2,
-    rate_cents: 14000,
+    low_cents:  14000,
+    high_cents: 19000,
     cleaning_cents: 5000,
   },
 ];
+
+function rateForCheckIn(p: PropertySeed, checkIn: string): number {
+  const month = (Number(checkIn.slice(5, 7)) as Month);
+  return HIGH_SEASON_MONTHS.includes(month) ? p.high_cents : p.low_cents;
+}
 
 type BookingSeed = {
   property: PropertySeed['slug'];
@@ -145,8 +160,10 @@ async function seedUsers(): Promise<Record<UserKey, string>> {
   return ids;
 }
 
-async function seedProperties(): Promise<Record<string, { id: string; rate_cents: number; cleaning_cents: number }>> {
-  const ids: Record<string, { id: string; rate_cents: number; cleaning_cents: number }> = {};
+type SeededProperty = { id: string; cleaning_cents: number; seed: PropertySeed };
+
+async function seedProperties(): Promise<Record<string, SeededProperty>> {
+  const ids: Record<string, SeededProperty> = {};
   for (const p of PROPERTIES) {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO properties (slug, title, description, features)
@@ -159,7 +176,7 @@ async function seedProperties(): Promise<Record<string, { id: string; rate_cents
       [p.slug, p.title, p.description, JSON.stringify(p.features)],
     );
     const propertyId = rows[0].id;
-    ids[p.slug] = { id: propertyId, rate_cents: p.rate_cents, cleaning_cents: p.cleaning_cents };
+    ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };
 
     await pool.query(
       `INSERT INTO property_characteristics (property_id, bedrooms, bathrooms, m2, max_guests)
@@ -170,14 +187,22 @@ async function seedProperties(): Promise<Record<string, { id: string; rate_cents
       [propertyId, p.bedrooms, p.bathrooms, p.m2, p.max_guests],
     );
 
-    await pool.query(
-      `INSERT INTO property_rates (property_id, name, active, public, min_nights, price_cents)
-       SELECT $1, 'Standard', true, true, 2, $2
-       WHERE NOT EXISTS (
-         SELECT 1 FROM property_rates WHERE property_id = $1 AND name = 'Standard'
-       )`,
-      [propertyId, p.rate_cents],
-    );
+    // Two seasonal rates per property. Low Season = everything except Jun/Jul/Aug;
+    // High Season = Jun/Jul/Aug. See db/rates.md for the selection algorithm.
+    const seasons = [
+      { name: 'Low Season',  months: [...LOW_SEASON_MONTHS],  night_rate_cents: p.low_cents  },
+      { name: 'High Season', months: [...HIGH_SEASON_MONTHS], night_rate_cents: p.high_cents },
+    ];
+    for (const s of seasons) {
+      await pool.query(
+        `INSERT INTO property_rates (property_id, name, active, public, min_nights, months, night_rate_cents)
+         SELECT $1, $2, true, true, 2, $3::int[], $4
+         WHERE NOT EXISTS (
+           SELECT 1 FROM property_rates WHERE property_id = $1 AND name = $2
+         )`,
+        [propertyId, s.name, s.months, s.night_rate_cents],
+      );
+    }
 
     await pool.query(
       `INSERT INTO property_cleaning_fee (property_id, fee_cents, active)
@@ -188,19 +213,20 @@ async function seedProperties(): Promise<Record<string, { id: string; rate_cents
       [propertyId, p.cleaning_cents],
     );
   }
-  console.log(`✓ seeded ${PROPERTIES.length} properties`);
+  console.log(`✓ seeded ${PROPERTIES.length} properties (each with Low + High Season rates)`);
   return ids;
 }
 
 async function seedBookings(
-  propertyIds: Record<string, { id: string; rate_cents: number; cleaning_cents: number }>,
+  propertyIds: Record<string, SeededProperty>,
   userIds: Record<UserKey, string>,
 ) {
   for (const b of BOOKINGS) {
     const prop = propertyIds[b.property];
     const userId = b.guest ? userIds[b.guest] : null;
     const nights = nightsBetween(b.in, b.out);
-    const agreed = nights * prop.rate_cents + prop.cleaning_cents;
+    const nightRate = rateForCheckIn(prop.seed, b.in);
+    const agreed = nights * nightRate + prop.cleaning_cents;
     const guests = JSON.stringify({
       adults: b.adults,
       children: b.children ?? 0,

@@ -76,18 +76,24 @@ CREATE TABLE property_characteristics (
   max_guests   INT         NOT NULL CHECK (max_guests > 0)
 );
 
+-- Pricing architecture: see db/rates.md
 CREATE TABLE property_rates (
-  id            BIGSERIAL PRIMARY KEY,
-  property_id   BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  name          TEXT        NOT NULL,
-  active        BOOLEAN     NOT NULL DEFAULT true,
-  public        BOOLEAN     NOT NULL DEFAULT true,
-  min_nights    INT         NOT NULL DEFAULT 1 CHECK (min_nights > 0),
-  price_cents   BIGINT      NOT NULL CHECK (price_cents >= 0),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                BIGSERIAL PRIMARY KEY,
+  property_id       BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  name              TEXT        NOT NULL,
+  active            BOOLEAN     NOT NULL DEFAULT true,
+  public            BOOLEAN     NOT NULL DEFAULT true,
+  min_nights        INT         NOT NULL DEFAULT 1 CHECK (min_nights > 0),
+  months            INT[]       NOT NULL CHECK (
+                       array_length(months, 1) > 0
+                       AND months <@ ARRAY[1,2,3,4,5,6,7,8,9,10,11,12]
+                    ),
+  night_rate_cents  BIGINT      NOT NULL CHECK (night_rate_cents >= 0),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_property_rates_property ON property_rates(property_id) WHERE active;
+CREATE INDEX idx_property_rates_months   ON property_rates USING gin(months);
 
 CREATE TABLE property_cleaning_fee (
   id           BIGSERIAL PRIMARY KEY,

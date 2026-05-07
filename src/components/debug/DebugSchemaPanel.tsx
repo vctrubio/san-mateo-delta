@@ -1,3 +1,10 @@
+import {
+  BOOKING_STATUSES,
+  INVITATION_STATUSES,
+  SERVICE_FEE_TYPES,
+  PAYMENT_TYPES,
+} from '@db/enums';
+
 type Column = {
   name: string;
   type: string;
@@ -16,11 +23,11 @@ type Table = {
   columns: Column[];
 };
 
-const ENUMS: { name: string; values: string[] }[] = [
-  { name: 'booking_status', values: ['request', 'invite', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] },
-  { name: 'invitation_status', values: ['invited', 'accepted', 'declined'] },
-  { name: 'service_fee_type', values: ['late_checkout', 'extra_cleaning', 'commission', 'other'] },
-  { name: 'payment_type', values: ['deposit', 'balance', 'reservation', 'extra_guest'] },
+const ENUMS: { name: string; values: readonly string[] }[] = [
+  { name: 'booking_status',    values: BOOKING_STATUSES },
+  { name: 'invitation_status', values: INVITATION_STATUSES },
+  { name: 'service_fee_type',  values: SERVICE_FEE_TYPES },
+  { name: 'payment_type',      values: PAYMENT_TYPES },
 ];
 
 const TABLES: Table[] = [
@@ -65,15 +72,16 @@ const TABLES: Table[] = [
   {
     name: 'property_rates',
     domain: 'property',
-    summary: 'N rates per property. price_cents per night, EUR.',
+    summary: 'Per-night pricing. Selected at quote time by month + min_nights. See db/rates.md.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'property_id', type: 'BIGINT', fk: 'properties.id' },
-      { name: 'name', type: 'TEXT', note: 'Standard / High Season / etc.' },
+      { name: 'name', type: 'TEXT', note: 'Low Season / High Season / Long-Stay …' },
       { name: 'active', type: 'BOOLEAN' },
       { name: 'public', type: 'BOOLEAN', note: 'false = invite-only' },
-      { name: 'min_nights', type: 'INT' },
-      { name: 'price_cents', type: 'BIGINT' },
+      { name: 'min_nights', type: 'INT', note: 'minimum stay required to qualify' },
+      { name: 'months', type: 'INT[]', note: 'months 1-12 when this rate applies' },
+      { name: 'night_rate_cents', type: 'BIGINT' },
     ],
   },
   {
