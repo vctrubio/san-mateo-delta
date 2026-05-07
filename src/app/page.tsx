@@ -1,7 +1,7 @@
-import HeroLanding from './landing/HeroLanding';
-import PropertyShowcase from './landing/PropertyShowcase';
-import AboutSection from './landing/AboutSection';
-import Footer from './landing/Footer';
+import HeroLanding from '@/components/landing/HeroLanding';
+import PropertyShowcase from '@/components/landing/PropertyShowcase';
+import AboutSection from '@/components/landing/AboutSection';
+import Footer from '@/components/landing/Footer';
 
 export default function Home() {
   return (
