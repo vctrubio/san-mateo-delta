@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finca San Mateo
 
-## Getting Started
+A booking system replicate or airbnb. Where the host can manage bookings, send private invitations and track properties throughout the admin interface. 
 
-First, run the development server:
+## Goals 
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- to manage properties
+- to track booking, payments, and check in status
+- drift away from airbnb, and have an atractive landing page and SEO.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## About
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Finca San Mateo is located in Tarifa, Spain. It has 4 properties within the FINCA (ESTATE). It is 300 meters from the beach. Tarifa is a windy place that attracts tourism of kite surf, wind surf, and wing foil.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Properties
 
-## Learn More
+Slug, Title, Max Guest
+1. Levante – The Villa | Sleeps 6
+2. Estrecho – The Residence | Sleeps 4
+3. Marea – The Retreat | Sleeps 2
+4. Cala – The Bungalow | Sleeps 2
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Arquitetchture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Neon for serveless postgress
+- cloudinary for property buckets (slugs)
+- /admin route for admin ... /admin/bookings /admin/users /admin/properties
+- finca/[proerty.slug] for specific view of property infomation and availibility
+- /guest route for auth users
+- /login for authentication
+- /booking for viewing of specific booking 
