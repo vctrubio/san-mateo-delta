@@ -178,13 +178,67 @@ const TABLES: Table[] = [
   },
 ];
 
-const DOMAIN_STYLES: Record<Table['domain'], { label: string; chip: string; ring: string }> = {
-  identity: { label: 'Identity', chip: 'bg-sky text-ocean', ring: 'ring-sky-200' },
-  property: { label: 'Property', chip: 'bg-sand text-slate-700', ring: 'ring-amber-200' },
-  booking: { label: 'Booking', chip: 'bg-ocean/10 text-ocean', ring: 'ring-ocean/30' },
-  payment: { label: 'Payment', chip: 'bg-emerald-50 text-emerald-700', ring: 'ring-emerald-200' },
-  audit: { label: 'Audit', chip: 'bg-slate-100 text-slate-600', ring: 'ring-slate-200' },
+const DOMAIN_STYLES: Record<
+  Table['domain'],
+  { label: string; chip: string; ring: string; dot: string; description: string }
+> = {
+  identity: {
+    label: 'Identity',
+    chip: 'bg-sky text-ocean',
+    ring: 'ring-sky-200',
+    dot: 'bg-sky-400',
+    description: 'Who is using the system: guests and (eventually) hosts/admins.',
+  },
+  property: {
+    label: 'Property',
+    chip: 'bg-sand text-slate-700',
+    ring: 'ring-amber-200',
+    dot: 'bg-amber-400',
+    description: 'The four units in Finca San Mateo and their per-property pricing/cleaning.',
+  },
+  booking: {
+    label: 'Booking',
+    chip: 'bg-ocean/10 text-ocean',
+    ring: 'ring-ocean/30',
+    dot: 'bg-ocean',
+    description: 'Reservations and everything attached to them: invitations, service fees.',
+  },
+  payment: {
+    label: 'Payment',
+    chip: 'bg-emerald-50 text-emerald-700',
+    ring: 'ring-emerald-200',
+    dot: 'bg-emerald-500',
+    description: 'Money in (booking_payments) and money out (payment_refunds).',
+  },
+  audit: {
+    label: 'Audit',
+    chip: 'bg-slate-100 text-slate-600',
+    ring: 'ring-slate-200',
+    dot: 'bg-slate-400',
+    description: 'Append-only event log of state transitions and host actions.',
+  },
 };
+
+function DomainLegend() {
+  return (
+    <div className="rounded-2xl bg-white border border-slate-100 p-4 mb-6">
+      <h3 className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-3">
+        Domain colors
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        {Object.entries(DOMAIN_STYLES).map(([key, style]) => (
+          <div key={key} className="flex items-start gap-2.5">
+            <span className={`w-3 h-3 rounded-full mt-1 shrink-0 ${style.dot}`} />
+            <div>
+              <div className="font-mono text-[12px] font-bold text-slate-900">{style.label}</div>
+              <div className="text-[11px] text-slate-500 leading-snug">{style.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ColumnBadge({ col }: { col: Column }) {
   const flags: string[] = [];
@@ -291,6 +345,8 @@ export default function DebugSchemaPanel() {
         <p className="text-xs text-slate-500 mb-6">
           11 tables · 4 enums · EUR cents everywhere · double-booking blocked by exclusion constraint.
         </p>
+
+        <DomainLegend />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {TABLES.map((t) => (

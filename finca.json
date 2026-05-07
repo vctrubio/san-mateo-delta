@@ -2,6 +2,15 @@
   "name": "San Mateo",
   "subtitle": "Tarifa",
   "est": "2002",
+  "amenities": [
+    "Starlink WiFi",
+    "Smart TV",
+    "Air Conditioning",
+    "Private Terrace",
+    "Pets Allowed",
+    "Private Parking",
+    "Washer"
+  ],
   "description": "A coastal haven in the south of Spain, perfect for surf and wind lovers. Surrounded by nature and the Atlantic Ocean.",
   "location": {
     "city": "Tarifa",
