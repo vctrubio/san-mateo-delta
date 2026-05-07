@@ -13,11 +13,12 @@ async function main() {
   );
   console.log('confirmed bookings:', confirmed.rows[0].count);
 
-  // Try to insert an overlapping confirmed booking on Levante. Must fail.
+  // Try to insert an overlapping confirmed booking on Levante.
+  // Levante has a checked_out booking 2026-04-01 → 2026-04-08; overlapping must fail.
   try {
     await pool.query(
       `INSERT INTO bookings (property_id, date_check_in, date_check_out, agreed_price_cents, status)
-       SELECT id, DATE '2026-07-12', DATE '2026-07-15', 10000, 'confirmed'
+       SELECT id, DATE '2026-04-03', DATE '2026-04-06', 10000, 'confirmed'
          FROM properties WHERE slug = 'levante'`,
     );
     console.log('✗ overlap was NOT blocked (constraint missing)');
