@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
 import CancelBookingForm from '@/components/admin/CancelBookingForm';
+import { markCashReceived, refundStripePayment } from '@/actions/payments';
 import { getBookingById, listBookingEvents } from '@/lib/bookings';
 import { listPaymentsForBooking } from '@/lib/payments';
 
@@ -138,22 +139,62 @@ export default async function AdminBookingDetailPage({
               <thead>
                 <tr className="bg-slate-50 text-[10px] font-mono uppercase tracking-widest text-slate-400">
                   <th className="text-left px-4 py-2">Type</th>
-                  <th className="text-left px-4 py-2">Cash</th>
+                  <th className="text-left px-4 py-2">Method</th>
+                  <th className="text-left px-4 py-2">Status</th>
                   <th className="text-right px-4 py-2">Amount</th>
                   <th className="text-right px-4 py-2">Refunded</th>
                   <th className="text-right px-4 py-2">When</th>
+                  <th className="text-right px-4 py-2">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-50">
-                    <td className="px-4 py-2 font-mono text-[12px]">{p.type}</td>
-                    <td className="px-4 py-2 text-slate-500">{p.cash ? 'yes' : 'no'}</td>
-                    <td className="px-4 py-2 text-right font-mono tabular-nums">{eur(p.amount_cents)}</td>
-                    <td className="px-4 py-2 text-right font-mono tabular-nums text-rose-700">{p.refunded_cents > 0 ? `−${eur(p.refunded_cents)}` : '—'}</td>
-                    <td className="px-4 py-2 text-right text-[11px] font-mono text-slate-400">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
-                  </tr>
-                ))}
+                {payments.map((p) => {
+                  const stripeUrl = p.method === 'stripe' && p.stripe_payment_intent
+                    ? `https://dashboard.stripe.com/test/payments/${p.stripe_payment_intent}`
+                    : null;
+                  return (
+                    <tr key={p.id} className="border-t border-slate-50">
+                      <td className="px-4 py-2 font-mono text-[12px]">{p.type}</td>
+                      <td className="px-4 py-2">
+                        {p.method === 'stripe' && stripeUrl ? (
+                          <a href={stripeUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] bg-violet-50 text-violet-800 ring-1 ring-violet-200">
+                            stripe <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] bg-amber-50 text-amber-800 ring-1 ring-amber-200">cash</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] ring-1 ${
+                          p.status === 'succeeded' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                          : p.status === 'pending' ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                          : 'bg-rose-50 text-rose-700 ring-rose-200'
+                        }`}>{p.status}</span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{eur(p.amount_cents)}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums text-rose-700">{p.refunded_cents > 0 ? `−${eur(p.refunded_cents)}` : '—'}</td>
+                      <td className="px-4 py-2 text-right text-[11px] font-mono text-slate-400">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
+                      <td className="px-4 py-2 text-right">
+                        {p.method === 'cash' && p.status === 'pending' && (
+                          <form action={markCashReceived} className="inline-flex">
+                            <input type="hidden" name="payment_id" value={p.id} />
+                            <button type="submit" className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest rounded bg-emerald-600 text-white hover:bg-emerald-700 transition">
+                              Mark received
+                            </button>
+                          </form>
+                        )}
+                        {p.method === 'stripe' && p.status === 'succeeded' && p.amount_cents > p.refunded_cents && (
+                          <form action={refundStripePayment} className="inline-flex">
+                            <input type="hidden" name="payment_id" value={p.id} />
+                            <button type="submit" className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest rounded bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 transition">
+                              Refund full
+                            </button>
+                          </form>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
