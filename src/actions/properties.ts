@@ -16,18 +16,6 @@ function int(form: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function bool(form: FormData, key: string): boolean {
-  return form.get(key) === 'on' || form.get(key) === 'true';
-}
-
-function monthsFromForm(form: FormData): number[] {
-  const out: number[] = [];
-  for (const m of MONTHS) {
-    if (form.get(`month_${m}`) === 'on') out.push(m);
-  }
-  return out;
-}
-
 function featuresFromForm(form: FormData): string[] {
   const raw = form.get('features');
   if (typeof raw !== 'string') return [];
@@ -85,55 +73,31 @@ export async function updateProperty(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// upsertRate — create a new rate or update an existing one. delete is separate.
+// updatePropertyRates — admin sets the per-night rate for each calendar
+// month, in EUR cents. The form posts twelve `rate_<month>_eur` fields
+// (Jan-Dec). Validation: every month required, non-negative integer; we
+// rebuild the JSONB object from scratch and write it. The Postgres CHECK on
+// `properties.rates` will also reject anything missing a month — the
+// validation here is just for nicer error messages.
+// ---------------------------------------------------------------------------
 
-export async function upsertRate(formData: FormData): Promise<void> {
+export async function updatePropertyRates(formData: FormData): Promise<void> {
   const slug = str(formData, 'slug');
-  const rateId = str(formData, 'rate_id'); // null for create
-  const name = str(formData, 'name');
-  const active = bool(formData, 'active');
-  const isPublic = bool(formData, 'public');
-  const min_nights = int(formData, 'min_nights');
-  const night_rate_eur = int(formData, 'night_rate_eur');
-  const months = monthsFromForm(formData) as Month[];
-
   if (!slug) throw new Error('slug missing');
-  if (!name) throw new Error('rate name required');
-  if (min_nights == null || min_nights <= 0) throw new Error('min_nights must be > 0');
-  if (night_rate_eur == null || night_rate_eur < 0) throw new Error('night rate must be ≥ 0');
-  if (months.length === 0) throw new Error('select at least one month');
 
-  const propRows = await pool.query<{ id: string }>(
-    `SELECT id::text FROM properties WHERE slug = $1`,
-    [slug],
-  );
-  const propertyId = propRows.rows[0]?.id;
-  if (!propertyId) throw new Error(`property ${slug} not found`);
-
-  const night_rate_cents = night_rate_eur * 100;
-
-  if (rateId) {
-    await pool.query(
-      `UPDATE property_rates
-       SET name = $1, active = $2, public = $3, min_nights = $4, months = $5::int[], night_rate_cents = $6
-       WHERE id = $7 AND property_id = $8`,
-      [name, active, isPublic, min_nights, months, night_rate_cents, rateId, propertyId],
-    );
-  } else {
-    await pool.query(
-      `INSERT INTO property_rates (property_id, name, active, public, min_nights, months, night_rate_cents)
-       VALUES ($1, $2, $3, $4, $5, $6::int[], $7)`,
-      [propertyId, name, active, isPublic, min_nights, months, night_rate_cents],
-    );
+  const rates: Record<string, number> = {};
+  for (const m of MONTHS as readonly Month[]) {
+    const eur = int(formData, `rate_${m}_eur`);
+    if (eur == null || eur < 0) {
+      throw new Error(`Rate for month ${m} must be a non-negative integer.`);
+    }
+    rates[String(m)] = eur * 100;
   }
 
-  revalidateForSlug(slug);
-}
+  await pool.query(
+    `UPDATE properties SET rates = $1::jsonb WHERE slug = $2`,
+    [JSON.stringify(rates), slug],
+  );
 
-export async function deleteRate(formData: FormData): Promise<void> {
-  const slug = str(formData, 'slug');
-  const rateId = str(formData, 'rate_id');
-  if (!slug || !rateId) throw new Error('slug + rate_id required');
-  await pool.query(`DELETE FROM property_rates WHERE id = $1`, [rateId]);
   revalidateForSlug(slug);
 }

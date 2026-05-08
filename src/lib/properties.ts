@@ -1,5 +1,11 @@
 import 'server-only';
 import { sql } from '@db/client';
+import type { Month } from '@db/enums';
+
+// All twelve months must be present in properties.rates. The CHECK
+// constraint enforces this in SQL; the helpers below assume it holds and
+// return the typed shape unconditionally.
+export type RatesByMonth = Record<Month, number>;
 
 export type Property = {
   id: string;
@@ -13,21 +19,16 @@ export type Property = {
   max_guests: number;
   /** Default cleaning fee for new bookings on this property. Goes to Tano. */
   cleaning_fee_cents: number;
-};
-
-export type PropertyRate = {
-  id: string;
-  name: string;
-  active: boolean;
-  public: boolean;
-  min_nights: number;
-  months: number[];
-  night_rate_cents: number;
+  /**
+   * Per-night rate for each calendar month, in EUR cents. Keys '1'..'12'.
+   * computeQuote multiplies `rates[checkInMonth]` by nights — no min-nights,
+   * no active/public flag, no separate rate rows. See docs/rates.md.
+   */
+  rates: RatesByMonth;
 };
 
 export type PropertyDetails = {
   property: Property;
-  rates: PropertyRate[];
 };
 
 export type PropertyStats = {
@@ -91,7 +92,8 @@ export async function listPropertyStats(): Promise<PropertyStats[]> {
 const PROPERTY_SELECT = `
   id::text, slug, title, description, features,
   bedrooms, bathrooms, m2, max_guests,
-  cleaning_fee_cents::int AS cleaning_fee_cents
+  cleaning_fee_cents::int AS cleaning_fee_cents,
+  rates
 `;
 
 export async function listProperties(): Promise<Property[]> {
@@ -105,14 +107,5 @@ export async function getPropertyBySlug(slug: string): Promise<PropertyDetails |
   );
   const property = props[0];
   if (!property) return null;
-
-  const rates = await sql<PropertyRate>(
-    `SELECT id::text, name, active, public, min_nights, months, night_rate_cents::int
-     FROM property_rates
-     WHERE property_id = $1
-     ORDER BY active DESC, min_nights DESC, night_rate_cents ASC`,
-    [property.id],
-  );
-
-  return { property, rates };
+  return { property };
 }

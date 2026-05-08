@@ -248,14 +248,21 @@ export async function listRecentBookingEvents(limit = 10) {
 }
 
 // ---------------------------------------------------------------------------
-// Pricing — implements the rate-selection algorithm from docs/rates.md.
-// Returns the chosen rate row + price components. The components are then
-// snapshotted onto the booking row at request time (snapshots principle).
+// Pricing — one row in `properties.rates` JSONB carries the night rate for
+// each calendar month. computeQuote picks `rates[<check-in month>]` and
+// multiplies by nights. Cleaning fee comes from the same row. See docs/rates.md.
+//
+// No min-nights, no active/public flag, no separate rate rows. If admin
+// wants a one-off custom price for friends, they use /admin/invite which
+// snapshots a different price onto the booking — properties.rates is never
+// edited per-booking.
 
 export type Quote = {
-  rate_id: string;
-  rate_name: string;
+  /** Convenience copy of the month's rate from properties.rates. */
   night_rate_cents: number;
+  /** Calendar month (1-12) used for rate lookup — month of check-in. */
+  rate_month: number;
+  rate_month_label: string;
   nights: number;
   /** Goes to David. */
   agreed_property_cents: number;
@@ -269,7 +276,6 @@ export async function computeQuote(args: {
   propertyId: string;
   check_in: string;   // YYYY-MM-DD
   check_out: string;  // YYYY-MM-DD
-  isInvitation?: boolean;
 }): Promise<Quote | { error: string }> {
   const nights =
     Math.round(
@@ -283,41 +289,29 @@ export async function computeQuote(args: {
     return { error: 'invalid check_in date' };
   }
 
-  const rates = await sql<{
-    id: string;
-    name: string;
-    min_nights: number;
-    night_rate_cents: number;
+  const props = await sql<{
+    cleaning_fee_cents: number;
+    rates: Record<string, number>;
   }>(
-    `SELECT id::text, name, min_nights, night_rate_cents::int
-     FROM property_rates
-     WHERE property_id = $1
-       AND active = TRUE
-       AND $2 = ANY(months)
-       AND $3 >= min_nights
-       AND (public = TRUE OR $4)
-     ORDER BY min_nights DESC, night_rate_cents ASC
-     LIMIT 1`,
-    [args.propertyId, monthIn, nights, args.isInvitation ?? false],
-  );
-
-  const rate = rates[0];
-  if (!rate) {
-    return { error: 'No rate matches these dates and stay length. Ask the host for a quote.' };
-  }
-
-  // Cleaning fee is now a column on properties (snapshot at quote time).
-  const props = await sql<{ cleaning_fee_cents: number }>(
-    `SELECT cleaning_fee_cents::int AS cleaning_fee_cents FROM properties WHERE id = $1`,
+    `SELECT cleaning_fee_cents::int AS cleaning_fee_cents, rates
+     FROM properties WHERE id = $1`,
     [args.propertyId],
   );
-  const agreed_cleaning_cents = props[0]?.cleaning_fee_cents ?? 0;
-  const agreed_property_cents = nights * rate.night_rate_cents;
+  const property = props[0];
+  if (!property) return { error: `Unknown property: ${args.propertyId}` };
+
+  const night_rate_cents = property.rates?.[String(monthIn)];
+  if (typeof night_rate_cents !== 'number') {
+    return { error: `No rate configured for month ${monthIn}.` };
+  }
+
+  const agreed_property_cents = nights * night_rate_cents;
+  const agreed_cleaning_cents = property.cleaning_fee_cents ?? 0;
 
   return {
-    rate_id: rate.id,
-    rate_name: rate.name,
-    night_rate_cents: rate.night_rate_cents,
+    night_rate_cents,
+    rate_month: monthIn,
+    rate_month_label: ['', 'January','February','March','April','May','June','July','August','September','October','November','December'][monthIn] ?? '',
     nights,
     agreed_property_cents,
     agreed_cleaning_cents,

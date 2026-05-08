@@ -45,8 +45,9 @@ function normaliseEmail(raw: string | null): string | null {
 
 // ---------------------------------------------------------------------------
 // previewInviteQuote — for the admin form's "default" column.
-// Returns either the would-be Quote or an error if no rate matches.
-// `isInvitation:true` so non-public rates (e.g. long-stay friends) are eligible.
+// Returns either the would-be Quote or an error if no rate is configured for
+// the check-in month. The rate engine is now just a JSONB lookup — there's
+// no public/private split, so no flag is needed here.
 // ---------------------------------------------------------------------------
 
 export async function previewInviteQuote(args: {
@@ -65,7 +66,6 @@ export async function previewInviteQuote(args: {
     propertyId: property.id,
     check_in: args.check_in,
     check_out: args.check_out,
-    isInvitation: true,
   });
   if ('error' in quote) return { ok: false, error: quote.error };
   return { ok: true, quote };
@@ -194,8 +194,7 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
       const def = await computeQuote({
         propertyId: property.id,
         check_in, check_out,
-        isInvitation: true,
-      });
+          });
       if (!('error' in def)) {
         defaultPropertyCents = def.agreed_property_cents;
         defaultCleaningCents = def.agreed_cleaning_cents;

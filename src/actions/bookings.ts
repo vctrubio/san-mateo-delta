@@ -130,8 +130,8 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
       [
         bookingId,
         JSON.stringify({
-          rate_id: quote.rate_id,
-          rate_name: quote.rate_name,
+          rate_month: quote.rate_month,
+          rate_month_label: quote.rate_month_label,
           nights: quote.nights,
           night_rate_cents: quote.night_rate_cents,
           agreed_property_cents: quote.agreed_property_cents,
