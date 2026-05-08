@@ -146,6 +146,7 @@ async function clearBookingData() {
   // Cascades to booking_invitations, booking_service_fees, booking_payments,
   // payment_refunds, and booking_events via FK ON DELETE CASCADE.
   await pool.query(`TRUNCATE bookings RESTART IDENTITY CASCADE`);
+  await pool.query(`TRUNCATE property_blocks RESTART IDENTITY CASCADE`);
 }
 
 async function seedUsers(): Promise<Record<UserKey, string>> {
@@ -192,7 +193,7 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
     ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };
 
     // Two seasonal rates per property. Low Season = everything except Jun/Jul/Aug;
-    // High Season = Jun/Jul/Aug. See db/rates.md for the selection algorithm.
+    // High Season = Jun/Jul/Aug. See docs/rates.md for the selection algorithm.
     const seasons = [
       { name: 'Low Season',  months: [...LOW_SEASON_MONTHS],  night_rate_cents: p.low_cents  },
       { name: 'High Season', months: [...HIGH_SEASON_MONTHS], night_rate_cents: p.high_cents },
@@ -341,11 +342,40 @@ async function seedBookings(
   console.log(`✓ seeded ${BOOKINGS.length} bookings`);
 }
 
+type BlockSeed = {
+  property: PropertySeed['slug'];
+  in: string;
+  out: string;
+  reason: string;
+};
+
+const BLOCKS: BlockSeed[] = [
+  // A future owner stay so /finca/levante shows real "blocked" cells on the public calendar.
+  { property: 'levante', in: '2026-08-01', out: '2026-08-08', reason: 'Owner family stay' },
+  // Maintenance window on Marea, a different month for visual variety on the admin calendar.
+  { property: 'marea',   in: '2026-06-15', out: '2026-06-22', reason: 'Roof maintenance' },
+  // Short close-out on Cala bridging into seeded checked_in dates.
+  { property: 'cala',    in: '2026-07-10', out: '2026-07-13', reason: 'Pool resurfacing' },
+];
+
+async function seedBlocks(propertyIds: Record<string, SeededProperty>) {
+  for (const b of BLOCKS) {
+    const prop = propertyIds[b.property];
+    await pool.query(
+      `INSERT INTO property_blocks (property_id, date_check_in, date_check_out, reason)
+       VALUES ($1, $2::date, $3::date, $4)`,
+      [prop.id, b.in, b.out, b.reason],
+    );
+  }
+  console.log(`✓ seeded ${BLOCKS.length} property_blocks`);
+}
+
 async function main() {
   await clearBookingData();
   const userIds = await seedUsers();
   const propertyIds = await seedProperties();
   await seedBookings(propertyIds, userIds);
+  await seedBlocks(propertyIds);
   console.log('✓ seed complete');
 }
 

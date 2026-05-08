@@ -74,13 +74,13 @@ CREATE TABLE properties (
   max_guests         INT         NOT NULL CHECK (max_guests > 0),
   -- Default cleaning fee for new bookings; goes to Tano (the cleaner). Snapshotted
   -- onto bookings.agreed_cleaning_cents at request time so changes here never
-  -- alter past bookings. See db/refund.md and the snapshots principle.
+  -- alter past bookings. See docs/refund.md and the snapshots principle.
   cleaning_fee_cents BIGINT      NOT NULL DEFAULT 0 CHECK (cleaning_fee_cents >= 0),
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Pricing architecture: see db/rates.md
+-- Pricing architecture: see docs/rates.md
 CREATE TABLE property_rates (
   id                BIGSERIAL PRIMARY KEY,
   property_id       BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -135,6 +135,35 @@ ALTER TABLE bookings ADD CONSTRAINT no_overlap_when_held EXCLUDE USING gist (
   daterange(date_check_in, date_check_out, '[)') WITH &&
 ) WHERE (status IN ('confirmed', 'checked_in', 'checked_out'));
 
+-- ============================================================================
+-- PROPERTY BLOCKS
+-- ============================================================================
+-- Admin-imposed unavailability ranges that aren't bookings. Examples: owner stays,
+-- maintenance, listing pause. These are NOT bookings — no money, no user, no
+-- lifecycle. They're a separate "this property is closed" signal.
+--
+-- Block ↔ block overlap: rejected by the gist exclusion constraint below.
+-- Block ↔ held-booking overlap: enforced in the action layer (src/actions/blocks.ts)
+-- because Postgres can't enforce exclusion across two tables. createBlock runs a
+-- SELECT … FOR UPDATE against bookings in confirmed/checked_in/checked_out
+-- statuses inside a tx and throws a user-readable conflict message.
+
+CREATE TABLE property_blocks (
+  id              BIGSERIAL   PRIMARY KEY,
+  property_id     BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  date_check_in   DATE        NOT NULL,
+  date_check_out  DATE        NOT NULL,
+  reason          TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (date_check_out > date_check_in),
+  EXCLUDE USING gist (
+    property_id WITH =,
+    daterange(date_check_in, date_check_out, '[)') WITH &&
+  )
+);
+
+CREATE INDEX idx_property_blocks_property_dates ON property_blocks(property_id, date_check_in, date_check_out);
+
 CREATE TABLE booking_invitations (
   id                BIGSERIAL   PRIMARY KEY,
   booking_id        BIGINT      NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
@@ -162,7 +191,7 @@ CREATE INDEX idx_booking_service_fees_booking ON booking_service_fees(booking_id
 -- BOOKING CANCELLATIONS
 -- ============================================================================
 -- One row per cancelled booking. Records who cancelled, why, what refund the
--- policy entitled the guest to (computed at cancellation time per db/refund.md).
+-- policy entitled the guest to (computed at cancellation time per docs/refund.md).
 -- The actual money movement is in payment_refunds (linked to the original
 -- booking_payments row). Compare booking_cancellations.refund_amount_cents to
 -- SUM(payment_refunds.amount_cents) for this booking to see if the refund is

@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS booking_payments       CASCADE;
 DROP TABLE IF EXISTS booking_cancellations  CASCADE;
 DROP TABLE IF EXISTS booking_service_fees   CASCADE;
 DROP TABLE IF EXISTS booking_invitations    CASCADE;
+DROP TABLE IF EXISTS property_blocks        CASCADE;
 DROP TABLE IF EXISTS bookings               CASCADE;
 -- Legacy: cleaning fee folded into properties.cleaning_fee_cents column.
 DROP TABLE IF EXISTS property_cleaning_fee  CASCADE;
