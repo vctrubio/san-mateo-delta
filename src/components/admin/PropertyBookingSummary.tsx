@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import StatusBadge from '@/components/admin/StatusBadge';
+import { fmtDateRange } from '@/lib/dates';
 import type { BookingRow } from '@/lib/bookings';
 
 function eur(cents: number) {
@@ -44,8 +45,8 @@ export default function PropertyBookingSummary({
                 >
                   <span className="font-mono text-[10px] text-slate-400">#{b.id}</span>
                   <StatusBadge status={b.status} />
-                  <span className="font-mono text-[12px] text-slate-600 flex-1">
-                    {b.date_check_in} → {b.date_check_out}
+                  <span className="text-[12px] text-slate-600 flex-1">
+                    {fmtDateRange(b.date_check_in, b.date_check_out)}
                   </span>
                   <span className="text-slate-700 text-[12px]">{b.user_name ?? <span className="italic text-slate-400">no user</span>}</span>
                   <span className="font-mono tabular-nums text-[12px] text-slate-900">{eur(b.agreed_total_cents)}</span>

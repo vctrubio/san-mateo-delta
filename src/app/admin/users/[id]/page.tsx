@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { getUserById } from '@/lib/users';
 import { listBookingsForUser } from '@/lib/bookings';
-import { fmtDate } from '@/lib/dates';
+import { fmtDate, fmtDateRange } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +55,7 @@ export default async function AdminUserDetailPage({
                 <span className="font-mono text-[11px] text-slate-400">#{b.id}</span>
                 <StatusBadge status={b.status} />
                 <span className="text-slate-700 font-bold uppercase">{b.property_slug}</span>
-                <span className="font-mono text-[12px] text-slate-500">{b.date_check_in} → {b.date_check_out}</span>
+                <span className="text-[12px] text-slate-500">{fmtDateRange(b.date_check_in, b.date_check_out)}</span>
               </Link>
               <div className="font-mono tabular-nums text-sm">
                 <span className="text-slate-900">{eur(b.agreed_total_cents)}</span>

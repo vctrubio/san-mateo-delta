@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Inbox, Check, ArrowRight } from 'lucide-react';
 import { funnelStats, pendingRequests } from '@/lib/dashboard';
 import { BOOKING_STATUS_STYLES } from '@/lib/colors';
-import { fmtDate } from '@/lib/dates';
+import { fmtDateRange } from '@/lib/dates';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 
 // ============================================================================
@@ -75,8 +75,8 @@ export default async function PipelinePanel() {
                     >
                       {b.user_name ?? <span className="italic text-slate-400">no user</span>}
                     </Link>
-                    <div className="text-[10px] font-mono text-slate-400 truncate">
-                      {b.property_slug} · {fmtDate(b.date_check_in)} → {fmtDate(b.date_check_out)}
+                    <div className="text-[10px] text-slate-400 truncate">
+                      {b.property_slug} · {fmtDateRange(b.date_check_in, b.date_check_out)}
                     </div>
                   </div>
                 </div>
