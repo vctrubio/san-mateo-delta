@@ -6,6 +6,7 @@ import DebugE2EPanel from '@/components/debug/DebugE2EPanel';
 import DebugRefundPanel from '@/components/debug/DebugRefundPanel';
 import DebugAdminPanel from '@/components/debug/DebugAdminPanel';
 import DebugStripePanel from '@/components/debug/DebugStripePanel';
+import DebugInvitationsPanel from '@/components/debug/DebugInvitationsPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export default function DebugPage() {
     <main>
       <DebugE2EPanel />
       <DebugStripePanel />
+      <DebugInvitationsPanel />
       <DebugColorPanel />
       <DebugFincaPanel />
       <DebugSchemaPanel />
