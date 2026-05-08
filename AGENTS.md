@@ -25,6 +25,7 @@ docs/                      # design + architecture docs (all markdown lives here
   rates.md                 # pricing architecture + rate-selection algorithm
   refund.md                # cancellation-refund policy + tier logic
   stripe.md                # payment methods, webhooks, lifecycle, test cards
+  ics.md                   # /api/bookings/[id]/ical — calendar export format
 ```
 
 Rules:
@@ -49,7 +50,7 @@ db/
   fullseason.ts / seed_fullseason.ts  # bun script: ~year of populated demo data
 ```
 
-Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`, `docs/stripe.md`.
+Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`, `docs/stripe.md`, `docs/ics.md`.
 
 Scripts:
 - `bun db:init`  — wipe + reapply schema + seed (use this 99% of the time during iteration)
