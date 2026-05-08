@@ -7,8 +7,8 @@ Admin-issued bookings priced manually for friends &amp; family. Lives at
 ## Why it's not just "a regular booking with a custom price"
 
 A normal booking — `requestBooking` from `/finca/[slug]` — runs `computeQuote`
-to pick a `property_rates` row by month + min-nights and snapshot the result
-onto the booking. The rate engine is the source of truth.
+which reads `properties.rates[<check-in month>]` and multiplies by nights.
+The rate engine is the source of truth.
 
 An invitation says **"I'm bypassing the rate engine for this guest."** The
 admin types two numbers (property fee + cleaning fee), and those go straight
@@ -74,8 +74,8 @@ admin types form          createInvitation()
 2. Pick property → calendar swaps to that property's items (admin mode shows
    held bookings + blocks).
 3. Click two days. Form recomputes the default quote via
-   `previewInviteQuote` (calls `computeQuote` with `isInvitation: true`,
-   so non-public rates like Long-Stay are eligible).
+   `previewInviteQuote` (a thin wrapper around `computeQuote` —
+   the rate engine is now just a JSONB lookup).
 4. Type the invitee's email. If it matches an existing user, the name field
    auto-fills via `<datalist>` autocomplete.
 5. Override property fee + cleaning fee. Diff strip turns green for a
@@ -101,7 +101,7 @@ Not yet built. The endpoint should:
 
 - **Custom snapshot, not recalculation.** The `agreed_*_cents` on an
   invitation booking are frozen at creation time. Editing
-  `properties.cleaning_fee_cents` or `property_rates` later does *not*
+  `properties.cleaning_fee_cents` or `properties.rates` later does *not*
   change the invitation's totals. Same snapshots principle as regular
   bookings — see `memory/snapshots_principle.md`.
 - **Cross-status overlap protection.** The `bookings` table's exclusion

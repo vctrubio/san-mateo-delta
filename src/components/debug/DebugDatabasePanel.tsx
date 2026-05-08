@@ -21,7 +21,6 @@ type BookingRow = {
 const TABLES = [
   'users',
   'properties',
-  'property_rates',
   'bookings',
   'booking_invitations',
   'booking_service_fees',

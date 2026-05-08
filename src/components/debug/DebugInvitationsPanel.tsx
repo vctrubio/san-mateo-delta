@@ -67,8 +67,8 @@ function Story() {
         <li>
           A regular booking comes from <code className="font-mono">requestBooking</code> on{' '}
           <code className="font-mono">/finca/[slug]</code> — the guest fills the form, prices come
-          from <code className="font-mono">computeQuote</code> against{' '}
-          <code className="font-mono">property_rates</code>, status starts as{' '}
+          from <code className="font-mono">computeQuote</code> which reads{' '}
+          <code className="font-mono">properties.rates[month]</code>, status starts as{' '}
           <code className="font-mono">request</code>.
         </li>
         <li>

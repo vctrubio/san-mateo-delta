@@ -51,7 +51,7 @@ const TABLES: Table[] = [
   {
     name: 'properties',
     domain: 'property',
-    summary: 'The four units inside Finca San Mateo. Characteristics + cleaning fee inlined.',
+    summary: 'The four units inside Finca San Mateo. Characteristics, cleaning fee, and per-month night rates inlined.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'slug', type: 'TEXT', unique: true },
@@ -63,21 +63,7 @@ const TABLES: Table[] = [
       { name: 'm2', type: 'INT' },
       { name: 'max_guests', type: 'INT' },
       { name: 'cleaning_fee_cents', type: 'BIGINT', note: 'default for new bookings — goes to Tano' },
-    ],
-  },
-  {
-    name: 'property_rates',
-    domain: 'property',
-    summary: 'Per-night pricing. Selected at quote time by month + min_nights. See docs/rates.md.',
-    columns: [
-      { name: 'id', type: 'BIGSERIAL', pk: true },
-      { name: 'property_id', type: 'BIGINT', fk: 'properties.id' },
-      { name: 'name', type: 'TEXT', note: 'Low Season / High Season / Long-Stay …' },
-      { name: 'active', type: 'BOOLEAN' },
-      { name: 'public', type: 'BOOLEAN', note: 'false = invite-only' },
-      { name: 'min_nights', type: 'INT', note: 'minimum stay required to qualify' },
-      { name: 'months', type: 'INT[]', note: 'months 1-12 when this rate applies' },
-      { name: 'night_rate_cents', type: 'BIGINT' },
+      { name: 'rates', type: 'JSONB', note: '€ cents per night by month, keys "1"-"12"; CHECK enforces all 12. See docs/rates.md.' },
     ],
   },
   {
@@ -364,7 +350,7 @@ function StatusPalette() {
 
 function RelationsLegend() {
   const groups: Record<string, string[]> = {
-    'properties → ': ['property_rates', 'property_blocks'],
+    'properties → ': ['property_blocks'],
     'bookings → ': ['booking_invitations', 'booking_service_fees', 'booking_cancellations', 'booking_payments', 'booking_events'],
     'booking_payments → ': ['payment_refunds'],
     'users → ': ['bookings.user_id', 'booking_invitations.accepted_user_id'],

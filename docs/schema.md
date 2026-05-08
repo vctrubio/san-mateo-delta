@@ -6,7 +6,7 @@ this file is a map.
 
 ## Shape at a glance
 
-- **11 tables**, **5 enums**, **2 exclusion constraints** (one per table that
+- **10 tables**, **5 enums**, **2 exclusion constraints** (one per table that
   reserves dates).
 - **All amounts are EUR cents** stored as `BIGINT`. Never add a `currency`
   column.
@@ -25,9 +25,9 @@ this file is a map.
 ```
 identity   ─ users
                 │  (FK: bookings.user_id, booking_invitations.accepted_user_id)
-property   ─ properties ─┬─ property_rates       (FK property_id)
-                         └─ property_blocks      (FK property_id)
+property   ─ properties ─── property_blocks      (FK property_id)
                                 │  not a booking; admin-imposed unavailability
+                                │  (per-month rates live inline in properties.rates JSONB)
 booking    ─ bookings ───┬─ booking_invitations    (1:1 if status=invite)
                          ├─ booking_service_fees   (extras: late_checkout…)
                          ├─ booking_cancellations  (1:1 if status=cancelled)
@@ -74,25 +74,16 @@ Marea, Cala) — admin can edit each but can't add or delete.
 Estate-wide amenities (Starlink, smart TV, etc.) live in [`finca.json`](../finca.json),
 not in this table.
 
-### `property_rates`
+### Per-night rates
 
-Per-night pricing per property. See [`docs/rates.md`](./rates.md) for the
-selection algorithm.
+Stored inline on `properties.rates` (JSONB), keyed by month number `'1'`
+through `'12'`, values in EUR cents. A `CHECK` constraint enforces all
+twelve keys are present. There is no separate `property_rates` table any
+more — and no `min_nights`, `active`, or `public` knob.
 
-| Column            | Type            | Notes                                 |
-| ----------------- | --------------- | ------------------------------------- |
-| `id`              | BIGSERIAL PK    |                                       |
-| `property_id`     | BIGINT FK → `properties.id` (CASCADE) |               |
-| `name`            | TEXT NOT NULL   | "Low Season" / "High Season" / …      |
-| `active`          | BOOLEAN         | Inactive rates never quote.           |
-| `public`          | BOOLEAN         | `false` = invite-only.                |
-| `min_nights`      | INT NOT NULL    | Minimum stay required to qualify.     |
-| `months`          | INT[] NOT NULL  | Months 1–12 when this rate applies.   |
-| `night_rate_cents`| BIGINT NOT NULL |                                       |
-
-Selection algorithm (in `lib/bookings.ts#computeQuote`): filter rates by
-month + min_nights + public, ORDER BY `min_nights DESC, night_rate_cents ASC`,
-take 1.
+`computeQuote` (in `lib/bookings.ts`) reads `property.rates[month-of-check-in]`
+and multiplies by nights. See [`docs/rates.md`](./rates.md) for the full
+algorithm and the rationale for dropping the multi-row model.
 
 ### `bookings`
 

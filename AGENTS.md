@@ -62,7 +62,7 @@ Rules:
 - All amounts are EUR cents stored as `BIGINT`. Never add a `currency` column.
 - Every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`. Mutable tables also have `updated_at` driven by the `set_updated_at` trigger.
 - Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`. Mirror the values in `db/enums.ts` so app code stays in lockstep — import lists and types from `@db/enums`, never hardcode them.
-- Pricing follows the model in `docs/rates.md`: rates live in `property_rates`, are selected by month + min_nights, and cleaning is a separate flat fee per booking. Read it before touching pricing code.
+- Pricing follows the model in `docs/rates.md`: per-night rates live inline on `properties.rates` as a JSONB object keyed by month `'1'..'12'`, validated by a `CHECK` constraint. `computeQuote` reads `rates[checkInMonth]` × nights. Cleaning is a separate flat fee per booking. There is no `property_rates` table, no `min_nights`, no public/private flag — custom prices for friends go through `/admin/invite`. Read `docs/rates.md` before touching pricing code.
 - All app code that hits the database imports from `@db/client` (the alias is wired in `tsconfig.json` to `./db/*`) — single Neon Pool, no other connection paths.
 - During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
 - The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.

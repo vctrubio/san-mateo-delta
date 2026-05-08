@@ -1,108 +1,88 @@
-# Property rates
+# Pricing
 
-How nightly pricing is modeled in `property_rates`.
+One row in `properties` carries everything pricing needs. There is no
+`property_rates` table.
 
-## TL;DR
-
-- A property has **N rate rows**.
-- Each row defines: *under which conditions* this price applies.
-- Conditions are: the months it covers, the minimum stay length, whether it's public.
-- The booking flow picks the **most specific** matching rate at quote time.
-- **Cleaning fee is separate** — it lives in `property_cleaning_fee` and is added once per booking, regardless of which rate applied.
-
-## Schema
+## The model
 
 ```sql
-property_rates (
-  id                BIGSERIAL,
-  property_id       BIGINT      → properties(id),
-  name              TEXT,        -- label only ('Low Season', 'High Season', 'Long-Stay Discount', …)
-  active            BOOLEAN,     -- soft on/off without deleting
-  public            BOOLEAN,     -- false = invite-only rate, hidden from the public site
-  min_nights        INT,         -- minimum stay required to qualify for this rate
-  months            INT[],       -- months 1-12 when this rate applies (subset, non-empty)
-  night_rate_cents  BIGINT       -- price per night, EUR cents
+properties.rates    JSONB  NOT NULL  -- { "1": cents, "2": cents, ..., "12": cents }
+properties.cleaning_fee_cents  BIGINT  NOT NULL  -- one flat fee per booking
+```
+
+`rates` is a JSON object keyed by month number, each value a per-night rate
+in EUR cents. A `CHECK` constraint enforces that all twelve keys (`'1'` …
+`'12'`) are present:
+
+```sql
+CHECK (
+  jsonb_typeof(rates) = 'object'
+  AND rates ?& array['1','2','3','4','5','6','7','8','9','10','11','12']
 )
 ```
 
-## Rate selection algorithm
+The admin form (`PropertyRateForm`) refuses to submit without all twelve
+populated, and rebuilds the JSON object on every save — there's no way to
+end up with a missing month from a normal code path.
 
-Given a candidate booking with `(property_id, check_in, nights, is_invitation)`:
+## Quote algorithm
 
-1. `WHERE property_id = ? AND active = true`
-2. `WHERE EXTRACT(MONTH FROM check_in) = ANY(months)`
-3. `WHERE nights >= min_nights`
-4. If the booking is **not** an invitation, also `WHERE public = true`. Invitations may use either.
-5. From survivors, pick the rate with the **highest `min_nights`** (most specific to this stay length).
-6. Tiebreak by lowest `night_rate_cents`.
-
-In SQL:
-
-```sql
-SELECT *
-FROM property_rates
-WHERE property_id = $1
-  AND active = TRUE
-  AND $2 = ANY(months)              -- check-in month
-  AND $3 >= min_nights              -- total nights
-  AND (public = TRUE OR $4)         -- $4 = is_invitation
-ORDER BY min_nights DESC, night_rate_cents ASC
-LIMIT 1;
+```ts
+nights              = check_out − check_in              // half-open
+month               = month-of(check_in)
+night_rate_cents    = property.rates[month]
+agreed_property_cents = nights × night_rate_cents
+agreed_cleaning_cents = property.cleaning_fee_cents
 ```
 
-## Worked examples (Levante)
+That's the whole thing. No `min_nights` filter, no `active` flag, no
+`public` vs invite-only distinction.
 
-Seeded rates:
+## What this trades away
 
-| name        | min_nights | months          | night_rate |
-|-------------|------------|-----------------|------------|
-| Low Season  | 2          | Jan-May, Sep-Dec | €350       |
-| High Season | 2          | Jun, Jul, Aug   | €480       |
+The previous model had a `property_rates` table with one row per (rate name,
+months[], min_nights, active, public) tuple. That gave it three knobs we no
+longer have:
 
-A host could later add (not seeded):
+| Old knob          | New equivalent                                          |
+| ----------------- | ------------------------------------------------------- |
+| **Long-Stay rate** with high `min_nights` | Custom snapshot via `/admin/invite` — admin overrides the property/cleaning fees per booking. |
+| **Public vs invite-only** rate            | Same path. Invitations carry whatever price admin types.       |
+| **Easter / Christmas one-off** rate       | Edit the relevant month's value, or use `/admin/invite` for a single booking. |
 
-| Long-Stay Low | 15 | Jan-May, Sep-Dec | €280 |
+The trade is deliberate: admin gets one number to set per month, plus a
+separate path (`/admin/invite`) for one-off custom prices. Easier to reason
+about, harder to misconfigure (a missing rate row used to silently fall
+through to "no quote available").
 
-Then:
+## Multi-month stays
 
-- 7 nights starting **Feb 14** → Low Season (€350/night). High Season excluded (wrong month). Long-Stay excluded (nights < 15).
-- 7 nights starting **Jul 14** → High Season (€480/night).
-- 21 nights starting **Mar 1** → Long-Stay Low (€280/night) wins by step 5 (higher `min_nights` than the regular Low Season rate).
-- 5 nights starting **Aug 30** (crosses into September) → High Season (€480/night). The rate is determined by the **check-in month only**; the September portion is not split-billed.
-- 1 night starting **Feb 14** → no rate matches (both seeded rates require `min_nights >= 2`). The booking flow must surface "ask for quote" or reject the request.
+The rate is picked from the **check-in month**, not weighted across the
+stay. A stay May 28 → June 3 uses the May rate for all 6 nights. If admin
+needs different behavior, they can issue an invitation with a custom price.
 
-## Booking total
+## Editing rates
 
-What the guest agreed to pay at booking time:
+Admin opens `/admin/properties/[slug]` and uses **PropertyRateForm**:
 
-```
-bookings.agreed_price_cents
-  = night_rate_cents × nights
-  + property_cleaning_fee.fee_cents (the active row for this property)
-  + Σ booking_service_fees.amount_cents   (extras added during the stay: late checkout, commission, …)
-```
+- 12 €/night inputs, one per calendar month
+- Two presets: **Flat rate** (apply to all 12) and **Low/High split**
+  (Jun-Aug at one rate, the rest at another — matches the seasonal default)
+- Submit → `updatePropertyRates` rebuilds the JSON and writes the column
+- The `CHECK` constraint also rejects anything malformed at the DB level
 
-What was actually collected is a separate concern, computed from the payments tables:
+Existing bookings keep their snapshot — `agreed_property_cents` is frozen
+on the booking row at request time and never recomputed. Only future
+bookings are affected by a rate change.
 
-```
-collected_cents
-  = Σ booking_payments.amount_cents
-  − Σ payment_refunds.amount_cents
-```
+## Reference
 
-`bookings.agreed_price_cents` is a **snapshot at booking time**. If a host changes a rate later, historical bookings keep the price they agreed to.
-
-## Adding a new rate
-
-1. Decide name, months, min_nights, night_rate_cents.
-2. Insert via SQL or admin tool. If it's a stable property of the estate (not a one-off promo), add it to `db/seed.ts` so `bun db:init` keeps it.
-3. Overlapping rates are allowed. The selection algorithm resolves which one wins per booking.
-4. To retire a rate, set `active = false` instead of deleting it — historical bookings already snapshotted their price into `agreed_price_cents`, but keeping the rate row preserves the audit trail.
-
-## Out of scope (today)
-
-- **Day-of-week pricing** (weekend vs weekday). If we ever need it, add a `days_of_week INT[]` column with the same selection idiom.
-- **Date ranges** finer than month buckets (e.g. "first two weeks of August"). Today, `months` is the only seasonality knob. Workaround: create a one-off rate row and disable it after the date range passes.
-- **Multi-currency**. Always EUR cents.
-- **Per-rate cleaning fees**. Cleaning is one row per property in `property_cleaning_fee`, independent of the rate.
-- **Auto-applied discounts beyond `min_nights`**. If you want "10% off if booked 60 days ahead", that lives in app code, not the rate table.
+| File                                                | What                                       |
+| --------------------------------------------------- | ------------------------------------------ |
+| `db/schema.sql` (properties.rates)                  | Column + CHECK + COMMENT                   |
+| `src/lib/properties.ts#RatesByMonth`                | Typed shape                                |
+| `src/lib/bookings.ts#computeQuote`                  | The 4-line algorithm                       |
+| `src/actions/properties.ts#updatePropertyRates`     | Validate + write the JSON                  |
+| `src/components/admin/PropertyRateForm.tsx`         | The 12-month grid + presets                |
+| `src/app/finca/[slug]/page.tsx#Pricing`             | Public-facing display, runs grouped by rate |
+| `docs/invitations.md`                               | The custom-price escape hatch              |
