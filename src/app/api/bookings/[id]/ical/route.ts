@@ -16,7 +16,6 @@ export const dynamic = 'force-dynamic';
 type Row = {
   id: string;
   property_slug: string;
-  property_title: string;
   check_in: string;
   check_out: string;
   user_name: string | null;
@@ -31,7 +30,6 @@ export async function GET(
   const rows = await sql<Row>(
     `SELECT b.id::text                  AS id,
             p.slug                       AS property_slug,
-            p.title                      AS property_title,
             b.date_check_in::text        AS check_in,
             b.date_check_out::text       AS check_out,
             u.name                       AS user_name

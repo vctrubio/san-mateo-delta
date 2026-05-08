@@ -98,7 +98,7 @@ export default async function AdminBookingDetailPage({
             </div>
           </div>
           {booking.cancellation_reason && (
-            <div className="mt-3 text-[12px] text-rose-900 italic">"{booking.cancellation_reason}"</div>
+            <div className="mt-3 text-[12px] text-rose-900 italic">&ldquo;{booking.cancellation_reason}&rdquo;</div>
           )}
         </section>
       )}

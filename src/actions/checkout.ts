@@ -47,8 +47,6 @@ export async function createCheckoutSession(
     id: string;
     status: string;
     user_email: string | null;
-    user_name: string | null;
-    property_title: string;
     property_slug: string;
     check_in: string;
     check_out: string;
@@ -58,8 +56,6 @@ export async function createCheckoutSession(
     `SELECT b.id::text                              AS id,
             b.status::text                          AS status,
             u.email                                 AS user_email,
-            u.name                                  AS user_name,
-            p.title                                 AS property_title,
             p.slug                                  AS property_slug,
             b.date_check_in::text                   AS check_in,
             b.date_check_out::text                  AS check_out,
