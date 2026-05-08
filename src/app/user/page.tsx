@@ -10,7 +10,8 @@ function eur(cents: number) {
 }
 
 export default async function UserIndexPage() {
-  const users = await listUsers();
+  // Show all users on the public list (high limit so we don't truncate at 25).
+  const { rows: users, total } = await listUsers({ limit: 200 });
   return (
     <main className="min-h-screen px-6 py-16 md:py-24">
       <div className="max-w-3xl mx-auto">
@@ -28,7 +29,7 @@ export default async function UserIndexPage() {
         </div>
 
         <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">
-          Existing users · {users.length}
+          Existing users · {total}
         </h2>
         <ul className="space-y-2">
           {users.map((u) => (

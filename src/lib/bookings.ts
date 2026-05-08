@@ -2,6 +2,7 @@ import 'server-only';
 import { sql } from '@db/client';
 import type { BookingStatus, CancelledBy, Month } from '@db/enums';
 import { HIGH_SEASON_MONTHS } from '@db/enums';
+import type { Paginated } from './searchParams';
 
 export type BookingRow = {
   id: string;
@@ -84,17 +85,76 @@ const BOOKING_SELECT = `
   ), 0)                                 AS refunded_cents
 `;
 
-export async function listBookings(): Promise<BookingRow[]> {
-  return sql<BookingRow>(`
-    SELECT ${BOOKING_SELECT}
+export type ListBookingsArgs = {
+  status?: BookingStatus[];
+  property?: string[];   // slugs
+  /** YYYY-MM-DD; filters `date_check_in >= from`. */
+  from?: string;
+  /** YYYY-MM-DD; filters `date_check_in <= to`. */
+  to?: string;
+  /** ILIKE on user name + email. */
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginated<BookingRow>> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  let p = 0;
+
+  if (args.status && args.status.length > 0) {
+    params.push(args.status);
+    where.push(`b.status::text = ANY($${++p}::text[])`);
+  }
+  if (args.property && args.property.length > 0) {
+    params.push(args.property);
+    where.push(`p.slug = ANY($${++p}::text[])`);
+  }
+  if (args.from) {
+    params.push(args.from);
+    where.push(`b.date_check_in >= $${++p}::date`);
+  }
+  if (args.to) {
+    params.push(args.to);
+    where.push(`b.date_check_in <= $${++p}::date`);
+  }
+  if (args.search) {
+    params.push(`%${args.search}%`);
+    where.push(`(u.name ILIKE $${++p} OR u.email ILIKE $${p})`);
+  }
+
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const limit = args.limit ?? 25;
+  const offset = args.offset ?? 0;
+  params.push(limit);
+  const limitParam = `$${++p}`;
+  params.push(offset);
+  const offsetParam = `$${++p}`;
+
+  // COUNT(*) OVER () returns the unfiltered-by-LIMIT total alongside the page.
+  const rows = await sql<BookingRow & { _total: number }>(
+    `
+    SELECT ${BOOKING_SELECT},
+      COUNT(*) OVER ()::int AS _total
     FROM bookings b
     JOIN properties p           ON p.id = b.property_id
     LEFT JOIN users u           ON u.id = b.user_id
     LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
+    ${whereClause}
     ORDER BY
       CASE b.status WHEN 'request' THEN 0 WHEN 'confirmed' THEN 1 WHEN 'checked_in' THEN 2 ELSE 3 END,
       b.created_at DESC
-  `);
+    LIMIT ${limitParam} OFFSET ${offsetParam}
+    `,
+    params as never[],
+  );
+
+  const total = rows[0]?._total ?? 0;
+  // Strip the synthetic _total column from the public type.
+  const cleaned: BookingRow[] = rows.map(({ _total, ...rest }) => rest);
+  return { rows: cleaned, total };
 }
 
 export async function listBookingsForUser(userId: string): Promise<BookingRow[]> {
@@ -188,7 +248,7 @@ export async function listRecentBookingEvents(limit = 10) {
 }
 
 // ---------------------------------------------------------------------------
-// Pricing — implements the rate-selection algorithm from db/rates.md.
+// Pricing — implements the rate-selection algorithm from docs/rates.md.
 // Returns the chosen rate row + price components. The components are then
 // snapshotted onto the booking row at request time (snapshots principle).
 

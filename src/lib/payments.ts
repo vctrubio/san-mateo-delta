@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from '@db/client';
 import type { PaymentType } from '@db/enums';
+import type { Paginated } from './searchParams';
 
 export type PaymentRow = {
   id: string;
@@ -15,29 +16,85 @@ export type PaymentRow = {
   refunded_cents: number;
 };
 
-export async function listPayments(): Promise<PaymentRow[]> {
-  return sql<PaymentRow>(`
-    SELECT
-      bp.id::text             AS id,
-      bp.booking_id::text     AS booking_id,
-      bp.type::text           AS type,
-      bp.amount_cents::int    AS amount_cents,
-      bp.cash                 AS cash,
-      bp.paid_at::text        AS paid_at,
-      p.slug                  AS property_slug,
-      u.name                  AS user_name,
-      u.email                 AS user_email,
-      COALESCE((
-        SELECT SUM(pr.amount_cents)::int
-        FROM payment_refunds pr
-        WHERE pr.payment_id = bp.id
-      ), 0)                   AS refunded_cents
+export type ListPaymentsArgs = {
+  type?: PaymentType[];
+  property?: string[];
+  refund_only?: boolean;
+  /** YYYY-MM-DD on `paid_at`. */
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+};
+
+const PAYMENT_SELECT = `
+  bp.id::text             AS id,
+  bp.booking_id::text     AS booking_id,
+  bp.type::text           AS type,
+  bp.amount_cents::int    AS amount_cents,
+  bp.cash                 AS cash,
+  bp.paid_at::text        AS paid_at,
+  p.slug                  AS property_slug,
+  u.name                  AS user_name,
+  u.email                 AS user_email,
+  COALESCE((
+    SELECT SUM(pr.amount_cents)::int
+    FROM payment_refunds pr
+    WHERE pr.payment_id = bp.id
+  ), 0)                   AS refunded_cents
+`;
+
+export async function listPayments(args: ListPaymentsArgs = {}): Promise<Paginated<PaymentRow>> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  let p = 0;
+
+  if (args.type && args.type.length > 0) {
+    params.push(args.type);
+    where.push(`bp.type::text = ANY($${++p}::text[])`);
+  }
+  if (args.property && args.property.length > 0) {
+    params.push(args.property);
+    where.push(`p.slug = ANY($${++p}::text[])`);
+  }
+  if (args.refund_only) {
+    where.push(`EXISTS (SELECT 1 FROM payment_refunds pr WHERE pr.payment_id = bp.id)`);
+  }
+  if (args.from) {
+    params.push(args.from);
+    where.push(`bp.paid_at >= $${++p}::date`);
+  }
+  if (args.to) {
+    params.push(args.to);
+    where.push(`bp.paid_at <= $${++p}::date + INTERVAL '1 day'`);
+  }
+
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limit = args.limit ?? 25;
+  const offset = args.offset ?? 0;
+  params.push(limit);
+  const limitParam = `$${++p}`;
+  params.push(offset);
+  const offsetParam = `$${++p}`;
+
+  const rows = await sql<PaymentRow & { _total: number }>(
+    `
+    SELECT ${PAYMENT_SELECT},
+      COUNT(*) OVER ()::int AS _total
     FROM booking_payments bp
     JOIN bookings b    ON b.id = bp.booking_id
     JOIN properties p  ON p.id = b.property_id
     LEFT JOIN users u  ON u.id = b.user_id
+    ${whereClause}
     ORDER BY bp.paid_at DESC, bp.id DESC
-  `);
+    LIMIT ${limitParam} OFFSET ${offsetParam}
+    `,
+    params as never[],
+  );
+
+  const total = rows[0]?._total ?? 0;
+  const cleaned: PaymentRow[] = rows.map(({ _total, ...rest }) => rest);
+  return { rows: cleaned, total };
 }
 
 export async function listPaymentsForBooking(bookingId: string) {
