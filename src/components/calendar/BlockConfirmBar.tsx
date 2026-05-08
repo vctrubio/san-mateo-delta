@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { CalendarX, Loader2 } from 'lucide-react';
 import { createBlock } from '@/actions/blocks';
 import { differenceInDays, ymd } from './dateUtils';
+import { fmtDateRange } from '@/lib/dates';
 
 // Appears at the bottom of the admin calendar once the host has selected a
 // valid (no held overlaps) date range. Two-click flow per the design:
@@ -50,7 +51,7 @@ export default function BlockConfirmBar({ slug, start, end, onClear, onSuccess }
             Block dates · {nights} night{nights === 1 ? '' : 's'}
           </p>
           <p className="text-base font-bold tracking-tight">
-            {fmt(start)} → {fmt(end)}
+            {fmtDateRange(start, end)}
           </p>
         </div>
         <button
@@ -97,6 +98,3 @@ export default function BlockConfirmBar({ slug, start, end, onClear, onSuccess }
   );
 }
 
-function fmt(d: Date) {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}

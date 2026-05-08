@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { fmtDate } from '@/lib/dates';
 import type { UserWithStats } from '@/lib/users';
 
 function eur(cents: number) {
@@ -40,7 +41,7 @@ export default function UsersTable({ users }: { users: UserWithStats[] }) {
               <td className="px-4 py-3 text-slate-500 text-[12px]">{u.nationality ?? '—'}</td>
               <td className="px-4 py-3 text-right font-mono tabular-nums">{u.total_bookings}</td>
               <td className="px-4 py-3 text-right font-mono tabular-nums">{eur(u.lifetime_spend_cents)}</td>
-              <td className="px-4 py-3 text-right text-[11px] font-mono text-slate-400">{new Date(u.created_at).toLocaleDateString('en-GB')}</td>
+              <td className="px-4 py-3 text-right text-[11px] text-slate-400">{fmtDate(u.created_at)}</td>
             </tr>
           ))}
         </tbody>

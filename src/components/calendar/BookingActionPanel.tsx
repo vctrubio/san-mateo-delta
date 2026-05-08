@@ -9,6 +9,7 @@ import { deleteBlock } from '@/actions/blocks';
 import type { CalendarItem } from '@/lib/calendar';
 import type { BookingStatus } from '@db/enums';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
+import { fmtDateRange } from '@/lib/dates';
 
 // ============================================================================
 // Side-panel that opens when admin clicks an item in the admin calendar.
@@ -25,15 +26,6 @@ function eur(cents: number) {
     currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(cents / 100);
-}
-
-function fmt(d: string) {
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
 }
 
 const NEXT: Record<BookingStatus, Array<{ to: BookingStatus; label: string; tone: 'primary' | 'danger' }>> = {
@@ -138,7 +130,7 @@ function BookingBody({ item, onClose }: { item: Extract<CalendarItem, { kind: 'b
 
       <dl className="mt-4 space-y-2 text-[12px]">
         <Row label="Dates">
-          {fmt(item.start)} → {fmt(item.end)}
+          {fmtDateRange(item.start, item.end)}
         </Row>
         <Row label="Guests">
           {item.guests.adults}A
@@ -241,7 +233,7 @@ function BlockBody({ item, onClose }: { item: Extract<CalendarItem, { kind: 'blo
       </h3>
       <dl className="mt-4 space-y-2 text-[12px]">
         <Row label="Dates">
-          {fmt(item.start)} → {fmt(item.end)}
+          {fmtDateRange(item.start, item.end)}
         </Row>
         <Row label="Reason">
           {item.reason ?? <span className="italic text-slate-400">none</span>}

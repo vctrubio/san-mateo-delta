@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Inbox, Check, ArrowRight } from 'lucide-react';
 import { funnelStats, pendingRequests } from '@/lib/dashboard';
 import { BOOKING_STATUS_STYLES } from '@/lib/colors';
+import { fmtDate } from '@/lib/dates';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 
 // ============================================================================
@@ -10,12 +11,6 @@ import BookingActionButtons from '@/components/admin/BookingActionButtons';
 // Top: a 3-stat strip: pending now · 30-day inflow · 30-day confirmed +
 // conversion %. Bottom: live pending list with inline Confirm/Cancel.
 // ============================================================================
-
-function fmtDate(d: string) {
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', timeZone: 'UTC',
-  });
-}
 
 export default async function PipelinePanel() {
   const [stats, pending] = await Promise.all([

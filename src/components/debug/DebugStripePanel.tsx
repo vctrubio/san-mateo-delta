@@ -2,6 +2,7 @@ import {
   CreditCard, Banknote, KeyRound, Webhook, ShieldCheck, ExternalLink, Database, FileCode2, RefreshCw,
 } from 'lucide-react';
 import { sql } from '@db/client';
+import { fmtDateTime } from '@/lib/dates';
 
 // ============================================================================
 // DebugStripe — narrate the Stripe integration with live data. Mirrors the
@@ -298,7 +299,7 @@ function RecentEventsCard({ rows }: { rows: RecentEventRow[] }) {
         <ul className="space-y-1.5 text-[12px]">
           {rows.map((e) => (
             <li key={e.id} className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-50 ring-1 ring-slate-100">
-              <span className="font-mono text-[10px] text-slate-400 shrink-0">{new Date(e.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{fmtDateTime(e.created_at)}</span>
               <code className="font-mono text-[11px] text-violet-700 shrink-0">{e.event_type}</code>
               <span className="text-slate-400 shrink-0">booking #{e.booking_id}</span>
               <code className="font-mono text-[10px] text-slate-500 truncate ml-auto">{compactJson(e.payload)}</code>

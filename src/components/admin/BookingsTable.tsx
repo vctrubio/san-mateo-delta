@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import StatusBadge from './StatusBadge';
 import BookingActionButtons from './BookingActionButtons';
+import { fmtDateRange } from '@/lib/dates';
 import type { BookingRow } from '@/lib/bookings';
 
 function eur(cents: number) {
@@ -47,8 +48,8 @@ export default function BookingsTable({ bookings }: { bookings: BookingRow[] }) 
                   {b.user_name ?? <span className="text-slate-400 italic">no user (admin)</span>}
                   {b.user_email && <div className="text-[10px] text-slate-400 font-mono">{b.user_email}</div>}
                 </td>
-                <td className="px-4 py-3 font-mono text-[12px] text-slate-600">
-                  {b.date_check_in} → {b.date_check_out}
+                <td className="px-4 py-3 text-[12px] text-slate-600">
+                  {fmtDateRange(b.date_check_in, b.date_check_out)}
                 </td>
                 <td className="px-4 py-3 text-right font-mono tabular-nums">{eur(b.agreed_total_cents)}</td>
                 <td className="px-4 py-3 text-right font-mono tabular-nums">

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
+import { fmtDateTime } from '@/lib/dates';
 import type { PaymentRow } from '@/lib/payments';
 import type { PaymentMethod, PaymentStatus } from '@db/enums';
 
@@ -81,7 +82,7 @@ export default function PaymentsTable({ payments }: { payments: PaymentRow[] }) 
               <td className="px-4 py-3 text-right font-mono tabular-nums">
                 {p.refunded_cents > 0 ? <span className="text-rose-700">−{eur(p.refunded_cents)}</span> : <span className="text-slate-300">—</span>}
               </td>
-              <td className="px-4 py-3 text-right text-[11px] font-mono text-slate-400">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
+              <td className="px-4 py-3 text-right text-[11px] text-slate-400">{fmtDateTime(p.paid_at)}</td>
             </tr>
           ))}
         </tbody>

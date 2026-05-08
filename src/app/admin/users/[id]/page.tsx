@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { getUserById } from '@/lib/users';
 import { listBookingsForUser } from '@/lib/bookings';
+import { fmtDate } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +38,10 @@ export default async function AdminUserDetailPage({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-10">
         <Card label="Bookings">{bookings.length}</Card>
         <Card label="Lifetime spend">{eur(lifetimeSpend)}</Card>
-        <Card label="Joined">{new Date(user.created_at).toLocaleDateString('en-GB')}</Card>
+        <Card label="Joined">{fmtDate(user.created_at)}</Card>
         {user.tif         && <Card label="TIF">{user.tif}</Card>}
         {user.nationality && <Card label="Nationality">{user.nationality}</Card>}
-        {user.dob         && <Card label="DOB">{user.dob}</Card>}
+        {user.dob         && <Card label="DOB">{fmtDate(user.dob)}</Card>}
       </div>
 
       <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Their bookings</h2>

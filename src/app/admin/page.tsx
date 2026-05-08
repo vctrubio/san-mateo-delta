@@ -5,6 +5,7 @@ import PipelinePanel from '@/components/admin/dashboard/PipelinePanel';
 import TopGuestsPanel from '@/components/admin/dashboard/TopGuestsPanel';
 import { listRecentBookingEvents } from '@/lib/bookings';
 import { revenueByMonth } from '@/lib/dashboard';
+import { fmtDate } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,7 +149,7 @@ function RecentActivity({ events }: { events: RecentEvent[] }) {
                 </span>
               </div>
               <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
-                {new Date(e.created_at).toLocaleDateString('en-GB')}
+                {fmtDate(e.created_at)}
               </span>
             </li>
           ))}

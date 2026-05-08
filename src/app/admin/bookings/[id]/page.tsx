@@ -8,6 +8,7 @@ import CancelBookingForm from '@/components/admin/CancelBookingForm';
 import { markCashReceived, refundStripePayment } from '@/actions/payments';
 import { getBookingById, listBookingEvents } from '@/lib/bookings';
 import { listPaymentsForBooking } from '@/lib/payments';
+import { fmtDateRange, fmtDateTime } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function AdminBookingDetailPage({
             <StatusBadge status={booking.status} />
           </div>
           <p className="text-sm text-slate-500">
-            {booking.property_slug} · {booking.property_title} · {booking.date_check_in} → {booking.date_check_out}
+            {booking.property_slug} · {booking.property_title} · {fmtDateRange(booking.date_check_in, booking.date_check_out)}
           </p>
         </div>
         <BookingActionButtons bookingId={booking.id} currentStatus={booking.status} size="md" />
@@ -93,7 +94,7 @@ export default async function AdminBookingDetailPage({
             </div>
             <div>
               <div className="font-mono text-[10px] uppercase tracking-widest text-rose-700/60">When</div>
-              <div className="text-slate-900 font-bold">{new Date(booking.cancelled_at).toLocaleString('en-GB')}</div>
+              <div className="text-slate-900 font-bold">{fmtDateTime(booking.cancelled_at)}</div>
             </div>
           </div>
           {booking.cancellation_reason && (
@@ -173,7 +174,7 @@ export default async function AdminBookingDetailPage({
                       </td>
                       <td className="px-4 py-2 text-right font-mono tabular-nums">{eur(p.amount_cents)}</td>
                       <td className="px-4 py-2 text-right font-mono tabular-nums text-rose-700">{p.refunded_cents > 0 ? `−${eur(p.refunded_cents)}` : '—'}</td>
-                      <td className="px-4 py-2 text-right text-[11px] font-mono text-slate-400">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
+                      <td className="px-4 py-2 text-right text-[11px] text-slate-400">{fmtDateTime(p.paid_at)}</td>
                       <td className="px-4 py-2 text-right">
                         {p.method === 'cash' && p.status === 'pending' && (
                           <form action={markCashReceived} className="inline-flex">
@@ -212,7 +213,7 @@ export default async function AdminBookingDetailPage({
                   <pre className="text-[10px] font-mono text-slate-400 mt-1 whitespace-pre-wrap">{JSON.stringify(e.payload, null, 2)}</pre>
                 )}
               </div>
-              <span className="text-[10px] font-mono text-slate-400 shrink-0">{new Date(e.created_at).toLocaleString('en-GB')}</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{fmtDateTime(e.created_at)}</span>
             </li>
           ))}
         </ol>
