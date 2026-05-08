@@ -295,15 +295,15 @@ async function seedBookings(
     // Payments: full reservation for held bookings; deposit + refund for cancelled.
     if (b.status === 'checked_in' || b.status === 'checked_out') {
       await pool.query(
-        `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-         VALUES ($1, 'reservation', $2, true, $3, $3)`,
+        `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status, paid_at, created_at)
+         VALUES ($1, 'reservation', $2, 'cash', 'succeeded', $3, $3)`,
         [bookingId, agreedTotal, `${b.in}T16:00:00Z`],
       );
     } else if (b.status === 'cancelled') {
       const deposit = Math.round(agreedTotal * 0.3);
       const { rows: payRows } = await pool.query<{ id: string }>(
-        `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-         VALUES ($1, 'deposit', $2, true, $3, $3)
+        `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status, paid_at, created_at)
+         VALUES ($1, 'deposit', $2, 'cash', 'succeeded', $3, $3)
          RETURNING id`,
         [bookingId, deposit, createdAt],
       );

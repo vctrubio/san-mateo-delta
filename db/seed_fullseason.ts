@@ -430,47 +430,80 @@ async function seedBookings(
       );
     }
 
-    // Payments
+    // Payments — mix of cash and stripe. Deterministic via seeded rand().
+    // ~60% of historical payments go via stripe (fake pi_/ch_/cs_ ids that match
+    // Stripe's id shapes but never hit Stripe — they're indicators only).
+    const usingStripe = () => rand() < 0.6;
+    const stripeIds = () => {
+      const sid = `cs_test_seed_${bookingId}_${Math.floor(rand() * 1e6)}`;
+      const pi  = `pi_test_seed_${bookingId}_${Math.floor(rand() * 1e6)}`;
+      const ch  = `ch_test_seed_${bookingId}_${Math.floor(rand() * 1e6)}`;
+      return { sid, pi, ch };
+    };
+
+    async function insertPayment(args: {
+      type: 'reservation' | 'deposit' | 'balance';
+      amount: number;
+      paid_at: string;
+      stripe?: boolean;
+      status?: 'pending' | 'succeeded' | 'failed';
+    }): Promise<string> {
+      const status = args.status ?? 'succeeded';
+      if (args.stripe) {
+        const { sid, pi, ch } = stripeIds();
+        const { rows } = await pool.query<{ id: string }>(
+          `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status,
+                                         stripe_session_id, stripe_payment_intent, stripe_charge_id,
+                                         paid_at, created_at)
+           VALUES ($1, $2::payment_type, $3, 'stripe', $4::payment_status, $5, $6, $7, $8, $8)
+           RETURNING id::text`,
+          [bookingId, args.type, args.amount, status, sid,
+           status === 'pending' ? null : pi,
+           status === 'pending' ? null : ch,
+           args.paid_at],
+        );
+        return rows[0].id;
+      }
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status, paid_at, created_at)
+         VALUES ($1, $2::payment_type, $3, 'cash', $4::payment_status, $5, $5)
+         RETURNING id::text`,
+        [bookingId, args.type, args.amount, status, args.paid_at],
+      );
+      return rows[0].id;
+    }
+
     if (b.status === 'checked_in' || b.status === 'checked_out') {
       // Most pay in full at reservation time. Occasionally split deposit + balance.
+      const stripe = usingStripe();
       if (rand() < 0.7) {
-        await pool.query(
-          `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-           VALUES ($1, 'reservation', $2, true, $3, $3)`,
-          [bookingId, agreedTotal, daysBefore(b.in, 14)],
-        );
+        await insertPayment({ type: 'reservation', amount: agreedTotal, paid_at: daysBefore(b.in, 14), stripe });
       } else {
         const deposit = Math.round(agreedTotal * 0.3);
-        await pool.query(
-          `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-           VALUES ($1, 'deposit', $2, true, $3, $3)`,
-          [bookingId, deposit, daysBefore(b.in, 30)],
-        );
-        await pool.query(
-          `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-           VALUES ($1, 'balance', $2, true, $3, $3)`,
-          [bookingId, agreedTotal - deposit, `${b.in}T15:00:00Z`],
-        );
+        await insertPayment({ type: 'deposit', amount: deposit, paid_at: daysBefore(b.in, 30), stripe });
+        await insertPayment({ type: 'balance', amount: agreedTotal - deposit, paid_at: `${b.in}T15:00:00Z`, stripe });
       }
     } else if (b.status === 'confirmed') {
       // Roughly half of confirmed-future bookings have paid a deposit already.
+      // The other half: pending cash (still owed) so /admin "Pending cash" tile lights up.
       if (rand() < 0.5) {
         const deposit = Math.round(agreedTotal * 0.3);
-        await pool.query(
-          `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-           VALUES ($1, 'deposit', $2, true, $3, $3)`,
-          [bookingId, deposit, daysBefore(b.in, intBetween(1, 14))],
-        );
+        await insertPayment({ type: 'deposit', amount: deposit, paid_at: daysBefore(b.in, intBetween(1, 14)), stripe: usingStripe() });
+      } else {
+        // "Cash on arrival" intent — pending cash row equal to full agreed total.
+        await insertPayment({ type: 'reservation', amount: agreedTotal, paid_at: createdAt, stripe: false, status: 'pending' });
       }
+    } else if (b.status === 'request' && rand() < 0.15) {
+      // ~15% of request bookings have an abandoned Stripe checkout session
+      // (pending stripe row). Helps demo the failed/pending UX in /admin/payments.
+      const deposit = Math.round(agreedTotal * 0.3);
+      await insertPayment({ type: 'deposit', amount: deposit, paid_at: createdAt, stripe: true, status: 'pending' });
     } else if (b.status === 'cancelled') {
       // Half of cancelled had paid a deposit; refund follows the policy outcome.
       if (rand() < 0.55) {
         const deposit = Math.round(agreedTotal * 0.3);
-        const { rows: payRows } = await pool.query<{ id: string }>(
-          `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
-           VALUES ($1, 'deposit', $2, true, $3, $3) RETURNING id::text`,
-          [bookingId, deposit, createdAt],
-        );
+        const stripe = usingStripe();
+        const paymentId = await insertPayment({ type: 'deposit', amount: deposit, paid_at: createdAt, stripe });
         const refund = computeRefund({
           agreedPropertyCents: agreedProperty,
           agreedCleaningCents: agreedCleaning,
@@ -480,9 +513,11 @@ async function seedBookings(
         const refunded = Math.min(deposit, refund.refundAmountCents);
         if (refunded > 0) {
           await pool.query(
-            `INSERT INTO payment_refunds (payment_id, amount_cents, note, created_at)
-             VALUES ($1, $2, 'Cancellation refund', $3)`,
-            [payRows[0].id, refunded, cancelledAt],
+            `INSERT INTO payment_refunds (payment_id, amount_cents, note, stripe_refund_id, created_at)
+             VALUES ($1, $2, 'Cancellation refund', $3, $4)`,
+            [paymentId, refunded,
+             stripe ? `re_test_seed_${paymentId}_${Math.floor(rand() * 1e6)}` : null,
+             cancelledAt],
           );
         }
       }
