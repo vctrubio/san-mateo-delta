@@ -78,6 +78,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
   const [nationality, setNationality] = useState('');
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+  const [confirmNow, setConfirmNow] = useState(false);
 
   const [customPropertyEuros, setCustomPropertyEuros] = useState<string>('');
   const [customCleaningEuros, setCustomCleaningEuros] = useState<string>('');
@@ -189,6 +190,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
     fd.set('children', String(children));
     fd.set('agreed_property_cents', String(customPropertyCents));
     fd.set('agreed_cleaning_cents', String(customCleaningCents));
+    if (confirmNow) fd.set('confirm_now', 'true');
 
     startTransition(async () => {
       const result = await createInvitation(fd);
@@ -359,6 +361,36 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
         </div>
       </Section>
 
+      {/* ── How to deliver ── confirm-now toggle */}
+      <Section label="On submit">
+        <div role="radiogroup" aria-label="Invitation behaviour" className="grid grid-cols-1 md:grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+          <DeliveryOption
+            value={false}
+            current={confirmNow}
+            onChange={setConfirmNow}
+            label="Hold for invitee to accept"
+            sub="Booking sits as request/invite until they confirm"
+          />
+          <DeliveryOption
+            value={true}
+            current={confirmNow}
+            onChange={setConfirmNow}
+            label="Confirm now"
+            sub="Booking goes straight to confirmed · skip the accept step"
+            accent
+          />
+        </div>
+        {confirmNow && (
+          <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-[12px] text-emerald-900 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>
+              Dates lock immediately and the invitation is filed as <span className="font-mono">accepted</span>.
+              Use this when the guest already agreed verbally and there&apos;s no need for the back-and-forth.
+            </span>
+          </div>
+        )}
+      </Section>
+
       {/* ── Errors + submit ── */}
       {submitError && (
         <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-900 flex items-start gap-2">
@@ -374,7 +406,11 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-ocean transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          {isPending ? 'Creating…' : 'Create invitation'}
+          {isPending
+            ? 'Creating…'
+            : confirmNow
+              ? 'Create + confirm'
+              : 'Send invitation'}
         </button>
         <button
           type="button"
@@ -389,6 +425,34 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+function DeliveryOption({
+  value, current, onChange, label, sub, accent,
+}: {
+  value: boolean;
+  current: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  sub: string;
+  accent?: boolean;
+}) {
+  const selected = current === value;
+  const selectedClass = accent
+    ? 'bg-white shadow-sm ring-1 ring-emerald-300 text-emerald-900'
+    : 'bg-white shadow-sm ring-1 ring-slate-300 text-slate-900';
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={() => onChange(value)}
+      className={`px-4 py-3 rounded-xl text-left transition ${selected ? selectedClass : 'text-slate-500 hover:text-slate-700'}`}
+    >
+      <span className="block text-sm font-bold">{label}</span>
+      <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{sub}</span>
+    </button>
+  );
+}
 
 function Section({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (

@@ -26,32 +26,44 @@ any special handling.
 
 ## Lifecycle
 
+## Two paths: hold vs confirm-now
+
+The form has a "On submit" toggle:
+
+- **Hold for invitee to accept** (default) — booking starts as `invite`,
+  invitation as `invited`. Standard "send and wait" flow. Dates aren't
+  locked yet (the EXCLUDE constraint on `bookings` only fires for held
+  statuses), so two pending invitations could overlap; whichever the
+  invitee accepts first wins.
+- **Confirm now** — admin already trusts the invitee (friends, family,
+  themselves). Booking goes straight to `confirmed`, invitation is filed
+  as `accepted` with `accepted_user_id` = the upserted user and
+  `responded_at` = now. **Dates lock immediately** via the EXCLUDE
+  constraint. No accept-link round-trip.
+
 ```
-admin types form          createInvitation()
+admin types form          createInvitation(confirm_now)
         │                         │
         ▼                         ▼
-  /admin/invite/new        ─ tx ─────────────────────
-                           │  upsert user (by email) │
-                           │  insert booking         │
-                           │    status='invite'      │
-                           │    agreed_*_cents from  │
-                           │    admin input          │
-                           │  insert booking_invita- │
-                           │    tions with status=   │
-                           │    'invited'            │
-                           │  log booking.invited    │
-                           │    event (with default  │
-                           │    fees for diff)       │
-                           ───────────────────────────
+  /admin/invite/new        ─ tx ─────────────────────────────────
+                           │  upsert user (by email)             │
+                           │  FOR UPDATE overlap check on        │
+                           │    held bookings                    │
+                           │  insert booking                     │
+                           │    status = 'invite' OR 'confirmed' │
+                           │  insert booking_invitations         │
+                           │    status = 'invited' OR 'accepted' │
+                           │  log booking.invited event          │
+                           ───────────────────────────────────────
                                    │
-                          ┌────────┴────────┐
-                          ▼                 ▼
-                    invitee accepts    admin revokes
-                          │                 │
-                    booking →          booking →
-                    confirmed          cancelled
-                    invitation →       invitation →
-                    accepted           declined
+                  ┌────────────────┼────────────────┐
+                  ▼                ▼                ▼
+            confirm_now=true   invitee accepts   admin revokes
+                  │                │                │
+            already at         booking →        booking →
+            confirmed          confirmed        cancelled
+            (no further        invitation →     invitation →
+             action needed)    accepted         declined
 ```
 
 ## Data model
@@ -80,7 +92,10 @@ admin types form          createInvitation()
    auto-fills via `<datalist>` autocomplete.
 5. Override property fee + cleaning fee. Diff strip turns green for a
    discount, amber for a premium.
-6. Submit — `createInvitation` runs in a tx with `FOR UPDATE` overlap check
+6. Toggle **On submit**: leave on "Hold for invitee" for the standard
+   send-and-wait flow, or flip to "Confirm now" if the invitee has already
+   verbally agreed (the booking goes straight to `confirmed`; dates lock).
+7. Submit — `createInvitation` runs in a tx with `FOR UPDATE` overlap check
    (because Postgres' exclusion constraint only fires on held statuses).
 
 ### Revoke a pending invitation

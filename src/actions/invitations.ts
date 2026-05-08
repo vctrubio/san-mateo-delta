@@ -36,6 +36,11 @@ function int(form: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function bool(form: FormData, key: string): boolean {
+  const v = form.get(key);
+  return v === 'true' || v === 'on' || v === '1';
+}
+
 function normaliseEmail(raw: string | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim().toLowerCase();
@@ -108,6 +113,13 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
   const infants = int(formData, 'infants') ?? 0;
   const pets = int(formData, 'pets') ?? 0;
 
+  // confirm_now=true skips the invitee accept dance: booking goes straight
+  // to status='confirmed' (locks dates via the EXCLUDE constraint) and the
+  // invitation row is created already in 'accepted' state with the upserted
+  // user as accepted_user_id. Use this for friends & family the host
+  // already trusts. confirm_now=false is the standard "send and wait" flow.
+  const confirmNow = bool(formData, 'confirm_now');
+
   const props = await pool.query<{ id: string; max_guests: number }>(
     `SELECT id::text, max_guests::int FROM properties WHERE slug = $1`,
     [slug],
@@ -138,10 +150,12 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
 
     const guestsJson = JSON.stringify({ adults, children, infants, pets });
 
-    // Insert booking with status='invite'. Postgres' EXCLUDE constraint on
-    // bookings (no_overlap_when_held) doesn't fire for 'invite' status, so
-    // we'd be allowed to overlap a held booking — manually re-check inside
-    // the tx with a row-locking query first.
+    // Postgres' EXCLUDE constraint on bookings (no_overlap_when_held) only
+    // fires for held statuses (confirmed/checked_in/checked_out). For the
+    // 'invite' path we'd be allowed to overlap a held booking, and even on
+    // the 'confirm_now' path we want a clean error message rather than the
+    // raw constraint violation — manually re-check inside the tx with a
+    // row-locking query first.
     const overlapCheck = await client.query<{ id: string; status: string }>(
       `SELECT id::text, status::text
          FROM bookings
@@ -158,6 +172,7 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
       return { ok: false, error: `Dates overlap held booking #${conflict.id} (${conflict.status}).` };
     }
 
+    const bookingStatus = confirmNow ? 'confirmed' : 'invite';
     const { rows: bookingRows } = await client.query<{ id: string; access_token: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
@@ -166,22 +181,32 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
        ) VALUES (
          $1, $2, $3::date, $4::date,
          $5, $6,
-         'invite', $7::jsonb
+         $8::booking_status, $7::jsonb
        )
        RETURNING id::text AS id, access_token::text AS access_token`,
       [
         property.id, userId, check_in, check_out,
         agreed_property_cents, agreed_cleaning_cents,
-        guestsJson,
+        guestsJson, bookingStatus,
       ],
     );
     const bookingId = bookingRows[0].id;
 
+    // Mirror the booking status onto the invitation row. confirm_now means
+    // the invitation is pre-accepted on behalf of the invitee — accepted_user_id
+    // is the upserted user, responded_at = now(). The invite-only path leaves
+    // these null so the future accept-link flow can fill them in.
+    const invitationStatus = confirmNow ? 'accepted' : 'invited';
     const { rows: inviteRows } = await client.query<{ id: string }>(
-      `INSERT INTO booking_invitations (booking_id, email, status)
-       VALUES ($1, $2, 'invited')
-       RETURNING id::text AS id`,
-      [bookingId, email],
+      confirmNow
+        ? `INSERT INTO booking_invitations
+             (booking_id, email, status, accepted_user_id, responded_at)
+           VALUES ($1, $2, 'accepted'::invitation_status, $3, now())
+           RETURNING id::text AS id`
+        : `INSERT INTO booking_invitations (booking_id, email, status)
+           VALUES ($1, $2, 'invited'::invitation_status)
+           RETURNING id::text AS id`,
+      confirmNow ? [bookingId, email, userId] : [bookingId, email],
     );
     const invitationId = inviteRows[0].id;
 
@@ -208,6 +233,8 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
         bookingId,
         JSON.stringify({
           invitation_id: invitationId,
+          invitation_status: invitationStatus,
+          confirm_now: confirmNow,
           email,
           custom_property_cents: agreed_property_cents,
           custom_cleaning_cents: agreed_cleaning_cents,
