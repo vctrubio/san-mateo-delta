@@ -8,6 +8,23 @@
   --coastal-blue: #0369a1;
   --coastal-sky: #e0f2fe;
   --coastal-slate: #334155;
+
+  /* Per-property colors used by dashboard charts. Mirrors the Ocean palette
+     plus complementary accents. Referenced directly in chart components via
+     fill="var(--color-property-levante)". */
+  --color-property-levante:  #0369a1; /* ocean — flagship */
+  --color-property-estrecho: #f59e0b; /* amber-500 — sand-warm */
+  --color-property-marea:    #10b981; /* emerald-500 — coast */
+  --color-property-cala:     #8b5cf6; /* violet-500 — secluded */
+
+  /* Per-status colors used by the donut + status segments in
+     bookings-by-property. Mirrors BOOKING_STATUS_STYLES dot hex values. */
+  --color-status-request:     #fbbf24; /* amber-400  */
+  --color-status-invite:      #a78bfa; /* violet-400 */
+  --color-status-confirmed:   #0369a1; /* ocean      */
+  --color-status-checked_in:  #10b981; /* emerald-500 */
+  --color-status-checked_out: #cbd5e1; /* slate-300  */
+  --color-status-cancelled:   #fb7185; /* rose-400   */
 }
 
 @theme inline {
