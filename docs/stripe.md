@@ -173,6 +173,48 @@ Stripe id — the host hands cash back outside the system.
 - **Saved cards / customer portal**: every checkout is a fresh session.
 - **Tax / VAT**: not modelled; rates and cleaning fees are gross.
 
+## Pre-live checklist — DO NOT FLIP TO LIVE MODE UNTIL ALL ARE DONE
+
+Going from `sk_test_…` / `pk_test_…` to `sk_live_…` / `pk_live_…` means real
+money moves on a real card. Every item below must be ticked off first. The
+order is roughly "blast radius" — the things that matter most are at the top.
+
+- [ ] **Narrow the production webhook event subscription.** During first setup
+  on 2026-05-08, *all* events were enabled on the Vercel destination as a
+  shortcut. Stripe sends ~90 different event types; we only handle 4
+  (`checkout.session.completed`, `checkout.session.expired`,
+  `payment_intent.payment_failed`, `charge.refunded`). Edit the destination at
+  https://dashboard.stripe.com/webhooks and tick only those 4. Reduces noise,
+  lambda invocations, and attack surface.
+- [ ] **Add admin auth.** `/admin/*` is currently unauthed — anyone with the
+  URL can issue refunds via the production webhook secret indirectly (cancel
+  a booking, run cancel-with-refund, the refund hits a real card). Wire a
+  proxy.ts gate (basic auth at minimum) **before** flipping keys.
+- [ ] **Verify webhook idempotency under live load.** The handler is
+  idempotent on `stripe_session_id` and `stripe_refund_id` (unique partial
+  indexes), but we've only stress-tested it with `stripe trigger`. Replay a
+  charge.refunded twice manually before going live.
+- [ ] **Test 3-D Secure / SCA flow.** Card `4000 0025 0000 3155` triggers a
+  challenge. Confirm the success page resolves correctly; SCA was not in the
+  initial smoke.
+- [ ] **Set up Stripe Radar rules** for fraud (Stripe Dashboard → Radar).
+  Default rules are reasonable; review the "block" thresholds.
+- [ ] **Configure Stripe billing email receipts** so guests get a paper
+  trail. Dashboard → Settings → Customer emails.
+- [ ] **Real refund UX.** Currently the booking detail page only offers
+  `Refund full`. Partial refunds aligned with the cancellation policy must
+  pass `amount_cents`; build a UI for it (Tier 2).
+- [ ] **Backup the `bookings` + `booking_payments` + `payment_refunds`
+  tables** at least daily once real bookings start landing. Neon has
+  point-in-time restore on paid plans — verify it's enabled.
+- [ ] **Swap the keys** in Vercel env (`sk_live_…`, `pk_live_…`), update the
+  webhook destination URL to live mode (or create a new live-mode destination
+  alongside the test one — Stripe webhooks are mode-scoped).
+
+The single guardrail that catches accidental live-mode use:
+`STRIPE_SECRET_KEY` should start with `sk_test_` until every box above is
+ticked. See AGENTS.md for the standing rule.
+
 ## Smoke test
 
 ```bash
