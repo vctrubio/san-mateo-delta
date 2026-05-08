@@ -257,7 +257,7 @@ function HowItWorks() {
           Past <span className="font-mono">refund_amount_cents</span> values are <strong className="text-white">snapshots</strong>.
           Edit <span className="font-mono">DEFAULT_REFUND_POLICY</span> in
           {' '}<code className="font-mono px-1 rounded bg-white/10">src/lib/refund.ts</code>; only future
-          cancellations use the new numbers. See <code className="font-mono px-1 rounded bg-white/10">db/refund.md</code>.
+          cancellations use the new numbers. See <code className="font-mono px-1 rounded bg-white/10">docs/refund.md</code>.
         </span>
       </div>
     </div>
@@ -287,7 +287,7 @@ export default async function DebugRefundPanel() {
           <h2 className="text-sm font-mono uppercase tracking-widest text-slate-400">Debug Refund</h2>
           <span className="text-[10px] font-mono text-slate-400">
             source: <code className="px-1 rounded bg-white border border-slate-200">src/lib/refund.ts</code>
-            {' · '}docs: <code className="px-1 rounded bg-white border border-slate-200">db/refund.md</code>
+            {' · '}docs: <code className="px-1 rounded bg-white border border-slate-200">docs/refund.md</code>
           </span>
         </div>
         <p className="text-xs text-slate-500 mb-6 max-w-3xl">

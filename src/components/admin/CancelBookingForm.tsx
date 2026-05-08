@@ -6,7 +6,7 @@ const TERMINAL: BookingStatus[] = ['cancelled', 'checked_out'];
 /**
  * Single Cancel form: caller passes who's cancelling (admin or guest) and the
  * booking id. Reason is collected inline. Action computes refund per
- * db/refund.md and writes booking_cancellations.
+ * docs/refund.md and writes booking_cancellations.
  */
 export default function CancelBookingForm({
   bookingId,

@@ -1,4 +1,4 @@
-// Refund policy. See db/refund.md for the full spec.
+// Refund policy. See docs/refund.md for the full spec.
 //
 // Edit DEFAULT_REFUND_POLICY below to change the policy. Past cancellations
 // snapshot their numbers into booking_cancellations.refund_amount_cents at

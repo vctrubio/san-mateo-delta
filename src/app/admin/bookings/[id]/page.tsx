@@ -121,7 +121,7 @@ export default async function AdminBookingDetailPage({
           <div className="rounded-2xl bg-white border border-slate-100 p-5">
             <CancelBookingForm bookingId={booking.id} status={booking.status} cancelledBy="admin" />
             <p className="text-[11px] text-slate-400 mt-2">
-              Refund amount is computed by <code className="font-mono">db/refund.md</code> policy from agreed total
+              Refund amount is computed by <code className="font-mono">docs/refund.md</code> policy from agreed total
               and days-before-check-in.
             </p>
           </div>

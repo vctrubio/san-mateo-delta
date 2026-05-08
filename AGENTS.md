@@ -19,6 +19,11 @@ src/
   lib/                     # utilities, clients, shared logic (when needed)
 finca.json                 # static estate config at project root
 public/images/             # property + host images
+docs/                      # design + architecture docs (all markdown lives here)
+  schema.md                # tables, relationships, enums, invariants, recipes
+  dashboard.md             # what /admin shows, why, what it deliberately omits
+  rates.md                 # pricing architecture + rate-selection algorithm
+  refund.md                # cancellation-refund policy + tier logic
 ```
 
 Rules:
@@ -37,11 +42,13 @@ db/
   drop.sql     # DROP everything in dependency order
   client.ts    # Neon serverless Pool + sql() helper
   enums.ts     # TS mirrors of the SQL enums + Month constants. Import from @db/enums.
-  rates.md     # Pricing architecture: how property_rates is structured + the selection algorithm
   reset.ts     # bun script: drop.sql then schema.sql
   seed.ts      # bun script: insert demo data (4 properties, 3 users, 12 bookings)
   init.ts      # bun script: reset + seed (start-from-zero convenience)
+  fullseason.ts / seed_fullseason.ts  # bun script: ~year of populated demo data
 ```
+
+Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`.
 
 Scripts:
 - `bun db:init`  — wipe + reapply schema + seed (use this 99% of the time during iteration)
@@ -52,11 +59,16 @@ Rules:
 - All amounts are EUR cents stored as `BIGINT`. Never add a `currency` column.
 - Every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`. Mutable tables also have `updated_at` driven by the `set_updated_at` trigger.
 - Use Postgres ENUMs for status fields (`booking_status`, `payment_type`, etc.), not free-text. Update the schema and run `db:init`. Mirror the values in `db/enums.ts` so app code stays in lockstep — import lists and types from `@db/enums`, never hardcode them.
-- Pricing follows the model in `db/rates.md`: rates live in `property_rates`, are selected by month + min_nights, and cleaning is a separate flat fee per booking. Read it before touching pricing code.
+- Pricing follows the model in `docs/rates.md`: rates live in `property_rates`, are selected by month + min_nights, and cleaning is a separate flat fee per booking. Read it before touching pricing code.
 - All app code that hits the database imports from `@db/client` (the alias is wired in `tsconfig.json` to `./db/*`) — single Neon Pool, no other connection paths.
 - During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
 - The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.
-- **Snapshots, not recalculations.** Fees and policies are copied onto bookings at creation. Money columns on `bookings` (`agreed_property_cents`, `agreed_cleaning_cents`) and the cancellation outcome columns on `booking_cancellations` are frozen — edits to property templates or `DEFAULT_REFUND_POLICY` only affect future bookings/cancellations. See `db/refund.md`.
+- **Snapshots, not recalculations.** Fees and policies are copied onto bookings at creation. Money columns on `bookings` (`agreed_property_cents`, `agreed_cleaning_cents`) and the cancellation outcome columns on `booking_cancellations` are frozen — edits to property templates or `DEFAULT_REFUND_POLICY` only affect future bookings/cancellations. See `docs/refund.md`.
+- Read [`docs/schema.md`](./docs/schema.md) before adding or modifying a table. It documents tables, enums, the booking state machine, both exclusion constraints, the half-open daterange convention, and the recipes for blocking dates / confirming bookings / handling refunds.
+
+## Admin dashboard
+
+The `/admin` dashboard is curated — it answers **how much was made, who is owed, and what's waiting**. State-machine detail (cancelled / checked_in / checked_out distribution) lives on `/admin/bookings` where it's actionable. Before adding a tile or chart, read [`docs/dashboard.md`](./docs/dashboard.md) — it documents the philosophy, the 5 sections, and what was deliberately left out so the page stays scannable in 5 seconds.
 
 ## Internal-only routes
 
