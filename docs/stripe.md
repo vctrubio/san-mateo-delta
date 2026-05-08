@@ -92,6 +92,27 @@ stripe trigger checkout.session.completed
 `.env.local` once, then it stays the same on subsequent runs (CLI
 single-tenant per machine).
 
+## Branding the hosted Checkout page
+
+Stripe Checkout (the page guests see at `checkout.stripe.com/...`) is partly
+configured via API and partly via the Dashboard.
+
+**Via API** — `src/actions/checkout.ts#createCheckoutSession`:
+- `submit_type: 'book'` — button reads "Book" instead of "Pay"
+- `line_items[0].price_data.product_data.name` — `Finca <name> · <Slug>`
+- `line_items[0].price_data.product_data.description` — kind + formatted dates
+- `custom_text.submit.message` — confirmation note + contact email
+
+**Via Stripe Dashboard** (one-time, applies to all Checkout sessions):
+1. https://dashboard.stripe.com/settings/branding
+2. Upload a logo or icon (PNG, recommended 128×128).
+3. Set the brand color (we use a Tarifa-ocean blue; pick something close to
+   `--color-property-levante` if you want consistency with /admin).
+4. The Dashboard preview reflects test-mode and live-mode separately —
+   configure both, but the test page uses the test-mode branding only.
+
+If the brand panel is empty, Checkout falls back to a plain Stripe header.
+
 ## Test cards
 
 | Card                  | Outcome                                |

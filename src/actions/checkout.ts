@@ -5,6 +5,9 @@ import { pool } from '@db/client';
 import type { PaymentType } from '@db/enums';
 import { stripe, appUrl } from '@/lib/stripe/server';
 import { totalPaidForBooking } from '@/lib/payments';
+import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
+import { fmtDateRange } from '@/lib/dates';
+import finca from '../../finca.json';
 
 const DEPOSIT_PCT = 0.30;
 
@@ -98,10 +101,21 @@ export async function createCheckoutSession(
       return { ok: false, error: `Unknown checkout kind: ${kind as string}` };
   }
 
+  // Branded line item: estate name as the product, slug-labelled property +
+  // pretty date range as the description. Stripe shows these stacked on the
+  // hosted page. The estate logo + brand color come from Stripe Dashboard →
+  // Settings → Branding (one-time config, not via API). See docs/stripe.md.
+  const estateName = `Finca ${finca.name}`;
+  const propertyLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
+  const kindLabel = kind === 'deposit' ? 'Deposit (30%)' : kind === 'full' ? 'Full payment' : 'Balance';
+  const productName = `${estateName} · ${propertyLabel}`;
+  const description = `${kindLabel} · ${fmtDateRange(booking.check_in, booking.check_out)}`;
+
   let session;
   try {
     session = await stripe().checkout.sessions.create({
       mode: 'payment',
+      submit_type: 'book',
       payment_method_types: ['card'],
       currency: 'eur',
       line_items: [
@@ -110,8 +124,8 @@ export async function createCheckoutSession(
             currency: 'eur',
             unit_amount: amount_cents,
             product_data: {
-              name: `${booking.property_title} · ${kind === 'deposit' ? 'Deposit' : kind === 'full' ? 'Full payment' : 'Balance'}`,
-              description: `${booking.check_in} → ${booking.check_out}`,
+              name: productName,
+              description,
             },
           },
           quantity: 1,
@@ -119,6 +133,11 @@ export async function createCheckoutSession(
       ],
       customer_email: booking.user_email ?? undefined,
       client_reference_id: booking.id,
+      custom_text: {
+        submit: {
+          message: `After payment, your booking is confirmed and a receipt is sent to your email. Questions? ${finca.contact.email}`,
+        },
+      },
       metadata: {
         booking_id: booking.id,
         payment_kind: kind,
