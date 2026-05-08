@@ -271,7 +271,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
       <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ocean">Quote</p>
-          <p className="text-base font-bold text-slate-900 tracking-tight mt-0.5">{quote.rate_name}</p>
+          <p className="text-base font-bold text-slate-900 tracking-tight mt-0.5">{quote.rate_month_label} rate</p>
         </div>
         <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500 uppercase tracking-widest">
           <Moon className="w-3 h-3" /> {quote.nights} night{quote.nights === 1 ? '' : 's'}

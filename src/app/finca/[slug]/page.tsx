@@ -6,9 +6,9 @@ import {
   Wifi, Tv, AirVent, TreePine, PawPrint, ParkingCircle, WashingMachine, Sparkles,
   type LucideIcon,
 } from 'lucide-react';
-import { getPropertyBySlug, type PropertyRate } from '@/lib/properties';
+import { getPropertyBySlug, type RatesByMonth } from '@/lib/properties';
 import { getCalendarItems, windowFor } from '@/lib/calendar';
-import { MONTH_NAMES, type Month } from '@db/enums';
+import { MONTHS, MONTH_NAMES, type Month } from '@db/enums';
 import fincaData from '../../../../finca.json';
 import BookNowForm from '@/components/finca/BookNowForm';
 
@@ -69,7 +69,7 @@ export default async function PropertyDetailsPage({
   const { slug } = await params;
   const data = await getPropertyBySlug(slug);
   if (!data) notFound();
-  const { property, rates } = data;
+  const { property } = data;
 
   // Fetch a 6-month forward window so the calendar can navigate without re-fetch.
   const { from, to } = windowFor(new Date(), 6);
@@ -93,7 +93,7 @@ export default async function PropertyDetailsPage({
 
         <WhatYouGet features={property.features} amenities={fincaData.amenities} />
 
-        <Pricing rates={rates} cleaningFeeCents={property.cleaning_fee_cents} />
+        <Pricing rates={property.rates} cleaningFeeCents={property.cleaning_fee_cents} />
 
         <BookNowForm slug={property.slug} maxGuests={property.max_guests} items={calendarItems} />
       </div>
@@ -238,15 +238,19 @@ function FeatureColumn({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pricing: rates + cleaning fee under one heading
+// Pricing: 12-month rate grid (grouped by value) + cleaning fee. Rates are
+// stored as a JSONB column on properties — see docs/rates.md.
 
 function Pricing({
   rates,
   cleaningFeeCents,
 }: {
-  rates: PropertyRate[];
+  rates: RatesByMonth;
   cleaningFeeCents: number;
 }) {
+  // Group consecutive months that share the same rate so the table reads
+  // "Jan-May, Sep-Dec · €350/night" rather than 12 individual rows.
+  const groups = groupByRate(rates);
   return (
     <section>
       <div className="flex items-baseline justify-between mb-5">
@@ -254,7 +258,30 @@ function Pricing({
         <span className="text-[10px] font-mono text-slate-300">see docs/rates.md</span>
       </div>
 
-      <RatesTable rates={rates} />
+      {groups.length === 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm">
+          No rates configured.
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                <th className="text-left px-5 py-3">Months</th>
+                <th className="text-right px-5 py-3">Per night</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((g) => (
+                <tr key={g.label} className="border-t border-slate-50">
+                  <td className="px-5 py-3 text-slate-700 font-mono text-[12px]">{g.label}</td>
+                  <td className="px-5 py-3 text-right font-mono text-slate-900 tabular-nums">{eur(g.cents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-5 py-4 flex items-center justify-between">
         <div className="flex items-baseline gap-3">
@@ -271,53 +298,26 @@ function Pricing({
   );
 }
 
-function RatesTable({ rates }: { rates: PropertyRate[] }) {
-  if (rates.length === 0) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm">
-        No rates configured. Add one in property_rates or via seed.
-      </div>
-    );
+function groupByRate(rates: RatesByMonth): Array<{ label: string; cents: number }> {
+  // Walk months in order, collapse runs that share a rate.
+  const runs: Array<{ months: Month[]; cents: number }> = [];
+  for (const m of MONTHS) {
+    const cents = rates[m] ?? 0;
+    const last = runs[runs.length - 1];
+    if (last && last.cents === cents) {
+      last.months.push(m);
+    } else {
+      runs.push({ months: [m], cents });
+    }
   }
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 text-[10px] font-mono uppercase tracking-widest text-slate-400">
-            <th className="text-left px-5 py-3">Rate</th>
-            <th className="text-left px-5 py-3">Months</th>
-            <th className="text-right px-5 py-3">Min nights</th>
-            <th className="text-right px-5 py-3">Per night</th>
-            <th className="text-right px-5 py-3">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rates.map((r) => (
-            <tr key={r.id} className="border-t border-slate-50">
-              <td className="px-5 py-3">
-                <div className="font-bold text-slate-900">{r.name}</div>
-                {!r.public && (
-                  <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mt-0.5">invite only</div>
-                )}
-              </td>
-              <td className="px-5 py-3 text-slate-600 font-mono text-[12px]">{formatMonths(r.months)}</td>
-              <td className="px-5 py-3 text-right text-slate-700 tabular-nums">{r.min_nights}</td>
-              <td className="px-5 py-3 text-right font-mono text-slate-900 tabular-nums">{eur(r.night_rate_cents)}</td>
-              <td className="px-5 py-3 text-right">
-                <span
-                  className={
-                    r.active
-                      ? 'text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest'
-                      : 'text-[10px] font-mono text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-widest'
-                  }
-                >
-                  {r.active ? 'active' : 'inactive'}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  // Merge January with December if both runs share a rate (wrap-around).
+  if (runs.length > 1 && runs[0].cents === runs[runs.length - 1].cents) {
+    const tail = runs.pop()!;
+    runs[0].months = [...tail.months, ...runs[0].months];
+  }
+  // Then format each run's months into a "Jan-May" or "Jul" string.
+  return runs.map((r) => ({
+    label: formatMonths(r.months),
+    cents: r.cents,
+  }));
 }

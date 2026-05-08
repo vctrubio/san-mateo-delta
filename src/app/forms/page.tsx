@@ -5,10 +5,10 @@ import BookingActionButtons from '@/components/admin/BookingActionButtons';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
 import CancelBookingForm from '@/components/admin/CancelBookingForm';
 import PropertyEditForm from '@/components/admin/PropertyEditForm';
-import RatesAdmin from '@/components/admin/RatesAdmin';
+import PropertyRateForm from '@/components/admin/PropertyRateForm';
 import Calendar from '@/components/calendar/Calendar';
 import InviteForm, { type PropertyOption, type UserOption } from '@/components/admin/invite/InviteForm';
-import type { Property, PropertyRate } from '@/lib/properties';
+import type { Property } from '@/lib/properties';
 import type { CalendarItem } from '@/lib/calendar';
 import type { BookingStatus } from '@db/enums';
 
@@ -30,13 +30,12 @@ const MOCK_PROPERTY: Property = {
   m2: 180,
   max_guests: 6,
   cleaning_fee_cents: 12000,
+  rates: {
+    1: 35000, 2: 35000, 3: 35000, 4: 35000, 5: 35000,
+    6: 48000, 7: 48000, 8: 48000,
+    9: 35000, 10: 35000, 11: 35000, 12: 35000,
+  },
 };
-
-const MOCK_RATES: PropertyRate[] = [
-  { id: 'MOCK-R1', name: 'Low Season',  active: true,  public: true,  min_nights: 2,  months: [1,2,3,4,5,9,10,11,12], night_rate_cents: 35000 },
-  { id: 'MOCK-R2', name: 'High Season', active: true,  public: true,  min_nights: 2,  months: [6,7,8],                 night_rate_cents: 48000 },
-  { id: 'MOCK-R3', name: 'Long-Stay',   active: false, public: false, min_nights: 15, months: [1,2,3,4,5,9,10,11,12], night_rate_cents: 28000 },
-];
 
 const ACTION_STATES: BookingStatus[] = ['request', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
 
@@ -196,12 +195,12 @@ export default function FormsPreviewPage() {
           </Section>
 
           <Section
-            title="RatesAdmin · existing rates + new rate"
-            file="src/components/admin/RatesAdmin.tsx"
+            title="PropertyRateForm · 12-month grid"
+            file="src/components/admin/PropertyRateForm.tsx"
             usedOn="/admin/properties/[slug]"
-            note="One form per rate row. Months are 12 checkboxes. The last form (dashed border) is for adding a new rate. See docs/rates.md for the selection algorithm."
+            note="One €/night value per calendar month. Two presets — flat rate, low/high split (Jun-Aug = high). Submits updatePropertyRates which writes the JSONB column. CHECK constraint enforces all 12 keys present. See docs/rates.md."
           >
-            <RatesAdmin slug={MOCK_PROPERTY.slug} rates={MOCK_RATES} />
+            <PropertyRateForm slug={MOCK_PROPERTY.slug} rates={MOCK_PROPERTY.rates} />
           </Section>
 
           <Section

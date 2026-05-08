@@ -266,7 +266,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
                   <span className="text-base font-bold text-slate-900">{eur(defaultQuote.agreed_total_cents)}</span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1 font-mono uppercase tracking-widest">
-                  rate · {defaultQuote.rate_name}
+                  rate · {defaultQuote.rate_month_label}
                 </p>
               </dl>
             )}

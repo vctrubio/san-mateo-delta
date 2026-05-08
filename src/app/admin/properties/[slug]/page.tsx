@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import PropertyEditForm from '@/components/admin/PropertyEditForm';
-import RatesAdmin from '@/components/admin/RatesAdmin';
+import PropertyRateForm from '@/components/admin/PropertyRateForm';
 import PropertyBookingSummary from '@/components/admin/PropertyBookingSummary';
 import Calendar from '@/components/calendar/Calendar';
 import { getPropertyBySlug, listPropertyStats } from '@/lib/properties';
@@ -23,7 +23,7 @@ export default async function AdminPropertyDetailPage({
   const { slug } = await params;
   const data = await getPropertyBySlug(slug);
   if (!data) notFound();
-  const { property, rates } = data;
+  const { property } = data;
 
   // Pull a 12-month window starting one month back so the admin can scroll a
   // little into the past without a re-fetch. Default view is 4 months but the
@@ -96,11 +96,11 @@ export default async function AdminPropertyDetailPage({
       <section className="mb-10">
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
-            Rates · {rates.length}
+            Rates · 12 months
           </h2>
           <span className="text-[10px] font-mono text-slate-300">see docs/rates.md</span>
         </div>
-        <RatesAdmin slug={property.slug} rates={rates} />
+        <PropertyRateForm slug={property.slug} rates={property.rates} />
       </section>
     </div>
   );
