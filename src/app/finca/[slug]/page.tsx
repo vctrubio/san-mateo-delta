@@ -7,9 +7,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { getPropertyBySlug, type PropertyRate } from '@/lib/properties';
+import { getCalendarItems, windowFor } from '@/lib/calendar';
 import { MONTH_NAMES, type Month } from '@db/enums';
 import fincaData from '../../../../finca.json';
 import BookNowForm from '@/components/finca/BookNowForm';
+
+export const dynamic = 'force-dynamic';
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
   'Starlink WiFi': Wifi,
@@ -68,6 +71,15 @@ export default async function PropertyDetailsPage({
   if (!data) notFound();
   const { property, rates } = data;
 
+  // Fetch a 6-month forward window so the calendar can navigate without re-fetch.
+  const { from, to } = windowFor(new Date(), 6);
+  const calendarItems = await getCalendarItems({
+    propertyId: property.id,
+    from,
+    to,
+    mode: 'public',
+  });
+
   return (
     <main className="min-h-screen pb-20">
       <Hero property={property} />
@@ -83,7 +95,7 @@ export default async function PropertyDetailsPage({
 
         <Pricing rates={rates} cleaningFeeCents={property.cleaning_fee_cents} />
 
-        <BookNowForm slug={property.slug} maxGuests={property.max_guests} />
+        <BookNowForm slug={property.slug} maxGuests={property.max_guests} items={calendarItems} />
       </div>
     </main>
   );
@@ -239,7 +251,7 @@ function Pricing({
     <section>
       <div className="flex items-baseline justify-between mb-5">
         <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Pricing</h2>
-        <span className="text-[10px] font-mono text-slate-300">see db/rates.md</span>
+        <span className="text-[10px] font-mono text-slate-300">see docs/rates.md</span>
       </div>
 
       <RatesTable rates={rates} />

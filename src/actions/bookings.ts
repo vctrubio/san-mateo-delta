@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { pool } from '@db/client';
 import type { BookingStatus, CancelledBy } from '@db/enums';
-import { computeQuote } from '@/lib/bookings';
+import { computeQuote, type Quote } from '@/lib/bookings';
 import { computeRefund } from '@/lib/refund';
 
 type RequestBookingResult =
@@ -162,6 +162,38 @@ export async function requestBookingAndRedirect(formData: FormData): Promise<voi
   const result = await requestBooking(formData);
   if (!result.ok) throw new Error(result.error);
   redirect(`/user/${result.userId}`);
+}
+
+// ---------------------------------------------------------------------------
+// previewQuote — UI-only helper for the BookNowForm calendar. Same algorithm
+// as requestBooking's pricing path (computeQuote), just exposed without
+// inserting anything. Returned as a discriminated union so the client can
+// render either the price summary or the error.
+// ---------------------------------------------------------------------------
+
+type PreviewQuoteResult =
+  | { ok: true; quote: Quote }
+  | { ok: false; error: string };
+
+export async function previewQuote(args: {
+  slug: string;
+  check_in: string;
+  check_out: string;
+}): Promise<PreviewQuoteResult> {
+  const props = await pool.query<{ id: string }>(
+    `SELECT id::text FROM properties WHERE slug = $1`,
+    [args.slug],
+  );
+  const property = props.rows[0];
+  if (!property) return { ok: false, error: `Unknown property: ${args.slug}` };
+
+  const quote = await computeQuote({
+    propertyId: property.id,
+    check_in: args.check_in,
+    check_out: args.check_out,
+  });
+  if ('error' in quote) return { ok: false, error: quote.error };
+  return { ok: true, quote };
 }
 
 // ---------------------------------------------------------------------------
