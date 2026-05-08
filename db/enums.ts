@@ -31,6 +31,12 @@ export const PAYMENT_TYPES = [
 ] as const;
 export type PaymentType = (typeof PAYMENT_TYPES)[number];
 
+export const PAYMENT_METHODS = ['cash', 'stripe'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_STATUSES = ['pending', 'succeeded', 'failed'] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
 export const CANCELLED_BY = ['guest', 'admin'] as const;
 export type CancelledBy = (typeof CANCELLED_BY)[number];
 

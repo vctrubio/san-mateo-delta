@@ -18,6 +18,8 @@ DROP TABLE IF EXISTS properties             CASCADE;
 DROP TABLE IF EXISTS users                  CASCADE;
 
 DROP TYPE IF EXISTS cancelled_by;
+DROP TYPE IF EXISTS payment_status;
+DROP TYPE IF EXISTS payment_method;
 DROP TYPE IF EXISTS payment_type;
 DROP TYPE IF EXISTS service_fee_type;
 DROP TYPE IF EXISTS invitation_status;

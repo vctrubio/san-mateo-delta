@@ -38,6 +38,23 @@ CREATE TYPE payment_type AS ENUM (
   'extra_guest'
 );
 
+-- How the money moved. 'cash' = handed over physically (or owed at check-in).
+-- 'stripe' = card processed via Stripe Checkout — see docs/stripe.md.
+CREATE TYPE payment_method AS ENUM (
+  'cash',
+  'stripe'
+);
+
+-- Where this payment is in its lifecycle. Cash payments jump straight to
+-- 'succeeded' on `Mark received` (or are inserted as 'pending' for cash-on-arrival).
+-- Stripe payments start 'pending' (Checkout Session created) and flip to
+-- 'succeeded' or 'failed' on webhook.
+CREATE TYPE payment_status AS ENUM (
+  'pending',
+  'succeeded',
+  'failed'
+);
+
 CREATE TYPE cancelled_by AS ENUM (
   'guest',
   'admin'
@@ -217,26 +234,43 @@ CREATE INDEX idx_booking_cancellations_cancelled_at ON booking_cancellations(can
 -- ============================================================================
 
 CREATE TABLE booking_payments (
-  id            BIGSERIAL   PRIMARY KEY,
-  booking_id    BIGINT      NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  type          payment_type NOT NULL,
-  amount_cents  BIGINT      NOT NULL CHECK (amount_cents >= 0),
-  cash          BOOLEAN     NOT NULL DEFAULT true,
-  paid_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                    BIGSERIAL      PRIMARY KEY,
+  booking_id            BIGINT         NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  type                  payment_type   NOT NULL,
+  amount_cents          BIGINT         NOT NULL CHECK (amount_cents >= 0),
+  method                payment_method NOT NULL DEFAULT 'cash',
+  status                payment_status NOT NULL DEFAULT 'succeeded',
+  -- Stripe identifiers. NULL for cash. Populated as Stripe lifecycle progresses:
+  --   stripe_session_id     — set when Checkout Session is created
+  --   stripe_payment_intent — set on checkout.session.completed webhook
+  --   stripe_charge_id      — set on checkout.session.completed webhook (for refunds)
+  stripe_session_id     TEXT,
+  stripe_payment_intent TEXT,
+  stripe_charge_id      TEXT,
+  paid_at               TIMESTAMPTZ    NOT NULL DEFAULT now(),
+  created_at            TIMESTAMPTZ    NOT NULL DEFAULT now(),
+  CHECK (
+    (method = 'cash'   AND stripe_session_id IS NULL) OR
+    (method = 'stripe' AND stripe_session_id IS NOT NULL)
+  )
 );
 
-CREATE INDEX idx_booking_payments_booking ON booking_payments(booking_id);
+CREATE INDEX idx_booking_payments_booking          ON booking_payments(booking_id);
+CREATE UNIQUE INDEX idx_booking_payments_session   ON booking_payments(stripe_session_id) WHERE stripe_session_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_booking_payments_intent    ON booking_payments(stripe_payment_intent) WHERE stripe_payment_intent IS NOT NULL;
 
 CREATE TABLE payment_refunds (
-  id            BIGSERIAL   PRIMARY KEY,
-  payment_id    BIGINT      NOT NULL REFERENCES booking_payments(id) ON DELETE CASCADE,
-  amount_cents  BIGINT      NOT NULL CHECK (amount_cents >= 0),
-  note          TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                BIGSERIAL   PRIMARY KEY,
+  payment_id        BIGINT      NOT NULL REFERENCES booking_payments(id) ON DELETE CASCADE,
+  amount_cents      BIGINT      NOT NULL CHECK (amount_cents >= 0),
+  note              TEXT,
+  -- Stripe refund id (re_…). NULL for cash refunds.
+  stripe_refund_id  TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_payment_refunds_payment ON payment_refunds(payment_id);
+CREATE INDEX idx_payment_refunds_payment        ON payment_refunds(payment_id);
+CREATE UNIQUE INDEX idx_payment_refunds_stripe  ON payment_refunds(stripe_refund_id) WHERE stripe_refund_id IS NOT NULL;
 
 -- ============================================================================
 -- BOOKING EVENTS (audit log)
