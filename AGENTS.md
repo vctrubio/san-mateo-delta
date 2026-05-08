@@ -56,3 +56,20 @@ Rules:
 - All app code that hits the database imports from `@db/client` (the alias is wired in `tsconfig.json` to `./db/*`) — single Neon Pool, no other connection paths.
 - During iteration, treat the DB as disposable: change `schema.sql`, run `bun db:init`. Don't write incremental migrations until the schema stabilizes.
 - The `bookings` exclusion constraint (`no_overlap_when_held`) prevents double-booking on `confirmed`/`checked_in`/`checked_out` dates. Don't bypass it; if you need to override, change the booking's status first.
+- **Snapshots, not recalculations.** Fees and policies are copied onto bookings at creation. Money columns on `bookings` (`agreed_property_cents`, `agreed_cleaning_cents`) and the cancellation outcome columns on `booking_cancellations` are frozen — edits to property templates or `DEFAULT_REFUND_POLICY` only affect future bookings/cancellations. See `db/refund.md`.
+
+## Internal-only routes
+
+Two non-public routes for development. They live alongside customer routes but serve different purposes:
+
+| Route | Purpose | Adds new things here when |
+|---|---|---|
+| `/debug` | System observability — schema, live row counts, e2e flow recap, refund policy preview, color tokens, finca.json viewer. Read-only and safe. | A new schema concept, money flow, or system invariant exists and is hard to see from the customer-facing routes. |
+| `/forms` | Catalog of every form in the app, rendered with mock data and wrapped in `<fieldset disabled>` so submissions don't fire. For visual review and styling. | A new form is added or restyled. Add the form to `src/app/forms/page.tsx` so it stays discoverable. |
+
+Both pages have `export const dynamic = 'force-dynamic';` so they always reflect current state.
+
+Rules:
+- Never put real business logic on these routes. They show what already exists; they don't create new behavior.
+- `/debug` may query the live DB. `/forms` should not — use mock data so it works regardless of seed state.
+- When you add a `Debug<X>Panel` or a new form, also wire it into the corresponding page so it's discoverable.
