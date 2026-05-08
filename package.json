@@ -10,17 +10,20 @@
     "db:init": "bun --env-file=.env.local run db/init.ts",
     "db:reset": "bun --env-file=.env.local run db/reset.ts",
     "db:seed": "bun --env-file=.env.local run db/seed.ts",
-    "db:fullseason": "bun --env-file=.env.local run db/fullseason.ts"
+    "db:fullseason": "bun --env-file=.env.local run db/fullseason.ts",
+    "db:smoke-stripe": "bun --env-file=.env.local run db/smoke_stripe.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@stripe/stripe-js": "^9.4.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "next": "16.2.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "stripe": "^22.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
