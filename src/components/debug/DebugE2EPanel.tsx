@@ -195,18 +195,14 @@ function StubbedPanel() {
               <CreditCard className="w-3.5 h-3.5 text-amber-700" />
               Payments
             </h4>
-            <span className="text-[10px] font-mono text-amber-700 uppercase tracking-widest">cash=true</span>
+            <span className="text-[10px] font-mono text-amber-700 uppercase tracking-widest">cash + stripe</span>
           </div>
           <p className="text-[11px] text-slate-600 leading-relaxed mb-3">
-            Pay buttons insert <code className="font-mono px-1 rounded bg-slate-50">booking_payments</code> rows
-            with <code className="font-mono px-1 rounded bg-slate-50">cash = true</code>. No card flow, no provider,
-            no receipt PDF.
+            <code className="font-mono px-1 rounded bg-slate-50">booking_payments</code> rows now carry
+            <code className="font-mono px-1 rounded bg-slate-50">method</code> (cash | stripe) and
+            <code className="font-mono px-1 rounded bg-slate-50">status</code> (pending | succeeded | failed).
+            See the <strong>DebugStripe</strong> panel below for the full Stripe story.
           </p>
-          <div className="space-y-1.5">
-            <Suggestion title="Stripe Checkout for the deposit" body="One redirect, one webhook, simple. Add a stripe_payment_intent_id to booking_payments and flip cash → false on success." />
-            <Suggestion title="Stripe Payment Intents for split pay" body="If you want deposit + balance split with the same card on file, use customers + setup intents." />
-            <Suggestion title="Webhook table" body="Beta had stripe_webhook_events for retry/audit. Worth keeping when Stripe lands — payments arrive async, you don't want to lose one." />
-          </div>
         </div>
       </div>
     </div>

@@ -154,13 +154,17 @@ const TABLES: Table[] = [
   {
     name: 'booking_payments',
     domain: 'payment',
-    summary: 'Each payment slice for a booking. cash=true while Stripe is deferred.',
+    summary: 'Each payment slice for a booking. method = cash | stripe; status = pending | succeeded | failed.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'booking_id', type: 'BIGINT', fk: 'bookings.id' },
       { name: 'type', type: 'ENUM', enum: 'payment_type' },
       { name: 'amount_cents', type: 'BIGINT' },
-      { name: 'cash', type: 'BOOLEAN' },
+      { name: 'method', type: 'ENUM', enum: 'payment_method' },
+      { name: 'status', type: 'ENUM', enum: 'payment_status' },
+      { name: 'stripe_session_id', type: 'TEXT', nullable: true },
+      { name: 'stripe_payment_intent', type: 'TEXT', nullable: true },
+      { name: 'stripe_charge_id', type: 'TEXT', nullable: true },
       { name: 'paid_at', type: 'TIMESTAMPTZ' },
     ],
   },
@@ -173,6 +177,7 @@ const TABLES: Table[] = [
       { name: 'payment_id', type: 'BIGINT', fk: 'booking_payments.id' },
       { name: 'amount_cents', type: 'BIGINT' },
       { name: 'note', type: 'TEXT', nullable: true },
+      { name: 'stripe_refund_id', type: 'TEXT', nullable: true },
     ],
   },
   {

@@ -24,6 +24,7 @@ docs/                      # design + architecture docs (all markdown lives here
   dashboard.md             # what /admin shows, why, what it deliberately omits
   rates.md                 # pricing architecture + rate-selection algorithm
   refund.md                # cancellation-refund policy + tier logic
+  stripe.md                # payment methods, webhooks, lifecycle, test cards
 ```
 
 Rules:
@@ -48,7 +49,7 @@ db/
   fullseason.ts / seed_fullseason.ts  # bun script: ~year of populated demo data
 ```
 
-Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`.
+Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`, `docs/stripe.md`.
 
 Scripts:
 - `bun db:init`  — wipe + reapply schema + seed (use this 99% of the time during iteration)
