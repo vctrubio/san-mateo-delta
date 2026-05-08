@@ -31,6 +31,9 @@ export const PAYMENT_TYPES = [
 ] as const;
 export type PaymentType = (typeof PAYMENT_TYPES)[number];
 
+export const CANCELLED_BY = ['guest', 'admin'] as const;
+export type CancelledBy = (typeof CANCELLED_BY)[number];
+
 // ---------------------------------------------------------------------------
 // Months — used by property_rates.months to express seasonality.
 // See db/rates.md for the full pricing model.

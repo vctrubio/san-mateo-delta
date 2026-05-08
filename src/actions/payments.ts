@@ -18,11 +18,13 @@ export async function recordPayment(formData: FormData): Promise<void> {
   if (!bookingId || !type) throw new Error('Missing booking_id or payment type.');
 
   const bookingRows = await pool.query<{
-    agreed_price_cents: number;
+    agreed_total_cents: number;
     user_id: string | null;
     status: string;
   }>(
-    `SELECT agreed_price_cents::int AS agreed_price_cents, user_id::text AS user_id, status::text AS status
+    `SELECT (agreed_property_cents + agreed_cleaning_cents)::int AS agreed_total_cents,
+            user_id::text AS user_id,
+            status::text AS status
      FROM bookings WHERE id = $1`,
     [bookingId],
   );
@@ -35,14 +37,14 @@ export async function recordPayment(formData: FormData): Promise<void> {
   let amount_cents: number;
   switch (type) {
     case 'deposit':
-      amount_cents = Math.round(booking.agreed_price_cents * DEPOSIT_PCT);
+      amount_cents = Math.round(booking.agreed_total_cents * DEPOSIT_PCT);
       break;
     case 'reservation':
-      amount_cents = booking.agreed_price_cents;
+      amount_cents = booking.agreed_total_cents;
       break;
     case 'balance': {
       const paid = await totalPaidForBooking(bookingId);
-      amount_cents = Math.max(0, booking.agreed_price_cents - paid);
+      amount_cents = Math.max(0, booking.agreed_total_cents - paid);
       if (amount_cents === 0) throw new Error('Booking already fully paid.');
       break;
     }

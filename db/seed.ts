@@ -3,8 +3,10 @@ import {
   HIGH_SEASON_MONTHS,
   LOW_SEASON_MONTHS,
   type BookingStatus,
+  type CancelledBy,
   type Month,
 } from './enums';
+import { computeRefund } from '../src/lib/refund';
 
 type PropertySeed = {
   slug: string;
@@ -94,6 +96,7 @@ type BookingSeed = {
   children?: number;
   pets?: number;
   cancellation_reason?: string;
+  cancelled_by?: CancelledBy;
   internal_note?: string;           // logged in booking_events
 };
 
@@ -109,7 +112,7 @@ const BOOKINGS: BookingSeed[] = [
   // Estrecho (3)
   { property: 'estrecho', guest: 'tom',   in: '2026-01-20', out: '2026-01-25', status: 'checked_out', adults: 2 },
   { property: 'estrecho', guest: 'maria', in: '2026-03-05', out: '2026-03-12', status: 'checked_out', adults: 4 },
-  { property: 'estrecho', guest: 'tom',   in: '2026-04-18', out: '2026-04-22', status: 'cancelled',   adults: 2, cancellation_reason: 'Guest changed plans' },
+  { property: 'estrecho', guest: 'tom',   in: '2026-04-18', out: '2026-04-22', status: 'cancelled',   adults: 2, cancellation_reason: 'Guest changed plans', cancelled_by: 'guest' },
 
   // Marea (3)
   { property: 'marea',    guest: null,    in: '2026-01-28', out: '2026-02-02', status: 'checked_out', adults: 2, internal_note: 'Maintenance window' },
@@ -169,9 +172,9 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO properties (
          slug, title, description, features,
-         bedrooms, bathrooms, m2, max_guests
+         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents
        )
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
              description = EXCLUDED.description,
@@ -179,10 +182,11 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
              bedrooms = EXCLUDED.bedrooms,
              bathrooms = EXCLUDED.bathrooms,
              m2 = EXCLUDED.m2,
-             max_guests = EXCLUDED.max_guests
+             max_guests = EXCLUDED.max_guests,
+             cleaning_fee_cents = EXCLUDED.cleaning_fee_cents
        RETURNING id`,
       [p.slug, p.title, p.description, JSON.stringify(p.features),
-       p.bedrooms, p.bathrooms, p.m2, p.max_guests],
+       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents],
     );
     const propertyId = rows[0].id;
     ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };
@@ -203,15 +207,6 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
         [propertyId, s.name, s.months, s.night_rate_cents],
       );
     }
-
-    await pool.query(
-      `INSERT INTO property_cleaning_fee (property_id, fee_cents, active)
-       SELECT $1, $2, true
-       WHERE NOT EXISTS (
-         SELECT 1 FROM property_cleaning_fee WHERE property_id = $1 AND active
-       )`,
-      [propertyId, p.cleaning_cents],
-    );
   }
   console.log(`✓ seeded ${PROPERTIES.length} properties (each with Low + High Season rates)`);
   return ids;
@@ -226,7 +221,9 @@ async function seedBookings(
     const userId = b.guest ? userIds[b.guest] : null;
     const nights = nightsBetween(b.in, b.out);
     const nightRate = rateForCheckIn(prop.seed, b.in);
-    const agreed = nights * nightRate + prop.cleaning_cents;
+    const agreedProperty = nights * nightRate;
+    const agreedCleaning = prop.cleaning_cents;
+    const agreedTotal = agreedProperty + agreedCleaning;
     const guests = JSON.stringify({
       adults: b.adults,
       children: b.children ?? 0,
@@ -243,16 +240,16 @@ async function seedBookings(
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
-         agreed_price_cents, status, guests,
+         agreed_property_cents, agreed_cleaning_cents,
+         status, guests,
          time_check_in, time_check_out,
-         cancelled_at, cancellation_reason,
          created_at, updated_at
        ) VALUES (
          $1, $2, $3::date, $4::date,
-         $5, $6::booking_status, $7::jsonb,
-         $8, $9,
-         $10, $11,
-         $12, $12
+         $5, $6,
+         $7::booking_status, $8::jsonb,
+         $9, $10,
+         $11, $11
        )
        RETURNING id`,
       [
@@ -260,33 +257,59 @@ async function seedBookings(
         userId,
         b.in,
         b.out,
-        agreed,
+        agreedProperty,
+        agreedCleaning,
         b.status,
         guests,
         timeIn,
         timeOut,
-        cancelledAt,
-        b.cancellation_reason ?? null,
         createdAt,
       ],
     );
     const bookingId = rows[0].id;
+
+    // Cancellation row + refund per policy
+    if (b.status === 'cancelled') {
+      const refund = computeRefund({
+        agreedPropertyCents: agreedProperty,
+        agreedCleaningCents: agreedCleaning,
+        checkInDate: b.in,
+        cancelledAt: new Date(cancelledAt!),
+      });
+      await pool.query(
+        `INSERT INTO booking_cancellations (
+           booking_id, cancelled_by, reason, refund_amount_cents, policy_applied, cancelled_at
+         ) VALUES ($1, $2::cancelled_by, $3, $4, $5, $6)`,
+        [
+          bookingId,
+          b.cancelled_by ?? 'guest',
+          b.cancellation_reason ?? null,
+          refund.refundAmountCents,
+          refund.policyApplied,
+          cancelledAt,
+        ],
+      );
+    }
 
     // Payments: full reservation for held bookings; deposit + refund for cancelled.
     if (b.status === 'checked_in' || b.status === 'checked_out') {
       await pool.query(
         `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
          VALUES ($1, 'reservation', $2, true, $3, $3)`,
-        [bookingId, agreed, `${b.in}T16:00:00Z`],
+        [bookingId, agreedTotal, `${b.in}T16:00:00Z`],
       );
     } else if (b.status === 'cancelled') {
-      const deposit = Math.round(agreed * 0.3);
+      const deposit = Math.round(agreedTotal * 0.3);
       const { rows: payRows } = await pool.query<{ id: string }>(
         `INSERT INTO booking_payments (booking_id, type, amount_cents, cash, paid_at, created_at)
          VALUES ($1, 'deposit', $2, true, $3, $3)
          RETURNING id`,
         [bookingId, deposit, createdAt],
       );
+      // Refund up to what the policy allows OR what was actually paid, whichever is less.
+      // For the seeded case the deposit is 30% and the cancellation is 7 days out (50% policy
+      // tier), so the policy entitles the guest to 50% of agreedTotal but they only paid the
+      // 30% deposit. We refund the full deposit.
       await pool.query(
         `INSERT INTO payment_refunds (payment_id, amount_cents, note, created_at)
          VALUES ($1, $2, 'Cancellation refund', $3)`,

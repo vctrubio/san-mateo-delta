@@ -38,6 +38,11 @@ CREATE TYPE payment_type AS ENUM (
   'extra_guest'
 );
 
+CREATE TYPE cancelled_by AS ENUM (
+  'guest',
+  'admin'
+);
+
 -- ============================================================================
 -- USERS
 -- ============================================================================
@@ -58,17 +63,21 @@ CREATE TABLE users (
 -- ============================================================================
 
 CREATE TABLE properties (
-  id           BIGSERIAL PRIMARY KEY,
-  slug         TEXT        NOT NULL UNIQUE,
-  title        TEXT        NOT NULL,
-  description  TEXT        NOT NULL,
-  features     JSONB       NOT NULL DEFAULT '[]'::jsonb,
-  bedrooms     INT         NOT NULL CHECK (bedrooms >= 0),
-  bathrooms    INT         NOT NULL CHECK (bathrooms >= 0),
-  m2           INT         NOT NULL CHECK (m2 > 0),
-  max_guests   INT         NOT NULL CHECK (max_guests > 0),
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                 BIGSERIAL PRIMARY KEY,
+  slug               TEXT        NOT NULL UNIQUE,
+  title              TEXT        NOT NULL,
+  description        TEXT        NOT NULL,
+  features           JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  bedrooms           INT         NOT NULL CHECK (bedrooms >= 0),
+  bathrooms          INT         NOT NULL CHECK (bathrooms >= 0),
+  m2                 INT         NOT NULL CHECK (m2 > 0),
+  max_guests         INT         NOT NULL CHECK (max_guests > 0),
+  -- Default cleaning fee for new bookings; goes to Tano (the cleaner). Snapshotted
+  -- onto bookings.agreed_cleaning_cents at request time so changes here never
+  -- alter past bookings. See db/refund.md and the snapshots principle.
+  cleaning_fee_cents BIGINT      NOT NULL DEFAULT 0 CHECK (cleaning_fee_cents >= 0),
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Pricing architecture: see db/rates.md
@@ -90,37 +99,29 @@ CREATE TABLE property_rates (
 CREATE INDEX idx_property_rates_property ON property_rates(property_id) WHERE active;
 CREATE INDEX idx_property_rates_months   ON property_rates USING gin(months);
 
-CREATE TABLE property_cleaning_fee (
-  id           BIGSERIAL PRIMARY KEY,
-  property_id  BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  fee_cents    BIGINT      NOT NULL CHECK (fee_cents >= 0),
-  active       BOOLEAN     NOT NULL DEFAULT true,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX idx_property_cleaning_fee_active
-  ON property_cleaning_fee(property_id) WHERE active;
-
 -- ============================================================================
 -- BOOKINGS
 -- ============================================================================
 
+-- Money-flow snapshot principle (see memory/snapshots_principle.md):
+--   agreed_property_cents = night_rate × nights — David's revenue
+--   agreed_cleaning_cents = cleaning fee at request time — Tano's pay
+-- These are frozen on creation and never recomputed.
 CREATE TABLE bookings (
-  id                  BIGSERIAL   PRIMARY KEY,
-  access_token        UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  property_id         BIGINT      NOT NULL REFERENCES properties(id),
-  user_id             BIGINT      REFERENCES users(id),
-  date_check_in       DATE        NOT NULL,
-  date_check_out      DATE        NOT NULL,
-  agreed_price_cents  BIGINT      NOT NULL CHECK (agreed_price_cents >= 0),
-  status              booking_status NOT NULL DEFAULT 'request',
-  guests              JSONB       NOT NULL DEFAULT '{"adults":2,"children":0,"infants":0,"pets":0}'::jsonb,
-  time_check_in       TIMESTAMPTZ,
-  time_check_out      TIMESTAMPTZ,
-  cancelled_at        TIMESTAMPTZ,
-  cancellation_reason TEXT,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id                     BIGSERIAL   PRIMARY KEY,
+  access_token           UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  property_id            BIGINT      NOT NULL REFERENCES properties(id),
+  user_id                BIGINT      REFERENCES users(id),
+  date_check_in          DATE        NOT NULL,
+  date_check_out         DATE        NOT NULL,
+  agreed_property_cents  BIGINT      NOT NULL CHECK (agreed_property_cents >= 0),
+  agreed_cleaning_cents  BIGINT      NOT NULL DEFAULT 0 CHECK (agreed_cleaning_cents >= 0),
+  status                 booking_status NOT NULL DEFAULT 'request',
+  guests                 JSONB       NOT NULL DEFAULT '{"adults":2,"children":0,"infants":0,"pets":0}'::jsonb,
+  time_check_in          TIMESTAMPTZ,
+  time_check_out         TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (date_check_out > date_check_in)
 );
 
@@ -156,6 +157,31 @@ CREATE TABLE booking_service_fees (
 );
 
 CREATE INDEX idx_booking_service_fees_booking ON booking_service_fees(booking_id);
+
+-- ============================================================================
+-- BOOKING CANCELLATIONS
+-- ============================================================================
+-- One row per cancelled booking. Records who cancelled, why, what refund the
+-- policy entitled the guest to (computed at cancellation time per db/refund.md).
+-- The actual money movement is in payment_refunds (linked to the original
+-- booking_payments row). Compare booking_cancellations.refund_amount_cents to
+-- SUM(payment_refunds.amount_cents) for this booking to see if the refund is
+-- still owed, partial, or complete.
+
+CREATE TABLE booking_cancellations (
+  id                  BIGSERIAL    PRIMARY KEY,
+  booking_id          BIGINT       NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
+  cancelled_by        cancelled_by NOT NULL,
+  reason              TEXT,
+  -- What we owe the guest per policy. Snapshot — does not change if the policy
+  -- is edited later.
+  refund_amount_cents BIGINT       NOT NULL CHECK (refund_amount_cents >= 0),
+  -- Human-readable label of the policy tier that fired (e.g. "100% (>=15 days)").
+  policy_applied      TEXT         NOT NULL,
+  cancelled_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_booking_cancellations_cancelled_at ON booking_cancellations(cancelled_at DESC);
 
 -- ============================================================================
 -- PAYMENTS

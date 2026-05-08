@@ -3,6 +3,7 @@ import {
   INVITATION_STATUSES,
   SERVICE_FEE_TYPES,
   PAYMENT_TYPES,
+  CANCELLED_BY,
 } from '@db/enums';
 
 type Column = {
@@ -28,6 +29,7 @@ const ENUMS: { name: string; values: readonly string[] }[] = [
   { name: 'invitation_status', values: INVITATION_STATUSES },
   { name: 'service_fee_type',  values: SERVICE_FEE_TYPES },
   { name: 'payment_type',      values: PAYMENT_TYPES },
+  { name: 'cancelled_by',      values: CANCELLED_BY },
 ];
 
 const TABLES: Table[] = [
@@ -47,7 +49,7 @@ const TABLES: Table[] = [
   {
     name: 'properties',
     domain: 'property',
-    summary: 'The four units inside Finca San Mateo. Characteristics inlined (1:1, no join).',
+    summary: 'The four units inside Finca San Mateo. Characteristics + cleaning fee inlined.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'slug', type: 'TEXT', unique: true },
@@ -58,6 +60,7 @@ const TABLES: Table[] = [
       { name: 'bathrooms', type: 'INT' },
       { name: 'm2', type: 'INT' },
       { name: 'max_guests', type: 'INT' },
+      { name: 'cleaning_fee_cents', type: 'BIGINT', note: 'default for new bookings — goes to Tano' },
     ],
   },
   {
@@ -76,20 +79,9 @@ const TABLES: Table[] = [
     ],
   },
   {
-    name: 'property_cleaning_fee',
-    domain: 'property',
-    summary: 'Per-property cleaning fee. Only one row active at a time.',
-    columns: [
-      { name: 'id', type: 'BIGSERIAL', pk: true },
-      { name: 'property_id', type: 'BIGINT', fk: 'properties.id' },
-      { name: 'fee_cents', type: 'BIGINT' },
-      { name: 'active', type: 'BOOLEAN' },
-    ],
-  },
-  {
     name: 'bookings',
     domain: 'booking',
-    summary: 'Core reservation. Exclusion constraint blocks overlapping confirmed dates.',
+    summary: 'Core reservation. Exclusion constraint blocks overlapping confirmed dates. Money components are snapshots — frozen at request time.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'access_token', type: 'UUID', unique: true, note: 'Public link for unauthenticated viewing' },
@@ -97,13 +89,12 @@ const TABLES: Table[] = [
       { name: 'user_id', type: 'BIGINT', fk: 'users.id', nullable: true },
       { name: 'date_check_in', type: 'DATE' },
       { name: 'date_check_out', type: 'DATE' },
-      { name: 'agreed_price_cents', type: 'BIGINT' },
+      { name: 'agreed_property_cents', type: 'BIGINT', note: 'David\'s revenue — night rate × nights' },
+      { name: 'agreed_cleaning_cents', type: 'BIGINT', note: 'Tano\'s pay — snapshot of properties.cleaning_fee_cents' },
       { name: 'status', type: 'ENUM', enum: 'booking_status' },
       { name: 'guests', type: 'JSONB', note: 'adults / children / infants / pets' },
       { name: 'time_check_in', type: 'TIMESTAMPTZ', nullable: true },
       { name: 'time_check_out', type: 'TIMESTAMPTZ', nullable: true },
-      { name: 'cancelled_at', type: 'TIMESTAMPTZ', nullable: true },
-      { name: 'cancellation_reason', type: 'TEXT', nullable: true },
     ],
   },
   {
@@ -130,6 +121,20 @@ const TABLES: Table[] = [
       { name: 'type', type: 'ENUM', enum: 'service_fee_type' },
       { name: 'amount_cents', type: 'BIGINT' },
       { name: 'note', type: 'TEXT', nullable: true },
+    ],
+  },
+  {
+    name: 'booking_cancellations',
+    domain: 'booking',
+    summary: 'One row per cancelled booking. Refund snapshot, who cancelled, what policy fired. See db/refund.md.',
+    columns: [
+      { name: 'id', type: 'BIGSERIAL', pk: true },
+      { name: 'booking_id', type: 'BIGINT', fk: 'bookings.id', unique: true },
+      { name: 'cancelled_by', type: 'ENUM', enum: 'cancelled_by' },
+      { name: 'reason', type: 'TEXT', nullable: true },
+      { name: 'refund_amount_cents', type: 'BIGINT', note: 'snapshot — what the policy entitled the guest to' },
+      { name: 'policy_applied', type: 'TEXT', note: "human-readable label like '50% (≥7 days before)'" },
+      { name: 'cancelled_at', type: 'TIMESTAMPTZ' },
     ],
   },
   {
@@ -306,8 +311,8 @@ function EnumStrip() {
 
 function RelationsLegend() {
   const groups: Record<string, string[]> = {
-    'properties → ': ['property_rates', 'property_cleaning_fee'],
-    'bookings → ': ['booking_invitations', 'booking_service_fees', 'booking_payments', 'booking_events'],
+    'properties → ': ['property_rates'],
+    'bookings → ': ['booking_invitations', 'booking_service_fees', 'booking_cancellations', 'booking_payments', 'booking_events'],
     'booking_payments → ': ['payment_refunds'],
     'users → ': ['bookings.user_id', 'booking_invitations.accepted_user_id'],
   };
@@ -334,7 +339,7 @@ export default function DebugSchemaPanel() {
           Debug Schema
         </h2>
         <p className="text-xs text-slate-500 mb-6">
-          10 tables · 4 enums · EUR cents everywhere · double-booking blocked by exclusion constraint.
+          10 tables · 5 enums · EUR cents everywhere · double-booking blocked by exclusion constraint · price components frozen on the booking row (snapshots principle).
         </p>
 
         <DomainLegend />

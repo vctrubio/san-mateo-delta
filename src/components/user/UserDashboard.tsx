@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import StatusBadge from '@/components/admin/StatusBadge';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
+import CancelBookingForm from '@/components/admin/CancelBookingForm';
 import type { BookingRow } from '@/lib/bookings';
 import type { User } from '@/lib/users';
 
@@ -72,12 +73,12 @@ export default function UserDashboard({
                       </div>
                       <div className="text-right">
                         <div className="font-mono tabular-nums text-lg font-bold text-slate-900">
-                          {eur(b.agreed_price_cents)}
+                          {eur(b.agreed_total_cents)}
                         </div>
                         <div className="text-[11px] font-mono text-slate-400">
                           paid {eur(b.paid_cents)}
-                          {b.paid_cents < b.agreed_price_cents && (
-                            <span className="text-amber-700"> · outstanding {eur(b.agreed_price_cents - b.paid_cents)}</span>
+                          {b.paid_cents < b.agreed_total_cents && (
+                            <span className="text-amber-700"> · outstanding {eur(b.agreed_total_cents - b.paid_cents)}</span>
                           )}
                         </div>
                       </div>
@@ -87,7 +88,7 @@ export default function UserDashboard({
                       <div className="pt-3 border-t border-slate-50">
                         <PaymentActionButtons
                           bookingId={b.id}
-                          agreedCents={b.agreed_price_cents}
+                          agreedCents={b.agreed_total_cents}
                           paidCents={b.paid_cents}
                           status={b.status}
                           size="sm"
@@ -98,6 +99,20 @@ export default function UserDashboard({
                     {b.status === 'request' && (
                       <div className="pt-3 border-t border-slate-50 text-[11px] text-slate-400 italic">
                         Waiting for the host to confirm. You&apos;ll be able to pay once it&apos;s approved.
+                      </div>
+                    )}
+
+                    {(b.status === 'request' || b.status === 'invite' || b.status === 'confirmed') && (
+                      <div className="pt-3 mt-3 border-t border-slate-50">
+                        <CancelBookingForm bookingId={b.id} status={b.status} cancelledBy="guest" />
+                      </div>
+                    )}
+
+                    {b.status === 'cancelled' && b.refund_amount_cents != null && (
+                      <div className="pt-3 mt-3 border-t border-slate-50 text-[12px] text-rose-700">
+                        Cancelled by <span className="font-bold">{b.cancelled_by}</span>. Refund owed:{' '}
+                        <span className="font-bold">{eur(b.refund_amount_cents)}</span>
+                        {' · '}refunded so far: {eur(b.refunded_cents)} · policy: {b.policy_applied}
                       </div>
                     )}
                   </li>

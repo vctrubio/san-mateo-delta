@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
+import CancelBookingForm from '@/components/admin/CancelBookingForm';
 import { getBookingById, listBookingEvents } from '@/lib/bookings';
 import { listPaymentsForBooking } from '@/lib/payments';
 
@@ -63,22 +64,69 @@ export default async function AdminBookingDetailPage({
           <div className="text-[11px] text-slate-400 mt-0.5">max {booking.property_max_guests} on this property</div>
         </Card>
         <Card label="Pricing">
-          <div className="font-bold text-slate-900">{eur(booking.agreed_price_cents)}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">paid: {eur(booking.paid_cents)} · outstanding: {eur(Math.max(0, booking.agreed_price_cents - booking.paid_cents))}</div>
+          <div className="font-bold text-slate-900">{eur(booking.agreed_total_cents)}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">
+            <span title="David's revenue">{eur(booking.agreed_property_cents)} property</span>
+            {' + '}
+            <span title="Tano's pay">{eur(booking.agreed_cleaning_cents)} cleaning</span>
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">paid: {eur(booking.paid_cents)} · outstanding: {eur(Math.max(0, booking.agreed_total_cents - booking.paid_cents))}</div>
         </Card>
       </div>
+
+      {booking.status === 'cancelled' && booking.cancelled_at && (
+        <section className="mb-10 rounded-2xl bg-rose-50 border border-rose-200 p-5">
+          <h2 className="text-[10px] font-mono uppercase tracking-widest text-rose-800 mb-2">Cancellation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-rose-700/60">By</div>
+              <div className="text-slate-900 font-bold">{booking.cancelled_by}</div>
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-rose-700/60">Refund owed</div>
+              <div className="text-slate-900 font-bold">
+                {eur(booking.refund_amount_cents ?? 0)}{' '}
+                <span className="text-rose-700/60 text-[11px]">({booking.policy_applied})</span>
+              </div>
+              <div className="text-[11px] text-rose-700/60">refunded: {eur(booking.refunded_cents)}</div>
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-rose-700/60">When</div>
+              <div className="text-slate-900 font-bold">{new Date(booking.cancelled_at).toLocaleString('en-GB')}</div>
+            </div>
+          </div>
+          {booking.cancellation_reason && (
+            <div className="mt-3 text-[12px] text-rose-900 italic">"{booking.cancellation_reason}"</div>
+          )}
+        </section>
+      )}
 
       <section className="mb-10">
         <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Record payment (cash · admin)</h2>
         <div className="rounded-2xl bg-white border border-slate-100 p-5">
           <PaymentActionButtons
             bookingId={booking.id}
-            agreedCents={booking.agreed_price_cents}
+            agreedCents={booking.agreed_total_cents}
             paidCents={booking.paid_cents}
             status={booking.status}
           />
         </div>
       </section>
+
+      {booking.status !== 'cancelled' && booking.status !== 'checked_out' && (
+        <section className="mb-10">
+          <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">
+            Cancel (admin)
+          </h2>
+          <div className="rounded-2xl bg-white border border-slate-100 p-5">
+            <CancelBookingForm bookingId={booking.id} status={booking.status} cancelledBy="admin" />
+            <p className="text-[11px] text-slate-400 mt-2">
+              Refund amount is computed by <code className="font-mono">db/refund.md</code> policy from agreed total
+              and days-before-check-in.
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="mb-10">
         <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Payments ({payments.length})</h2>

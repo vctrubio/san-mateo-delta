@@ -17,8 +17,8 @@ async function main() {
   // Levante has a checked_out booking 2026-04-01 → 2026-04-08; overlapping must fail.
   try {
     await pool.query(
-      `INSERT INTO bookings (property_id, date_check_in, date_check_out, agreed_price_cents, status)
-       SELECT id, DATE '2026-04-03', DATE '2026-04-06', 10000, 'confirmed'
+      `INSERT INTO bookings (property_id, date_check_in, date_check_out, agreed_property_cents, agreed_cleaning_cents, status)
+       SELECT id, DATE '2026-04-03', DATE '2026-04-06', 10000, 0, 'confirmed'
          FROM properties WHERE slug = 'levante'`,
     );
     console.log('✗ overlap was NOT blocked (constraint missing)');

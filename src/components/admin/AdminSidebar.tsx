@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { LayoutDashboard, CalendarRange, CreditCard, Users, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, CalendarRange, CreditCard, Users, Building2, ArrowLeft } from 'lucide-react';
 
 const NAV = [
-  { href: '/admin',          label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/bookings', label: 'Bookings',  icon: CalendarRange },
-  { href: '/admin/payments', label: 'Payments',  icon: CreditCard },
-  { href: '/admin/users',    label: 'Users',     icon: Users },
+  { href: '/admin',            label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/admin/properties', label: 'Properties', icon: Building2 },
+  { href: '/admin/bookings',   label: 'Bookings',   icon: CalendarRange },
+  { href: '/admin/payments',   label: 'Payments',   icon: CreditCard },
+  { href: '/admin/users',      label: 'Users',      icon: Users },
 ];
 
 export default function AdminSidebar() {

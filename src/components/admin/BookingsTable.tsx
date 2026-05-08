@@ -32,7 +32,7 @@ export default function BookingsTable({ bookings }: { bookings: BookingRow[] }) 
         </thead>
         <tbody>
           {bookings.map((b) => {
-            const fullyPaid = b.paid_cents >= b.agreed_price_cents;
+            const fullyPaid = b.paid_cents >= b.agreed_total_cents;
             return (
               <tr key={b.id} className="border-t border-slate-50 hover:bg-slate-50/50">
                 <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
@@ -50,7 +50,7 @@ export default function BookingsTable({ bookings }: { bookings: BookingRow[] }) 
                 <td className="px-4 py-3 font-mono text-[12px] text-slate-600">
                   {b.date_check_in} → {b.date_check_out}
                 </td>
-                <td className="px-4 py-3 text-right font-mono tabular-nums">{eur(b.agreed_price_cents)}</td>
+                <td className="px-4 py-3 text-right font-mono tabular-nums">{eur(b.agreed_total_cents)}</td>
                 <td className="px-4 py-3 text-right font-mono tabular-nums">
                   <span className={fullyPaid ? 'text-emerald-700' : 'text-amber-700'}>{eur(b.paid_cents)}</span>
                 </td>

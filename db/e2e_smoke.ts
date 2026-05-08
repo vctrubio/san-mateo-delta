@@ -33,11 +33,11 @@ async function main() {
   const rate = rateRows.rows[0];
   if (!rate) throw new Error('no rate matched');
 
-  const fees = await pool.query<{ fee_cents: number }>(
-    `SELECT fee_cents::int FROM property_cleaning_fee WHERE property_id = $1 AND active = TRUE LIMIT 1`,
+  const fees = await pool.query<{ cleaning_fee_cents: number }>(
+    `SELECT cleaning_fee_cents::int FROM properties WHERE id = $1`,
     [property.id],
   );
-  const cleaningCents = fees.rows[0]?.fee_cents ?? 0;
+  const cleaningCents = fees.rows[0]?.cleaning_fee_cents ?? 0;
   const agreedCents = nights * rate.night_rate_cents + cleaningCents;
   const isHighSeason = HIGH_SEASON_MONTHS.includes(monthIn as 6 | 7 | 8);
   console.log(`   ${rate.name}${isHighSeason ? ' (high)' : ''}: ${nights}n × €${rate.night_rate_cents / 100} + €${cleaningCents / 100} cleaning = €${agreedCents / 100}`);
@@ -58,10 +58,10 @@ async function main() {
     userId = userRows.rows[0].id;
 
     const bRows = await client.query<{ id: string }>(
-      `INSERT INTO bookings (property_id, user_id, date_check_in, date_check_out, agreed_price_cents, status, guests)
-       VALUES ($1, $2, $3::date, $4::date, $5, 'request', '{"adults":4,"children":0,"infants":0,"pets":0}'::jsonb)
+      `INSERT INTO bookings (property_id, user_id, date_check_in, date_check_out, agreed_property_cents, agreed_cleaning_cents, status, guests)
+       VALUES ($1, $2, $3::date, $4::date, $5, $6, 'request', '{"adults":4,"children":0,"infants":0,"pets":0}'::jsonb)
        RETURNING id::text`,
-      [property.id, userId, checkIn, checkOut, agreedCents],
+      [property.id, userId, checkIn, checkOut, nights * rate.night_rate_cents, cleaningCents],
     );
     bookingId = bRows.rows[0].id;
     await client.query(
@@ -147,8 +147,8 @@ async function main() {
   console.log('\n7. Constraint test: try to insert overlapping confirmed booking on Levante 2026-09-12 → 09-15');
   try {
     await pool.query(
-      `INSERT INTO bookings (property_id, date_check_in, date_check_out, agreed_price_cents, status)
-       VALUES ($1, '2026-09-12'::date, '2026-09-15'::date, 10000, 'confirmed')`,
+      `INSERT INTO bookings (property_id, date_check_in, date_check_out, agreed_property_cents, agreed_cleaning_cents, status)
+       VALUES ($1, '2026-09-12'::date, '2026-09-15'::date, 10000, 0, 'confirmed')`,
       [property.id],
     );
     console.error('✗ overlap NOT blocked');

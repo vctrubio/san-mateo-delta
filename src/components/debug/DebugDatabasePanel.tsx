@@ -7,7 +7,9 @@ type BookingRow = {
   status: string;
   date_check_in: string;
   date_check_out: string;
-  agreed_price_cents: string;
+  agreed_property_cents: string;
+  agreed_cleaning_cents: string;
+  agreed_total_cents: string;
   guests: { adults: number; children: number; infants: number; pets: number };
   property_slug: string;
   property_title: string;
@@ -20,10 +22,10 @@ const TABLES = [
   'users',
   'properties',
   'property_rates',
-  'property_cleaning_fee',
   'bookings',
   'booking_invitations',
   'booking_service_fees',
+  'booking_cancellations',
   'booking_payments',
   'payment_refunds',
   'booking_events',
@@ -49,7 +51,9 @@ async function fetchDemoBooking(): Promise<BookingRow | null> {
       b.status::text            AS status,
       b.date_check_in::text     AS date_check_in,
       b.date_check_out::text    AS date_check_out,
-      b.agreed_price_cents::text AS agreed_price_cents,
+      b.agreed_property_cents::text AS agreed_property_cents,
+      b.agreed_cleaning_cents::text AS agreed_cleaning_cents,
+      (b.agreed_property_cents + b.agreed_cleaning_cents)::text AS agreed_total_cents,
       b.guests                  AS guests,
       p.slug                    AS property_slug,
       p.title                   AS property_title,
@@ -122,8 +126,12 @@ function DemoBookingCard({ b }: { b: BookingRow }) {
           </dd>
         </div>
         <div>
-          <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Agreed</dt>
-          <dd className="font-mono">{eur(b.agreed_price_cents)}</dd>
+          <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Agreed (total)</dt>
+          <dd className="font-mono">{eur(b.agreed_total_cents)}</dd>
+        </div>
+        <div>
+          <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Property / Cleaning</dt>
+          <dd className="font-mono text-[11px]">{eur(b.agreed_property_cents)} <span className="text-white/40">(David)</span> + {eur(b.agreed_cleaning_cents)} <span className="text-white/40">(Tano)</span></dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Paid</dt>

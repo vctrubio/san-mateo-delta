@@ -57,7 +57,7 @@ export default async function AdminUserDetailPage({
                 <span className="font-mono text-[12px] text-slate-500">{b.date_check_in} → {b.date_check_out}</span>
               </Link>
               <div className="font-mono tabular-nums text-sm">
-                <span className="text-slate-900">{eur(b.agreed_price_cents)}</span>
+                <span className="text-slate-900">{eur(b.agreed_total_cents)}</span>
                 <span className="text-slate-400 text-[11px] ml-2">paid {eur(b.paid_cents)}</span>
               </div>
             </li>

@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { pool } from '@db/client';
-import type { BookingStatus } from '@db/enums';
+import type { BookingStatus, CancelledBy } from '@db/enums';
 import { computeQuote } from '@/lib/bookings';
+import { computeRefund } from '@/lib/refund';
 
 type RequestBookingResult =
   | { ok: true; userId: string; bookingId: string }
@@ -29,10 +30,21 @@ function normaliseEmail(raw: string | null): string | null {
   return trimmed;
 }
 
+function revalidateForBooking(bookingId: string, userId: string | null) {
+  revalidatePath('/admin');
+  revalidatePath('/admin/bookings');
+  revalidatePath(`/admin/bookings/${bookingId}`);
+  revalidatePath('/admin/properties');
+  if (userId) {
+    revalidatePath(`/user/${userId}`);
+    revalidatePath(`/admin/users/${userId}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // requestBooking — entry point from /finca/[slug] BookNowForm.
-// Upserts the user, computes the quote, inserts booking + first event.
-// On success, redirects to /user/[userId].
+// Snapshots the price components onto the booking row so future fee edits
+// don't alter past totals (see memory/snapshots_principle.md).
 // ---------------------------------------------------------------------------
 
 export async function requestBooking(formData: FormData): Promise<RequestBookingResult> {
@@ -75,8 +87,6 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
   });
   if ('error' in quote) return { ok: false, error: quote.error };
 
-  // Use a transaction so a constraint failure doesn't leave an orphan user with no booking.
-  // (We still keep the user in pre-existing rows by ON CONFLICT; only NEW rows get rolled back.)
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -98,13 +108,19 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
     const bookingRows = await client.query<{ id: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
-         agreed_price_cents, status, guests
+         agreed_property_cents, agreed_cleaning_cents,
+         status, guests
        ) VALUES (
          $1, $2, $3::date, $4::date,
-         $5, 'request', $6::jsonb
+         $5, $6,
+         'request', $7::jsonb
        )
        RETURNING id::text AS id`,
-      [property.id, userId, check_in, check_out, quote.agreed_price_cents, guestsJson],
+      [
+        property.id, userId, check_in, check_out,
+        quote.agreed_property_cents, quote.agreed_cleaning_cents,
+        guestsJson,
+      ],
     );
     const bookingId = bookingRows.rows[0].id;
 
@@ -118,16 +134,15 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
           rate_name: quote.rate_name,
           nights: quote.nights,
           night_rate_cents: quote.night_rate_cents,
-          cleaning_fee_cents: quote.cleaning_fee_cents,
+          agreed_property_cents: quote.agreed_property_cents,
+          agreed_cleaning_cents: quote.agreed_cleaning_cents,
         }),
       ],
     );
 
     await client.query('COMMIT');
 
-    revalidatePath('/admin');
-    revalidatePath('/admin/bookings');
-    revalidatePath(`/user/${userId}`);
+    revalidateForBooking(bookingId, userId);
     revalidatePath('/user');
 
     return { ok: true, userId, bookingId };
@@ -150,14 +165,15 @@ export async function requestBookingAndRedirect(formData: FormData): Promise<voi
 }
 
 // ---------------------------------------------------------------------------
-// transitionStatus — admin one-click transitions.
-// Guarded; throws on invalid transitions.
+// transitionStatus — admin one-click transitions for non-cancellation moves.
+// Cancellation is its own action because it inserts a booking_cancellations
+// row and computes refund per policy.
 // ---------------------------------------------------------------------------
 
 const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
-  request:     ['confirmed', 'cancelled'],
-  invite:      ['confirmed', 'cancelled'],
-  confirmed:   ['checked_in', 'cancelled'],
+  request:     ['confirmed'],
+  invite:      ['confirmed'],
+  confirmed:   ['checked_in'],
   checked_in:  ['checked_out'],
   checked_out: [],
   cancelled:   [],
@@ -166,8 +182,11 @@ const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
 export async function transitionStatus(formData: FormData): Promise<void> {
   const bookingId = str(formData, 'booking_id');
   const to = str(formData, 'to') as BookingStatus | null;
-  const reason = str(formData, 'reason');
   if (!bookingId || !to) throw new Error('Missing booking_id or target status.');
+
+  if (to === 'cancelled') {
+    throw new Error('Use cancelBooking action to cancel.');
+  }
 
   const cur = await pool.query<{ status: BookingStatus; user_id: string | null }>(
     `SELECT status::text AS status, user_id::text AS user_id FROM bookings WHERE id = $1`,
@@ -187,10 +206,6 @@ export async function transitionStatus(formData: FormData): Promise<void> {
 
   if (to === 'checked_in')  { setFragments.push(`time_check_in = $${++p}`); params.push(now); }
   if (to === 'checked_out') { setFragments.push(`time_check_out = $${++p}`); params.push(now); }
-  if (to === 'cancelled') {
-    setFragments.push(`cancelled_at = $${++p}`);          params.push(now);
-    setFragments.push(`cancellation_reason = $${++p}`);   params.push(reason);
-  }
   params.push(bookingId);
   const idParam = `$${++p}`;
 
@@ -204,11 +219,7 @@ export async function transitionStatus(formData: FormData): Promise<void> {
     await client.query(
       `INSERT INTO booking_events (booking_id, event_type, payload)
        VALUES ($1, $2, $3::jsonb)`,
-      [
-        bookingId,
-        `booking.${to}`,
-        JSON.stringify({ from: current.status, to, reason: reason ?? undefined }),
-      ],
+      [bookingId, `booking.${to}`, JSON.stringify({ from: current.status, to })],
     );
     await client.query('COMMIT');
   } catch (err) {
@@ -218,8 +229,86 @@ export async function transitionStatus(formData: FormData): Promise<void> {
     client.release();
   }
 
-  revalidatePath('/admin');
-  revalidatePath('/admin/bookings');
-  revalidatePath(`/admin/bookings/${bookingId}`);
-  if (current.user_id) revalidatePath(`/user/${current.user_id}`);
+  revalidateForBooking(bookingId, current.user_id);
+}
+
+// ---------------------------------------------------------------------------
+// cancelBooking — runs the refund policy and writes booking_cancellations.
+// Any non-terminal booking can be cancelled. Both guest and admin can call.
+// ---------------------------------------------------------------------------
+
+export async function cancelBooking(formData: FormData): Promise<void> {
+  const bookingId = str(formData, 'booking_id');
+  const cancelled_by = str(formData, 'cancelled_by') as CancelledBy | null;
+  const reason = str(formData, 'reason');
+  if (!bookingId) throw new Error('booking_id required');
+  if (!cancelled_by) throw new Error('cancelled_by required (guest or admin)');
+
+  const result = await pool.query<{
+    status: BookingStatus;
+    user_id: string | null;
+    date_check_in: string;
+    agreed_property_cents: number;
+    agreed_cleaning_cents: number;
+  }>(
+    `SELECT status::text AS status,
+            user_id::text AS user_id,
+            date_check_in::text AS date_check_in,
+            agreed_property_cents::int AS agreed_property_cents,
+            agreed_cleaning_cents::int AS agreed_cleaning_cents
+       FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  const booking = result.rows[0];
+  if (!booking) throw new Error(`Booking ${bookingId} not found.`);
+  if (booking.status === 'cancelled' || booking.status === 'checked_out') {
+    throw new Error(`Cannot cancel a ${booking.status} booking.`);
+  }
+
+  const refund = computeRefund({
+    agreedPropertyCents: booking.agreed_property_cents,
+    agreedCleaningCents: booking.agreed_cleaning_cents,
+    checkInDate: booking.date_check_in,
+  });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE bookings SET status = 'cancelled' WHERE id = $1`,
+      [bookingId],
+    );
+
+    await client.query(
+      `INSERT INTO booking_cancellations (
+         booking_id, cancelled_by, reason, refund_amount_cents, policy_applied
+       ) VALUES ($1, $2::cancelled_by, $3, $4, $5)`,
+      [bookingId, cancelled_by, reason, refund.refundAmountCents, refund.policyApplied],
+    );
+
+    await client.query(
+      `INSERT INTO booking_events (booking_id, event_type, payload)
+       VALUES ($1, 'booking.cancelled', $2::jsonb)`,
+      [
+        bookingId,
+        JSON.stringify({
+          cancelled_by,
+          reason,
+          refund_amount_cents: refund.refundAmountCents,
+          policy_applied: refund.policyApplied,
+          days_before_check_in: refund.daysBeforeCheckIn,
+        }),
+      ],
+    );
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  revalidateForBooking(bookingId, booking.user_id);
 }

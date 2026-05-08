@@ -66,7 +66,7 @@ export default async function PropertyDetailsPage({
   const { slug } = await params;
   const data = await getPropertyBySlug(slug);
   if (!data) notFound();
-  const { property, rates, cleaning_fee } = data;
+  const { property, rates } = data;
 
   return (
     <main className="min-h-screen pb-20">
@@ -81,7 +81,7 @@ export default async function PropertyDetailsPage({
 
         <WhatYouGet features={property.features} amenities={fincaData.amenities} />
 
-        <Pricing rates={rates} cleaning_fee={cleaning_fee} />
+        <Pricing rates={rates} cleaningFeeCents={property.cleaning_fee_cents} />
 
         <BookNowForm slug={property.slug} maxGuests={property.max_guests} />
       </div>
@@ -230,10 +230,10 @@ function FeatureColumn({
 
 function Pricing({
   rates,
-  cleaning_fee,
+  cleaningFeeCents,
 }: {
   rates: PropertyRate[];
-  cleaning_fee: { fee_cents: number; active: boolean } | null;
+  cleaningFeeCents: number;
 }) {
   return (
     <section>
@@ -247,8 +247,8 @@ function Pricing({
       <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-5 py-4 flex items-center justify-between">
         <div className="flex items-baseline gap-3">
           <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Cleaning fee</span>
-          {cleaning_fee ? (
-            <span className="text-base font-bold text-slate-900 tabular-nums">{eur(cleaning_fee.fee_cents)}</span>
+          {cleaningFeeCents > 0 ? (
+            <span className="text-base font-bold text-slate-900 tabular-nums">{eur(cleaningFeeCents)}</span>
           ) : (
             <span className="text-sm text-amber-700 italic">Not configured</span>
           )}

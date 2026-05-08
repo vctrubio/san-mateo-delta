@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from '@db/client';
-import type { BookingStatus, Month } from '@db/enums';
+import type { BookingStatus, CancelledBy, Month } from '@db/enums';
 import { HIGH_SEASON_MONTHS } from '@db/enums';
 
 export type BookingRow = {
@@ -14,15 +14,23 @@ export type BookingRow = {
   user_email: string | null;
   date_check_in: string;
   date_check_out: string;
-  agreed_price_cents: number;
+  agreed_property_cents: number;
+  agreed_cleaning_cents: number;
+  /** Convenience: agreed_property_cents + agreed_cleaning_cents. */
+  agreed_total_cents: number;
   status: BookingStatus;
   guests: { adults: number; children: number; infants: number; pets: number };
   time_check_in: string | null;
   time_check_out: string | null;
+  /** Cancellation snapshot, joined from booking_cancellations if status='cancelled'. */
   cancelled_at: string | null;
+  cancelled_by: CancelledBy | null;
   cancellation_reason: string | null;
+  refund_amount_cents: number | null;
+  policy_applied: string | null;
   created_at: string;
   paid_cents: number;
+  refunded_cents: number;
 };
 
 export type BookingDetail = BookingRow & {
@@ -50,27 +58,39 @@ const BOOKING_SELECT = `
   u.email                               AS user_email,
   b.date_check_in::text                 AS date_check_in,
   b.date_check_out::text                AS date_check_out,
-  b.agreed_price_cents::int             AS agreed_price_cents,
+  b.agreed_property_cents::int          AS agreed_property_cents,
+  b.agreed_cleaning_cents::int          AS agreed_cleaning_cents,
+  (b.agreed_property_cents + b.agreed_cleaning_cents)::int AS agreed_total_cents,
   b.status::text                        AS status,
   b.guests                              AS guests,
   b.time_check_in::text                 AS time_check_in,
   b.time_check_out::text                AS time_check_out,
-  b.cancelled_at::text                  AS cancelled_at,
-  b.cancellation_reason                 AS cancellation_reason,
+  bc.cancelled_at::text                 AS cancelled_at,
+  bc.cancelled_by::text                 AS cancelled_by,
+  bc.reason                             AS cancellation_reason,
+  bc.refund_amount_cents::int           AS refund_amount_cents,
+  bc.policy_applied                     AS policy_applied,
   b.created_at::text                    AS created_at,
   COALESCE((
     SELECT SUM(bp.amount_cents)::int
     FROM booking_payments bp
     WHERE bp.booking_id = b.id
-  ), 0)                                 AS paid_cents
+  ), 0)                                 AS paid_cents,
+  COALESCE((
+    SELECT SUM(pr.amount_cents)::int
+    FROM payment_refunds pr
+    JOIN booking_payments bp2 ON bp2.id = pr.payment_id
+    WHERE bp2.booking_id = b.id
+  ), 0)                                 AS refunded_cents
 `;
 
 export async function listBookings(): Promise<BookingRow[]> {
   return sql<BookingRow>(`
     SELECT ${BOOKING_SELECT}
     FROM bookings b
-    JOIN properties p  ON p.id = b.property_id
-    LEFT JOIN users u  ON u.id = b.user_id
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
     ORDER BY
       CASE b.status WHEN 'request' THEN 0 WHEN 'confirmed' THEN 1 WHEN 'checked_in' THEN 2 ELSE 3 END,
       b.created_at DESC
@@ -82,12 +102,28 @@ export async function listBookingsForUser(userId: string): Promise<BookingRow[]>
     `
     SELECT ${BOOKING_SELECT}
     FROM bookings b
-    JOIN properties p  ON p.id = b.property_id
-    LEFT JOIN users u  ON u.id = b.user_id
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
     WHERE b.user_id = $1
     ORDER BY b.date_check_in DESC
     `,
     [userId],
+  );
+}
+
+export async function listBookingsForProperty(propertyId: string): Promise<BookingRow[]> {
+  return sql<BookingRow>(
+    `
+    SELECT ${BOOKING_SELECT}
+    FROM bookings b
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
+    WHERE b.property_id = $1
+    ORDER BY b.date_check_in DESC
+    `,
+    [propertyId],
   );
 }
 
@@ -101,8 +137,9 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
       p.bathrooms::int   AS property_bathrooms,
       p.m2::int          AS property_m2
     FROM bookings b
-    JOIN properties p  ON p.id = b.property_id
-    LEFT JOIN users u  ON u.id = b.user_id
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
     WHERE b.id = $1
     `,
     [id],
@@ -152,15 +189,20 @@ export async function listRecentBookingEvents(limit = 10) {
 
 // ---------------------------------------------------------------------------
 // Pricing — implements the rate-selection algorithm from db/rates.md.
-// Returns the chosen rate row + computed total.
+// Returns the chosen rate row + price components. The components are then
+// snapshotted onto the booking row at request time (snapshots principle).
 
 export type Quote = {
   rate_id: string;
   rate_name: string;
   night_rate_cents: number;
   nights: number;
-  cleaning_fee_cents: number;
-  agreed_price_cents: number;
+  /** Goes to David. */
+  agreed_property_cents: number;
+  /** Goes to Tano. Sourced from properties.cleaning_fee_cents at quote time. */
+  agreed_cleaning_cents: number;
+  /** Convenience: agreed_property_cents + agreed_cleaning_cents. */
+  agreed_total_cents: number;
 };
 
 export async function computeQuote(args: {
@@ -204,22 +246,22 @@ export async function computeQuote(args: {
     return { error: 'No rate matches these dates and stay length. Ask the host for a quote.' };
   }
 
-  const fees = await sql<{ fee_cents: number }>(
-    `SELECT fee_cents::int AS fee_cents
-     FROM property_cleaning_fee
-     WHERE property_id = $1 AND active = TRUE
-     LIMIT 1`,
+  // Cleaning fee is now a column on properties (snapshot at quote time).
+  const props = await sql<{ cleaning_fee_cents: number }>(
+    `SELECT cleaning_fee_cents::int AS cleaning_fee_cents FROM properties WHERE id = $1`,
     [args.propertyId],
   );
-  const cleaning_fee_cents = fees[0]?.fee_cents ?? 0;
+  const agreed_cleaning_cents = props[0]?.cleaning_fee_cents ?? 0;
+  const agreed_property_cents = nights * rate.night_rate_cents;
 
   return {
     rate_id: rate.id,
     rate_name: rate.name,
     night_rate_cents: rate.night_rate_cents,
     nights,
-    cleaning_fee_cents,
-    agreed_price_cents: nights * rate.night_rate_cents + cleaning_fee_cents,
+    agreed_property_cents,
+    agreed_cleaning_cents,
+    agreed_total_cents: agreed_property_cents + agreed_cleaning_cents,
   };
 }
 

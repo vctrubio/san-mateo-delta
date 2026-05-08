@@ -4,16 +4,19 @@
 DROP TABLE IF EXISTS booking_events         CASCADE;
 DROP TABLE IF EXISTS payment_refunds        CASCADE;
 DROP TABLE IF EXISTS booking_payments       CASCADE;
+DROP TABLE IF EXISTS booking_cancellations  CASCADE;
 DROP TABLE IF EXISTS booking_service_fees   CASCADE;
 DROP TABLE IF EXISTS booking_invitations    CASCADE;
 DROP TABLE IF EXISTS bookings               CASCADE;
-DROP TABLE IF EXISTS property_cleaning_fee   CASCADE;
-DROP TABLE IF EXISTS property_rates          CASCADE;
--- Legacy: folded into properties; explicit drop keeps reset idempotent against stale shapes.
+-- Legacy: cleaning fee folded into properties.cleaning_fee_cents column.
+DROP TABLE IF EXISTS property_cleaning_fee  CASCADE;
+DROP TABLE IF EXISTS property_rates         CASCADE;
+-- Legacy: characteristics folded into properties columns.
 DROP TABLE IF EXISTS property_characteristics CASCADE;
-DROP TABLE IF EXISTS properties              CASCADE;
-DROP TABLE IF EXISTS users                   CASCADE;
+DROP TABLE IF EXISTS properties             CASCADE;
+DROP TABLE IF EXISTS users                  CASCADE;
 
+DROP TYPE IF EXISTS cancelled_by;
 DROP TYPE IF EXISTS payment_type;
 DROP TYPE IF EXISTS service_fee_type;
 DROP TYPE IF EXISTS invitation_status;
