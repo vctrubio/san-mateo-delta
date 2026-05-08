@@ -72,6 +72,16 @@ Rules:
 
 The `/admin` dashboard is curated — it answers **how much was made, who is owed, and what's waiting**. State-machine detail (cancelled / checked_in / checked_out distribution) lives on `/admin/bookings` where it's actionable. Before adding a tile or chart, read [`docs/dashboard.md`](./docs/dashboard.md) — it documents the philosophy, the 5 sections, and what was deliberately left out so the page stays scannable in 5 seconds.
 
+## Stripe — TEST MODE ONLY
+
+> 🟡 **This entire app runs in Stripe test mode.** Both local dev and the deployed environment.
+>
+> **Never** swap `sk_test_…` / `pk_test_…` for `sk_live_…` / `pk_live_…` without explicit user confirmation, **even if the user asks for a "production deploy"** — production-the-hosting-target is not the same as live-mode-payments. Auth + safety rails (admin gate, guest-side double-confirmation, idempotency audit, real refund UX) are still pending; live mode is gated behind those.
+>
+> Pretending to be in test mode visually but calling live keys would be a real-money bug. Always check `STRIPE_SECRET_KEY` starts with `sk_test_` before assuming the environment is safe.
+
+Test card: `4242 4242 4242 4242` — any future expiry, any CVC, any ZIP. See [`docs/stripe.md`](./docs/stripe.md) for the full webhook lifecycle, idempotency contract, and other test cards (declined / 3DS / refundable).
+
 ## Internal-only routes
 
 Two non-public routes for development. They live alongside customer routes but serve different purposes:
