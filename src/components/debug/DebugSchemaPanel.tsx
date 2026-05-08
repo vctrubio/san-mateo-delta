@@ -4,7 +4,9 @@ import {
   SERVICE_FEE_TYPES,
   PAYMENT_TYPES,
   CANCELLED_BY,
+  type BookingStatus,
 } from '@db/enums';
+import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 
 type Column = {
   name: string;
@@ -66,7 +68,7 @@ const TABLES: Table[] = [
   {
     name: 'property_rates',
     domain: 'property',
-    summary: 'Per-night pricing. Selected at quote time by month + min_nights. See db/rates.md.',
+    summary: 'Per-night pricing. Selected at quote time by month + min_nights. See docs/rates.md.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'property_id', type: 'BIGINT', fk: 'properties.id' },
@@ -98,6 +100,18 @@ const TABLES: Table[] = [
     ],
   },
   {
+    name: 'property_blocks',
+    domain: 'property',
+    summary: 'Admin-imposed unavailability ranges (owner stay, maintenance, listing pause). NOT bookings — no money, no user, no lifecycle.',
+    columns: [
+      { name: 'id', type: 'BIGSERIAL', pk: true },
+      { name: 'property_id', type: 'BIGINT', fk: 'properties.id' },
+      { name: 'date_check_in', type: 'DATE' },
+      { name: 'date_check_out', type: 'DATE' },
+      { name: 'reason', type: 'TEXT', nullable: true },
+    ],
+  },
+  {
     name: 'booking_invitations',
     domain: 'booking',
     summary: '1:1 with bookings of status=invite. Tracks the email invite flow.',
@@ -126,7 +140,7 @@ const TABLES: Table[] = [
   {
     name: 'booking_cancellations',
     domain: 'booking',
-    summary: 'One row per cancelled booking. Refund snapshot, who cancelled, what policy fired. See db/refund.md.',
+    summary: 'One row per cancelled booking. Refund snapshot, who cancelled, what policy fired. See docs/refund.md.',
     columns: [
       { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'booking_id', type: 'BIGINT', fk: 'bookings.id', unique: true },
@@ -309,9 +323,43 @@ function EnumStrip() {
   );
 }
 
+function StatusPalette() {
+  const ordered: BookingStatus[] = ['request', 'invite', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
+  return (
+    <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+      <h4 className="font-mono text-[12px] font-bold text-slate-900 mb-3">
+        booking status palette · src/lib/colors.ts
+      </h4>
+      <div className="flex flex-wrap gap-2">
+        {ordered.map((s) => {
+          const style = BOOKING_STATUS_STYLES[s];
+          return (
+            <span
+              key={s}
+              className={`inline-flex items-center gap-2 ${style.chip} px-3 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest`}
+            >
+              <span className={`w-2 h-2 rounded-full ${style.dot}`} />
+              {style.label}
+            </span>
+          );
+        })}
+        <span
+          className={`inline-flex items-center gap-2 ${PROPERTY_BLOCK_STYLE.chip} px-3 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest`}
+        >
+          <span className={`w-2 h-2 rounded-full ${PROPERTY_BLOCK_STYLE.dot}`} />
+          {PROPERTY_BLOCK_STYLE.label}
+        </span>
+      </div>
+      <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
+        The held set (<code className="font-mono">confirmed</code>, <code className="font-mono">checked_in</code>, <code className="font-mono">checked_out</code>) is what the SQL exclusion constraint <code className="font-mono">no_overlap_when_held</code> blocks against, and what the public calendar marks unavailable.
+      </p>
+    </div>
+  );
+}
+
 function RelationsLegend() {
   const groups: Record<string, string[]> = {
-    'properties → ': ['property_rates'],
+    'properties → ': ['property_rates', 'property_blocks'],
     'bookings → ': ['booking_invitations', 'booking_service_fees', 'booking_cancellations', 'booking_payments', 'booking_events'],
     'booking_payments → ': ['payment_refunds'],
     'users → ': ['bookings.user_id', 'booking_invitations.accepted_user_id'],
@@ -339,7 +387,7 @@ export default function DebugSchemaPanel() {
           Debug Schema
         </h2>
         <p className="text-xs text-slate-500 mb-6">
-          10 tables · 5 enums · EUR cents everywhere · double-booking blocked by exclusion constraint · price components frozen on the booking row (snapshots principle).
+          11 tables · 5 enums · EUR cents everywhere · double-booking blocked by exclusion constraint · price components frozen on the booking row (snapshots principle).
         </p>
 
         <DomainLegend />
@@ -356,6 +404,10 @@ export default function DebugSchemaPanel() {
             <EnumStrip />
           </div>
           <RelationsLegend />
+        </div>
+
+        <div className="mt-6">
+          <StatusPalette />
         </div>
       </div>
     </section>

@@ -36,14 +36,9 @@ async function fetchCounts(): Promise<{
   };
 }
 
-const STATUS_STYLE: Record<BookingStatus, { bg: string; text: string; ring: string; label: string }> = {
-  request:     { bg: 'bg-amber-50',   text: 'text-amber-800',   ring: 'ring-amber-200',   label: 'request' },
-  invite:      { bg: 'bg-violet-50',  text: 'text-violet-800',  ring: 'ring-violet-200',  label: 'invite' },
-  confirmed:   { bg: 'bg-sky-50',     text: 'text-sky-800',     ring: 'ring-sky-200',     label: 'confirmed' },
-  checked_in:  { bg: 'bg-emerald-50', text: 'text-emerald-800', ring: 'ring-emerald-200', label: 'checked_in' },
-  checked_out: { bg: 'bg-slate-100',  text: 'text-slate-700',   ring: 'ring-slate-200',   label: 'checked_out' },
-  cancelled:   { bg: 'bg-rose-50',    text: 'text-rose-700',    ring: 'ring-rose-200',    label: 'cancelled' },
-};
+// Status palette is centralised in src/lib/colors.ts so the calendar, status
+// badge, and this panel share one source of truth.
+import { BOOKING_STATUS_STYLES } from '@/lib/colors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State machine diagram
@@ -55,10 +50,10 @@ function StateNode({
   status: BookingStatus;
   count: number;
 }) {
-  const s = STATUS_STYLE[status];
+  const s = BOOKING_STATUS_STYLES[status];
   return (
-    <div className={`rounded-2xl ${s.bg} ${s.text} ring-1 ${s.ring} px-4 py-3 min-w-[120px] text-center`}>
-      <div className="text-[10px] font-mono uppercase tracking-widest opacity-70">{s.label}</div>
+    <div className={`rounded-2xl ${s.chip} px-4 py-3 min-w-[120px] text-center`}>
+      <div className="text-[10px] font-mono uppercase tracking-widest opacity-70">{status}</div>
       <div className="text-2xl font-bold tabular-nums mt-0.5">{count}</div>
     </div>
   );
@@ -118,13 +113,13 @@ function StateMachineDiagram({ counts }: { counts: Record<BookingStatus, number>
 // What's wired (checklist)
 
 const WIRED: Array<{ title: string; sub: string; href?: string }> = [
-  { title: 'Schema + seed (10 tables, 4 enums, 1 exclusion constraint)', sub: 'db/schema.sql · db/seed.ts',                                href: '/debug' },
-  { title: 'Pricing model with seasonal rates',                          sub: 'db/rates.md · 8 rate rows · selection in lib/bookings#computeQuote' },
+  { title: 'Schema + seed (11 tables, 5 enums, 2 exclusion constraints)', sub: 'db/schema.sql · db/seed.ts · property_blocks added',         href: '/debug' },
+  { title: 'Pricing model with seasonal rates',                          sub: 'docs/rates.md · 8 rate rows · selection in lib/bookings#computeQuote' },
   { title: 'Estate config in JSON (no DB row)',                          sub: '/finca.json amenities — change without a migration' },
   { title: 'Public landing + /finca + /finca/[slug] reading from DB',    sub: 'PropertyShowcase via listProperties()',                       href: '/finca' },
   { title: 'BookNowForm — guest creates user + booking in one submit',   sub: 'requestBooking action: upsert user, compute quote, insert booking + event, redirect to /user/[id]', href: '/finca/levante' },
-  { title: 'Admin dashboard with live metrics + recent activity',        sub: 'DashboardMetrics · QuickActions · /admin',                    href: '/admin' },
-  { title: 'Admin one-click status transitions',                          sub: '/admin/bookings → inline buttons per row',                    href: '/admin/bookings' },
+  { title: 'Admin money + pipeline dashboard',                           sub: 'DashboardMetrics · PerPropertyMoneyStrip · PipelinePanel · TopGuestsPanel · /admin', href: '/admin' },
+  { title: 'Admin one-click status transitions',                          sub: '/admin/bookings → filterable + paginated · inline buttons per row', href: '/admin/bookings' },
   { title: 'Guest dashboard with grouped bookings',                       sub: 'pending / upcoming / past / cancelled · Pay buttons appear once confirmed', href: '/user' },
   { title: 'Pay deposit / Pay full / Pay balance',                        sub: 'recordPayment action: amount computed server-side from booking + prior payments' },
   { title: 'Audit log on every transition + payment',                     sub: 'booking_events table: created, confirmed, checked_in, checked_out, cancelled, payment.recorded' },
