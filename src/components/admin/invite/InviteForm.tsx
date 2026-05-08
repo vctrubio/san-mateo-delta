@@ -18,9 +18,8 @@ import type { Quote } from '@/lib/bookings';
 //      bookings + blocks; we re-check overlap server-side too).
 //   3. Pick or invite a guest (email + name, datalist autocompletes against
 //      existing users; typing a new email creates a fresh user record).
-//   4. The form fetches the would-be default quote (computeQuote with
-//      isInvitation:true so non-public rates are eligible) and pre-fills the
-//      custom inputs with it.
+//   4. The form fetches the would-be default quote (computeQuote — a JSONB
+//      lookup against properties.rates) and pre-fills the custom inputs with it.
 //   5. Admin overrides property fee + cleaning fee. Live diff vs the default
 //      shows whether this is a discount or a premium.
 //   6. Submit → createInvitation → redirect to /admin/invite.

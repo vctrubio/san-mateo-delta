@@ -232,7 +232,7 @@ Append-only audit log of every state transition and host action.
 | `id`          | BIGSERIAL PK        |                                     |
 | `booking_id`  | BIGINT FK (CASCADE) |                                     |
 | `event_type`  | TEXT NOT NULL       | `'booking.created'`, `'booking.confirmed'`, `'payment.recorded'`, … |
-| `payload`     | JSONB               | Free-form context (rate_id, refund_amount_cents, etc.) |
+| `payload`     | JSONB               | Free-form context (rate_month, refund_amount_cents, etc.) |
 
 Free-text type rather than enum because the universe of event types grows
 faster than schema iteration cycles. Treat it as documentation, not validation.
