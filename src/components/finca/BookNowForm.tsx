@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Loader2, CheckCircle2, XCircle, Moon } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Moon, CreditCard, Banknote, AlertCircle } from 'lucide-react';
 import { previewQuote, requestBooking } from '@/actions/bookings';
+import { createCheckoutSession } from '@/actions/checkout';
 import Calendar from '@/components/calendar/Calendar';
 import { ymd } from '@/components/calendar/dateUtils';
 import type { CalendarItem } from '@/lib/calendar';
 import type { Quote } from '@/lib/bookings';
+
+type PaymentIntent = 'stripe_deposit' | 'stripe_full' | 'cash_on_arrival';
+
+const DEPOSIT_PCT = 0.3;
 
 type Props = {
   slug: string;
@@ -25,6 +30,7 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [isQuoting, setIsQuoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentIntent, setPaymentIntent] = useState<PaymentIntent>('stripe_deposit');
   const [isPending, startTransition] = useTransition();
 
   // Re-quote whenever the calendar selection changes
@@ -63,13 +69,29 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
     formData.set('slug', slug);
     formData.set('check_in', ymd(range.start));
     formData.set('check_out', ymd(range.end));
+    formData.set('payment_intent', paymentIntent);
     startTransition(async () => {
       const result = await requestBooking(formData);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      window.location.href = `/user/${result.userId}`;
+      // Cash on arrival → straight to user dashboard. Stripe → redirect to
+      // hosted Checkout. The booking already exists in 'request' state in both
+      // cases; Stripe just adds a pending payment row before payment moves.
+      if (paymentIntent === 'cash_on_arrival') {
+        window.location.href = `/user/${result.userId}`;
+        return;
+      }
+      const kind = paymentIntent === 'stripe_deposit' ? 'deposit' : 'full';
+      const checkout = await createCheckoutSession(result.bookingId, kind);
+      if (!checkout.ok) {
+        setError(`Booking saved (#${result.bookingId}), but Stripe checkout failed: ${checkout.error}. Continue from your dashboard.`);
+        // Booking exists; let the user navigate manually.
+        window.location.href = `/user/${result.userId}`;
+        return;
+      }
+      window.location.href = checkout.url;
     });
   }
 
@@ -134,6 +156,52 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
           </div>
         </div>
 
+        {/* Payment method — radio with three options */}
+        {quote && (
+          <div className="md:col-span-2 mt-4 pt-4 border-t border-slate-100">
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">How will you pay?</h3>
+            <div className="grid grid-cols-1 gap-2">
+              <PaymentOption
+                value="stripe_deposit"
+                current={paymentIntent}
+                onChange={setPaymentIntent}
+                icon={<CreditCard className="w-4 h-4" />}
+                label="Pay deposit now via card"
+                amount={Math.round(quote.agreed_total_cents * DEPOSIT_PCT)}
+                hint="30% deposit, balance at check-in"
+              />
+              <PaymentOption
+                value="stripe_full"
+                current={paymentIntent}
+                onChange={setPaymentIntent}
+                icon={<CreditCard className="w-4 h-4" />}
+                label="Pay full amount now via card"
+                amount={quote.agreed_total_cents}
+                hint="Done in one redirect — no balance owed"
+              />
+              <PaymentOption
+                value="cash_on_arrival"
+                current={paymentIntent}
+                onChange={setPaymentIntent}
+                icon={<Banknote className="w-4 h-4" />}
+                label="Pay by cash on arrival"
+                amount={quote.agreed_total_cents}
+                hint="No card now — handed to host at check-in"
+                warning
+              />
+            </div>
+            {paymentIntent === 'cash_on_arrival' && (
+              <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-[12px] text-amber-900 flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Your dates will be held in <span className="font-mono">request</span> status until the host confirms.
+                  The full <span className="font-mono">{eur(quote.agreed_total_cents)}</span> is due in cash on arrival.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="md:col-span-2 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-900">
             {error}
@@ -146,14 +214,70 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
           className="md:col-span-2 mt-2 w-full py-4 rounded-2xl bg-slate-900 text-white font-bold uppercase tracking-[0.2em] text-xs hover:bg-ocean hover:shadow-lg hover:shadow-ocean/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isPending ? 'Submitting…' : ready ? 'Request booking' : 'Pick dates first'}
+          {isPending
+            ? 'Submitting…'
+            : !ready
+              ? 'Pick dates first'
+              : paymentIntent === 'cash_on_arrival'
+                ? 'Request booking'
+                : 'Continue to payment'}
         </button>
 
         <p className="md:col-span-2 text-[11px] text-slate-400 text-center">
-          You&apos;ll be redirected to your dashboard. Status starts as <span className="font-mono">request</span> until the host approves.
+          {paymentIntent === 'cash_on_arrival'
+            ? <>Status starts as <span className="font-mono">request</span> until the host approves.</>
+            : <>You&apos;ll be redirected to a secure Stripe page. Test card: <span className="font-mono">4242 4242 4242 4242</span>.</>
+          }
         </p>
       </form>
     </section>
+  );
+}
+
+function PaymentOption({
+  value,
+  current,
+  onChange,
+  icon,
+  label,
+  amount,
+  hint,
+  warning,
+}: {
+  value: PaymentIntent;
+  current: PaymentIntent;
+  onChange: (v: PaymentIntent) => void;
+  icon: React.ReactNode;
+  label: string;
+  amount: number;
+  hint: string;
+  warning?: boolean;
+}) {
+  const selected = current === value;
+  const ring = selected
+    ? warning
+      ? 'border-amber-400 ring-2 ring-amber-200/50 bg-amber-50/40'
+      : 'border-ocean ring-2 ring-ocean/20 bg-ocean/[0.03]'
+    : 'border-slate-200 hover:border-slate-300';
+  return (
+    <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition ${ring}`}>
+      <input
+        type="radio"
+        name="payment_intent_radio"
+        value={value}
+        checked={selected}
+        onChange={() => onChange(value)}
+        className="sr-only"
+      />
+      <span className={`shrink-0 w-9 h-9 grid place-items-center rounded-lg ${warning ? 'bg-amber-100 text-amber-700' : 'bg-ocean/10 text-ocean'}`}>
+        {icon}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-slate-900">{label}</span>
+        <span className="block text-[11px] text-slate-500">{hint}</span>
+      </span>
+      <span className="shrink-0 text-sm font-mono tabular-nums font-bold text-slate-900">{eur(amount)}</span>
+    </label>
   );
 }
 

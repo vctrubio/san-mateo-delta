@@ -140,6 +140,25 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
       ],
     );
 
+    // Cash on arrival: record an upfront pending payment so /admin/payments
+    // shows the outstanding cash before check-in. Stripe intents create their
+    // own pending row inside createCheckoutSession after this transaction
+    // commits — we don't insert anything here for them.
+    const payment_intent = str(formData, 'payment_intent') ?? 'cash_on_arrival';
+    if (payment_intent === 'cash_on_arrival') {
+      const totalCents = quote.agreed_property_cents + quote.agreed_cleaning_cents;
+      await client.query(
+        `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status, paid_at)
+         VALUES ($1, 'reservation', $2, 'cash', 'pending', now())`,
+        [bookingId, totalCents],
+      );
+      await client.query(
+        `INSERT INTO booking_events (booking_id, event_type, payload)
+         VALUES ($1, 'payment.cash_pending', $2::jsonb)`,
+        [bookingId, JSON.stringify({ amount_cents: totalCents, due: 'on arrival' })],
+      );
+    }
+
     await client.query('COMMIT');
 
     revalidateForBooking(bookingId, userId);
