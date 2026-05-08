@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { sql } from '@db/client';
+import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,11 +9,11 @@ export default async function CancelPage(props: { searchParams: Promise<{ bookin
   const { booking_id } = await props.searchParams;
 
   let userId: string | null = null;
-  let propertyTitle: string | null = null;
+  let propertyLabel: string | null = null;
 
   if (booking_id) {
-    const rows = await sql<{ user_id: string | null; property_title: string }>(
-      `SELECT b.user_id::text AS user_id, p.title AS property_title
+    const rows = await sql<{ user_id: string | null; property_slug: string }>(
+      `SELECT b.user_id::text AS user_id, p.slug AS property_slug
          FROM bookings b
          JOIN properties p ON p.id = b.property_id
         WHERE b.id = $1`,
@@ -20,7 +21,7 @@ export default async function CancelPage(props: { searchParams: Promise<{ bookin
     );
     if (rows[0]) {
       userId = rows[0].user_id;
-      propertyTitle = rows[0].property_title;
+      propertyLabel = PROPERTY_LABELS[rows[0].property_slug as PropertySlug] ?? rows[0].property_slug;
     }
   }
 
@@ -35,8 +36,8 @@ export default async function CancelPage(props: { searchParams: Promise<{ bookin
             <h1 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Checkout cancelled</h1>
             <p className="text-sm text-slate-700 leading-relaxed">
               You backed out of the Stripe payment.{' '}
-              {propertyTitle ? (
-                <>Your booking for <strong>{propertyTitle}</strong> is still saved as <span className="font-mono">request</span> — </>
+              {propertyLabel ? (
+                <>Your booking for <strong>{propertyLabel}</strong> is still saved as <span className="font-mono">request</span> — </>
               ) : (
                 <>Your booking is still saved — </>
               )}

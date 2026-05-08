@@ -104,7 +104,7 @@ export default async function PropertyDetailsPage({
 // ─────────────────────────────────────────────────────────────────────────────
 // Hero
 
-function Hero({ property }: { property: { slug: string; title: string } }) {
+function Hero({ property }: { property: { slug: string } }) {
   return (
     <div className="relative h-[40vh] md:h-[55vh] w-full">
       <Image
@@ -123,7 +123,7 @@ function Hero({ property }: { property: { slug: string; title: string } }) {
         Back to collection
       </Link>
       <div className="absolute bottom-8 left-6 right-6 max-w-5xl mx-auto text-white">
-        <span className="text-xs font-mono uppercase tracking-[0.4em] text-white/70">{property.title}</span>
+        <span className="text-xs font-mono uppercase tracking-[0.4em] text-white/70">Finca {fincaData.name}</span>
         <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-tighter mt-1">
           {displayName(property.slug)}
         </h1>

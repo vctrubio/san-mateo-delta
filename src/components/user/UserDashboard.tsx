@@ -2,6 +2,8 @@ import Link from 'next/link';
 import StatusBadge from '@/components/admin/StatusBadge';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
 import CancelBookingForm from '@/components/admin/CancelBookingForm';
+import { fmtDateRange } from '@/lib/dates';
+import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import type { BookingRow } from '@/lib/bookings';
 import type { User } from '@/lib/users';
 
@@ -63,12 +65,13 @@ export default function UserDashboard({
                     <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                       <div>
                         <div className="flex items-center gap-3 mb-1 flex-wrap">
-                          <span className="font-bold text-slate-900 uppercase">{b.property_slug}</span>
-                          <span className="text-[11px] font-mono text-slate-400">{b.property_title}</span>
+                          <span className="font-bold text-slate-900">
+                            {PROPERTY_LABELS[b.property_slug as PropertySlug] ?? b.property_slug}
+                          </span>
                           <StatusBadge status={b.status} />
                         </div>
-                        <div className="text-[12px] font-mono text-slate-500">
-                          {b.date_check_in} → {b.date_check_out} · {b.guests.adults}A {b.guests.children}C
+                        <div className="text-[12px] text-slate-500">
+                          {fmtDateRange(b.date_check_in, b.date_check_out)} · {b.guests.adults}A {b.guests.children}C
                         </div>
                       </div>
                       <div className="text-right">
