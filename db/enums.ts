@@ -41,7 +41,7 @@ export const CANCELLED_BY = ['guest', 'admin'] as const;
 export type CancelledBy = (typeof CANCELLED_BY)[number];
 
 // ---------------------------------------------------------------------------
-// Months — used by property_rates.months to express seasonality.
+// Months — keys for properties.rates JSONB (per-night rate per month).
 // See docs/rates.md for the full pricing model.
 // ---------------------------------------------------------------------------
 

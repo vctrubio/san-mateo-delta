@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS property_blocks        CASCADE;
 DROP TABLE IF EXISTS bookings               CASCADE;
 -- Legacy: cleaning fee folded into properties.cleaning_fee_cents column.
 DROP TABLE IF EXISTS property_cleaning_fee  CASCADE;
+-- Legacy: night rates folded into properties.rates JSONB column.
 DROP TABLE IF EXISTS property_rates         CASCADE;
 -- Legacy: characteristics folded into properties columns.
 DROP TABLE IF EXISTS property_characteristics CASCADE;

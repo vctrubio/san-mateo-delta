@@ -93,28 +93,22 @@ CREATE TABLE properties (
   -- onto bookings.agreed_cleaning_cents at request time so changes here never
   -- alter past bookings. See docs/refund.md and the snapshots principle.
   cleaning_fee_cents BIGINT      NOT NULL DEFAULT 0 CHECK (cleaning_fee_cents >= 0),
+  -- Per-night rate per calendar month, in EUR cents. JSON object keyed
+  -- '1'..'12' (Jan..Dec). Every property must have all 12 months populated;
+  -- the CHECK + the PropertyRateForm in the admin enforce that. computeQuote
+  -- reads `rates[<month of check_in>]` × nights — no min_nights, no
+  -- active/public flag, no separate rate rows. Custom prices for friends &
+  -- family go through /admin/invite, which snapshots a one-off price onto
+  -- the booking instead of editing this column.
+  rates              JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (
+                        jsonb_typeof(rates) = 'object'
+                        AND rates ?& array['1','2','3','4','5','6','7','8','9','10','11','12']
+                     ),
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Pricing architecture: see docs/rates.md
-CREATE TABLE property_rates (
-  id                BIGSERIAL PRIMARY KEY,
-  property_id       BIGINT      NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  name              TEXT        NOT NULL,
-  active            BOOLEAN     NOT NULL DEFAULT true,
-  public            BOOLEAN     NOT NULL DEFAULT true,
-  min_nights        INT         NOT NULL DEFAULT 1 CHECK (min_nights > 0),
-  months            INT[]       NOT NULL CHECK (
-                       array_length(months, 1) > 0
-                       AND months <@ ARRAY[1,2,3,4,5,6,7,8,9,10,11,12]
-                    ),
-  night_rate_cents  BIGINT      NOT NULL CHECK (night_rate_cents >= 0),
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_property_rates_property ON property_rates(property_id) WHERE active;
-CREATE INDEX idx_property_rates_months   ON property_rates USING gin(months);
+COMMENT ON COLUMN properties.rates IS
+  'Per-night rate per calendar month in EUR cents. Keys "1"-"12". See docs/rates.md.';
 
 -- ============================================================================
 -- BOOKINGS
