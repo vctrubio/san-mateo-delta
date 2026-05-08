@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:init": "bun --env-file=.env.local run db/init.ts",
     "db:reset": "bun --env-file=.env.local run db/reset.ts",
-    "db:seed": "bun --env-file=.env.local run db/seed.ts"
+    "db:seed": "bun --env-file=.env.local run db/seed.ts",
+    "db:fullseason": "bun --env-file=.env.local run db/fullseason.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
