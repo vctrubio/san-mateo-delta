@@ -1,7 +1,6 @@
 import { pool } from './client';
 import {
   HIGH_SEASON_MONTHS,
-  LOW_SEASON_MONTHS,
   type BookingStatus,
   type CancelledBy,
   type Month,
@@ -167,15 +166,24 @@ async function seedUsers(): Promise<Record<UserKey, string>> {
 
 type SeededProperty = { id: string; cleaning_cents: number; seed: PropertySeed };
 
+function buildRates(low_cents: number, high_cents: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let m = 1; m <= 12; m++) {
+    out[String(m)] = HIGH_SEASON_MONTHS.includes(m as never) ? high_cents : low_cents;
+  }
+  return out;
+}
+
 async function seedProperties(): Promise<Record<string, SeededProperty>> {
   const ids: Record<string, SeededProperty> = {};
   for (const p of PROPERTIES) {
+    const rates = buildRates(p.low_cents, p.high_cents);
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO properties (
          slug, title, description, features,
-         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents
+         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents, rates
        )
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10::jsonb)
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
              description = EXCLUDED.description,
@@ -184,32 +192,17 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
              bathrooms = EXCLUDED.bathrooms,
              m2 = EXCLUDED.m2,
              max_guests = EXCLUDED.max_guests,
-             cleaning_fee_cents = EXCLUDED.cleaning_fee_cents
+             cleaning_fee_cents = EXCLUDED.cleaning_fee_cents,
+             rates = EXCLUDED.rates
        RETURNING id`,
       [p.slug, p.title, p.description, JSON.stringify(p.features),
-       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents],
+       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents,
+       JSON.stringify(rates)],
     );
     const propertyId = rows[0].id;
     ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };
-
-    // Two seasonal rates per property. Low Season = everything except Jun/Jul/Aug;
-    // High Season = Jun/Jul/Aug. See docs/rates.md for the selection algorithm.
-    const seasons = [
-      { name: 'Low Season',  months: [...LOW_SEASON_MONTHS],  night_rate_cents: p.low_cents  },
-      { name: 'High Season', months: [...HIGH_SEASON_MONTHS], night_rate_cents: p.high_cents },
-    ];
-    for (const s of seasons) {
-      await pool.query(
-        `INSERT INTO property_rates (property_id, name, active, public, min_nights, months, night_rate_cents)
-         SELECT $1, $2, true, true, 2, $3::int[], $4
-         WHERE NOT EXISTS (
-           SELECT 1 FROM property_rates WHERE property_id = $1 AND name = $2
-         )`,
-        [propertyId, s.name, s.months, s.night_rate_cents],
-      );
-    }
   }
-  console.log(`✓ seeded ${PROPERTIES.length} properties (each with Low + High Season rates)`);
+  console.log(`✓ seeded ${PROPERTIES.length} properties (with rates JSONB)`);
   return ids;
 }
 

@@ -316,14 +316,23 @@ async function seedUsers(): Promise<string[]> {
   return ids;
 }
 
+function buildRates(low_cents: number, high_cents: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let m = 1; m <= 12; m++) {
+    out[String(m)] = m >= 6 && m <= 8 ? high_cents : low_cents;
+  }
+  return out;
+}
+
 async function seedProperties(): Promise<Record<string, { id: string; seed: PropertySeed }>> {
   const out: Record<string, { id: string; seed: PropertySeed }> = {};
   for (const p of PROPERTIES) {
+    const rates = buildRates(p.low_cents, p.high_cents);
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO properties (
          slug, title, description, features,
-         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents
-       ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents, rates
+       ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10::jsonb)
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
              description = EXCLUDED.description,
@@ -332,30 +341,16 @@ async function seedProperties(): Promise<Record<string, { id: string; seed: Prop
              bathrooms = EXCLUDED.bathrooms,
              m2 = EXCLUDED.m2,
              max_guests = EXCLUDED.max_guests,
-             cleaning_fee_cents = EXCLUDED.cleaning_fee_cents
+             cleaning_fee_cents = EXCLUDED.cleaning_fee_cents,
+             rates = EXCLUDED.rates
        RETURNING id::text`,
       [p.slug, p.title, p.description, JSON.stringify(p.features),
-       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents],
+       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents,
+       JSON.stringify(rates)],
     );
     out[p.slug] = { id: rows[0].id, seed: p };
-
-    // Seasonal rates (matches db/seed.ts).
-    const seasons: Array<{ name: string; months: number[]; cents: number }> = [
-      { name: 'Low Season',  months: [1,2,3,4,5,9,10,11,12], cents: p.low_cents  },
-      { name: 'High Season', months: [6,7,8],                cents: p.high_cents },
-    ];
-    for (const s of seasons) {
-      await pool.query(
-        `INSERT INTO property_rates (property_id, name, active, public, min_nights, months, night_rate_cents)
-         SELECT $1, $2, true, true, 2, $3::int[], $4
-         WHERE NOT EXISTS (
-           SELECT 1 FROM property_rates WHERE property_id = $1 AND name = $2
-         )`,
-        [rows[0].id, s.name, s.months, s.cents],
-      );
-    }
   }
-  console.log(`✓ ${PROPERTIES.length} properties (Low + High Season rates)`);
+  console.log(`✓ ${PROPERTIES.length} properties (with rates JSONB)`);
   return out;
 }
 

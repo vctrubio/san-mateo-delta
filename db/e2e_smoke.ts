@@ -9,8 +9,14 @@ async function main() {
   const TEST_EMAIL = `smoke-${Date.now()}@test.com`;
 
   console.log('1. Compute quote (mirrors lib/bookings#computeQuote)');
-  const propRows = await pool.query<{ id: string; max_guests: number }>(
-    `SELECT id::text, max_guests::int FROM properties WHERE slug = 'levante'`,
+  const propRows = await pool.query<{
+    id: string;
+    max_guests: number;
+    cleaning_fee_cents: number;
+    rates: Record<string, number>;
+  }>(
+    `SELECT id::text, max_guests::int, cleaning_fee_cents::int, rates
+       FROM properties WHERE slug = 'levante'`,
   );
   const property = propRows.rows[0];
   const checkIn = '2026-09-10';
@@ -18,29 +24,13 @@ async function main() {
   const monthIn = Number(checkIn.slice(5, 7));
   const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
 
-  const rateRows = await pool.query<{ id: string; name: string; min_nights: number; night_rate_cents: number }>(
-    `SELECT id::text, name, min_nights, night_rate_cents::int
-     FROM property_rates
-     WHERE property_id = $1
-       AND active = TRUE
-       AND $2 = ANY(months)
-       AND $3 >= min_nights
-       AND public = TRUE
-     ORDER BY min_nights DESC, night_rate_cents ASC
-     LIMIT 1`,
-    [property.id, monthIn, nights],
-  );
-  const rate = rateRows.rows[0];
-  if (!rate) throw new Error('no rate matched');
+  const nightRateCents = property.rates[String(monthIn)];
+  if (typeof nightRateCents !== 'number') throw new Error(`no rate configured for month ${monthIn}`);
 
-  const fees = await pool.query<{ cleaning_fee_cents: number }>(
-    `SELECT cleaning_fee_cents::int FROM properties WHERE id = $1`,
-    [property.id],
-  );
-  const cleaningCents = fees.rows[0]?.cleaning_fee_cents ?? 0;
-  const agreedCents = nights * rate.night_rate_cents + cleaningCents;
+  const cleaningCents = property.cleaning_fee_cents;
+  const agreedCents = nights * nightRateCents + cleaningCents;
   const isHighSeason = HIGH_SEASON_MONTHS.includes(monthIn as 6 | 7 | 8);
-  console.log(`   ${rate.name}${isHighSeason ? ' (high)' : ''}: ${nights}n × €${rate.night_rate_cents / 100} + €${cleaningCents / 100} cleaning = €${agreedCents / 100}`);
+  console.log(`   month=${monthIn}${isHighSeason ? ' (high)' : ''}: ${nights}n × €${nightRateCents / 100} + €${cleaningCents / 100} cleaning = €${agreedCents / 100}`);
 
   console.log('2. requestBooking (insert user + booking + event in a tx)');
   const client = await pool.connect();
@@ -61,7 +51,7 @@ async function main() {
       `INSERT INTO bookings (property_id, user_id, date_check_in, date_check_out, agreed_property_cents, agreed_cleaning_cents, status, guests)
        VALUES ($1, $2, $3::date, $4::date, $5, $6, 'request', '{"adults":4,"children":0,"infants":0,"pets":0}'::jsonb)
        RETURNING id::text`,
-      [property.id, userId, checkIn, checkOut, nights * rate.night_rate_cents, cleaningCents],
+      [property.id, userId, checkIn, checkOut, nights * nightRateCents, cleaningCents],
     );
     bookingId = bRows.rows[0].id;
     await client.query(
