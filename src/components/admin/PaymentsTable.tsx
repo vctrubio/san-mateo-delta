@@ -1,8 +1,41 @@
 import Link from 'next/link';
+import { ExternalLink } from 'lucide-react';
 import type { PaymentRow } from '@/lib/payments';
+import type { PaymentMethod, PaymentStatus } from '@db/enums';
 
 function eur(cents: number) {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
+}
+
+function MethodBadge({ method, intent }: { method: PaymentMethod; intent: string | null }) {
+  if (method === 'stripe') {
+    const href = intent ? `https://dashboard.stripe.com/test/payments/${intent}` : null;
+    const inner = (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] bg-violet-50 text-violet-800 ring-1 ring-violet-200">
+        stripe {href && <ExternalLink className="w-2.5 h-2.5" />}
+      </span>
+    );
+    return href ? (
+      <a href={href} target="_blank" rel="noreferrer noopener" className="hover:opacity-80">{inner}</a>
+    ) : inner;
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] bg-amber-50 text-amber-800 ring-1 ring-amber-200">
+      cash
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: PaymentStatus }) {
+  const cls =
+    status === 'succeeded' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+    : status === 'pending' ? 'bg-amber-50 text-amber-700 ring-amber-200'
+    : 'bg-rose-50 text-rose-700 ring-rose-200';
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] ring-1 ${cls}`}>
+      {status}
+    </span>
+  );
 }
 
 export default function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
@@ -23,7 +56,8 @@ export default function PaymentsTable({ payments }: { payments: PaymentRow[] }) 
             <th className="text-left px-4 py-3">Booking</th>
             <th className="text-left px-4 py-3">Property</th>
             <th className="text-left px-4 py-3">Guest</th>
-            <th className="text-left px-4 py-3">Cash</th>
+            <th className="text-left px-4 py-3">Method</th>
+            <th className="text-left px-4 py-3">Status</th>
             <th className="text-right px-4 py-3">Amount</th>
             <th className="text-right px-4 py-3">Refunded</th>
             <th className="text-right px-4 py-3">When</th>
@@ -41,7 +75,8 @@ export default function PaymentsTable({ payments }: { payments: PaymentRow[] }) 
               <td className="px-4 py-3 text-slate-700">
                 {p.user_name ?? <span className="italic text-slate-400">—</span>}
               </td>
-              <td className="px-4 py-3 text-slate-500 text-[11px]">{p.cash ? 'cash' : 'card'}</td>
+              <td className="px-4 py-3"><MethodBadge method={p.method} intent={p.stripe_payment_intent} /></td>
+              <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
               <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-900">{eur(p.amount_cents)}</td>
               <td className="px-4 py-3 text-right font-mono tabular-nums">
                 {p.refunded_cents > 0 ? <span className="text-rose-700">−{eur(p.refunded_cents)}</span> : <span className="text-slate-300">—</span>}

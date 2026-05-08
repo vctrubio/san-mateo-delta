@@ -44,6 +44,7 @@ export async function revenueByMonth({ months = 12 }: { months?: number } = {}):
         SUM(bp.amount_cents)::int              AS paid_cents
       FROM booking_payments bp
       JOIN bookings b ON b.id = bp.booking_id
+      WHERE bp.status = 'succeeded'
       GROUP BY 1, 2
     ),
     refunds_by_month AS (
@@ -181,12 +182,14 @@ export async function topGuests(limit = 5): Promise<TopGuestRow[]> {
 }
 
 // ----------------------------------------------------------------------------
-// moneyHeadline — the four numbers that headline /admin.
+// moneyHeadline — the numbers that headline /admin.
 //   total_bookings        : count of all bookings ever
-//   collected_cents       : payments – refunds
+//   collected_cents       : succeeded payments – refunds (real money in the bank)
 //   david_earned_cents    : SUM agreed_property_cents on held bookings (host)
 //   tano_earned_cents     : SUM agreed_cleaning_cents on held bookings (cleaner)
 //   outstanding_cents     : agreed total of held bookings minus what's collected
+//   pending_cash_cents    : SUM amount_cents where method='cash' AND status='pending'
+//                           (money the host is owed in person at check-in)
 // ----------------------------------------------------------------------------
 
 export type MoneyHeadline = {
@@ -195,6 +198,7 @@ export type MoneyHeadline = {
   david_earned_cents: number;
   tano_earned_cents: number;
   outstanding_cents: number;
+  pending_cash_cents: number;
 };
 
 export async function moneyHeadline(): Promise<MoneyHeadline> {
@@ -212,20 +216,31 @@ export async function moneyHeadline(): Promise<MoneyHeadline> {
       FROM held
     ),
     pay AS (
-      SELECT COALESCE(SUM(amount_cents)::bigint, 0) AS paid_cents FROM booking_payments
+      SELECT COALESCE(SUM(amount_cents)::bigint, 0) AS paid_cents
+      FROM booking_payments
+      WHERE status = 'succeeded'
     ),
     refunds AS (
       SELECT COALESCE(SUM(amount_cents)::bigint, 0) AS refunded_cents FROM payment_refunds
+    ),
+    cash_pending AS (
+      SELECT COALESCE(SUM(amount_cents)::bigint, 0) AS pending_cash_cents
+      FROM booking_payments
+      WHERE method = 'cash' AND status = 'pending'
     )
     SELECT
       (SELECT COUNT(*)::int FROM bookings)                            AS total_bookings,
       ((SELECT paid_cents FROM pay) - (SELECT refunded_cents FROM refunds))::int AS collected_cents,
       money.david_earned_cents::int                                   AS david_earned_cents,
       money.tano_earned_cents::int                                    AS tano_earned_cents,
-      GREATEST(0, money.held_total_cents - ((SELECT paid_cents FROM pay) - (SELECT refunded_cents FROM refunds)))::int AS outstanding_cents
+      GREATEST(0, money.held_total_cents - ((SELECT paid_cents FROM pay) - (SELECT refunded_cents FROM refunds)))::int AS outstanding_cents,
+      (SELECT pending_cash_cents FROM cash_pending)::int              AS pending_cash_cents
     FROM money
   `);
-  return rows[0] ?? { total_bookings: 0, collected_cents: 0, david_earned_cents: 0, tano_earned_cents: 0, outstanding_cents: 0 };
+  return rows[0] ?? {
+    total_bookings: 0, collected_cents: 0, david_earned_cents: 0, tano_earned_cents: 0,
+    outstanding_cents: 0, pending_cash_cents: 0,
+  };
 }
 
 // ----------------------------------------------------------------------------

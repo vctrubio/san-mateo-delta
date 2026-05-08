@@ -1,13 +1,14 @@
-import { CalendarRange, Coins, Wallet, Sparkles, Hourglass } from 'lucide-react';
+import { CalendarRange, Coins, Wallet, Sparkles, Hourglass, Banknote } from 'lucide-react';
 import { moneyHeadline } from '@/lib/dashboard';
 
 // ============================================================================
-// Money-forward dashboard hero. Five tiles:
+// Money-forward dashboard hero. Six tiles:
 //   1. Total bookings — volume
-//   2. Collected      — payments minus refunds
+//   2. Collected      — succeeded payments minus refunds (real money in)
 //   3. David earned   — SUM agreed_property_cents on held bookings
 //   4. Tano earned    — SUM agreed_cleaning_cents on held bookings
 //   5. Outstanding    — held bookings' agreed total minus collected
+//   6. Pending cash   — cash payments that are pending (owed at check-in)
 //
 // All driven by lib/dashboard#moneyHeadline so the SQL stays in one place.
 // ============================================================================
@@ -23,7 +24,7 @@ type Metric = {
   value: string;
   sub: string;
   icon: typeof CalendarRange;
-  tone: 'sky' | 'emerald' | 'ocean' | 'amber' | 'rose';
+  tone: 'sky' | 'emerald' | 'ocean' | 'amber' | 'rose' | 'violet';
 };
 
 export default async function DashboardMetrics() {
@@ -40,7 +41,7 @@ export default async function DashboardMetrics() {
     {
       label: 'Collected',
       value: eur(m.collected_cents),
-      sub: 'payments minus refunds',
+      sub: 'succeeded payments − refunds',
       icon: Coins,
       tone: 'emerald',
     },
@@ -65,10 +66,17 @@ export default async function DashboardMetrics() {
       icon: Hourglass,
       tone: 'rose',
     },
+    {
+      label: 'Pending cash',
+      value: eur(m.pending_cash_cents),
+      sub: 'owed at check-in',
+      icon: Banknote,
+      tone: 'violet',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       {metrics.map((mt) => (
         <Tile key={mt.label} {...mt} />
       ))}
@@ -83,6 +91,7 @@ function Tile({ label, value, sub, icon: Icon, tone }: Metric) {
     ocean:   'bg-ocean/10 text-ocean ring-ocean/30',
     amber:   'bg-amber-50 text-amber-700 ring-amber-200',
     rose:    'bg-rose-50 text-rose-700 ring-rose-200',
+    violet:  'bg-violet-50 text-violet-700 ring-violet-200',
   };
   return (
     <div className="rounded-2xl bg-white border border-slate-100 p-4">

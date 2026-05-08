@@ -6,7 +6,11 @@ import ResetButton from '@/components/admin/filters/ResetButton';
 import Pagination from '@/components/admin/filters/Pagination';
 import { listPayments } from '@/lib/payments';
 import { asInt, asStringList, asDate, asBool, paginate, DEFAULT_PAGE_LIMIT } from '@/lib/searchParams';
-import { PAYMENT_TYPES, type PaymentType } from '@db/enums';
+import {
+  PAYMENT_TYPES, type PaymentType,
+  PAYMENT_METHODS, type PaymentMethod,
+  PAYMENT_STATUSES, type PaymentStatus,
+} from '@db/enums';
 import { PROPERTY_SLUGS, PROPERTY_LABELS } from '@/lib/colors';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +42,28 @@ const REFUND_CHIPS = [
   },
 ];
 
+const METHOD_CHIPS = PAYMENT_METHODS.map((m) => ({
+  value: m,
+  label: m,
+  activeClass: m === 'cash'
+    ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
+    : 'bg-violet-50 text-violet-800 ring-1 ring-violet-200',
+  dotClass: m === 'cash' ? 'bg-amber-500' : 'bg-violet-500',
+}));
+
+const STATUS_CHIPS = PAYMENT_STATUSES.map((s) => ({
+  value: s,
+  label: s,
+  activeClass:
+    s === 'succeeded' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+    : s === 'pending' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+    : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
+  dotClass:
+    s === 'succeeded' ? 'bg-emerald-500'
+    : s === 'pending' ? 'bg-amber-500'
+    : 'bg-rose-500',
+}));
+
 export default async function AdminPaymentsPage({
   searchParams,
 }: {
@@ -47,6 +73,10 @@ export default async function AdminPaymentsPage({
 
   const type = (asStringList(sp.type) ?? [])
     .filter((t): t is PaymentType => (PAYMENT_TYPES as readonly string[]).includes(t));
+  const method = (asStringList(sp.method) ?? [])
+    .filter((m): m is PaymentMethod => (PAYMENT_METHODS as readonly string[]).includes(m));
+  const status = (asStringList(sp.status) ?? [])
+    .filter((s): s is PaymentStatus => (PAYMENT_STATUSES as readonly string[]).includes(s));
   const property = asStringList(sp.property);
   const refund_only = asBool(sp.refund_only);
   const from = asDate(sp.from);
@@ -58,6 +88,8 @@ export default async function AdminPaymentsPage({
 
   const { rows: payments, total } = await listPayments({
     type: type.length > 0 ? type : undefined,
+    method: method.length > 0 ? method : undefined,
+    status: status.length > 0 ? status : undefined,
     property,
     refund_only,
     from,
@@ -80,6 +112,8 @@ export default async function AdminPaymentsPage({
       </div>
 
       <FiltersBar>
+        <FilterChips paramKey="method"   label="Method"   options={METHOD_CHIPS} />
+        <FilterChips paramKey="status"   label="Status"   options={STATUS_CHIPS} />
         <FilterChips paramKey="type"     label="Type"     options={TYPE_CHIPS} />
         <FilterChips paramKey="property" label="Property" options={PROPERTY_CHIPS} />
         <FilterChips paramKey="refund_only" label="Refunds" options={REFUND_CHIPS} />
