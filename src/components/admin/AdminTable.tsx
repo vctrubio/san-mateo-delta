@@ -2,14 +2,20 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 
 // Master table for /admin/* list views. ONE component used by properties,
-// bookings, invitations, payments, users. Changing the row look here changes
-// every list page at once.
+// bookings, invitations, payments, users.
+//
+// Visual model — "header + stack of cards":
+//   * The header row is transparent (matches the page background) so it reads
+//     like floating column labels, not table chrome.
+//   * Each row is its own rounded white card with a soft border + tiny shadow.
+//   * `space-y-2` between rows breathes — gives depth and lets hover lift the
+//     individual row instead of changing a shared container.
 //
 // Built as CSS grid (not <table>) so an entire row can be a single Link
 // without fighting <a>-can't-wrap-<tr> semantics. Stretched-link pattern: the
-// Link sits absolute inset-0 *after* the cells in DOM order, so it paints on
-// top and captures clicks anywhere on the row. Secondary clickable elements
-// inside cells should opt back to the top with `relative z-10`.
+// Link sits `absolute inset-0` *after* the cells in DOM order so it paints on
+// top and captures clicks anywhere on the row. Cell-internal clickable
+// elements opt back to top with `relative z-10`.
 
 export type AdminTableColumn<T> = {
   /** Stable react key for the column. */
@@ -46,7 +52,7 @@ export default function AdminTable<T>({
 }: AdminTableProps<T>) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl bg-white border border-slate-200/80 p-10 text-center text-sm text-slate-400">
+      <div className="rounded-2xl bg-white border border-slate-200/80 p-10 text-center text-sm text-slate-400 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         {emptyMessage}
       </div>
     );
@@ -55,9 +61,10 @@ export default function AdminTable<T>({
   const grid = template(columns, !!rowHref);
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden">
+    <div>
+      {/* Floating column labels — transparent, reads as part of the page bg */}
       <div
-        className="grid gap-x-6 px-6 py-4 text-xs font-mono uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200/60"
+        className="grid gap-x-6 px-6 pb-3 text-xs font-mono uppercase tracking-[0.22em] text-slate-400"
         style={{ gridTemplateColumns: grid }}
       >
         {columns.map((c) => (
@@ -68,38 +75,36 @@ export default function AdminTable<T>({
         {rowHref && <div />}
       </div>
 
-      {rows.map((row) => {
-        const href = rowHref?.(row);
-        return (
-          <div
-            key={rowKey(row)}
-            className="group relative grid gap-x-6 px-6 py-5 items-center border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60 transition-colors"
-            style={{ gridTemplateColumns: grid }}
-          >
-            {columns.map((c) => (
-              <div
-                key={c.key}
-                className={`min-w-0 ${c.align === 'right' ? 'text-right' : ''}`}
-              >
-                {c.render(row)}
-              </div>
-            ))}
-            {href && (
-              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-700 transition-colors" />
-            )}
-            {/*
-              Stretched link comes AFTER cells in DOM order so it paints on
-              top and captures clicks across the whole row. Cell-internal
-              clickable elements should opt back to top with `relative z-10`.
-            */}
-            {href && (
-              <Link href={href} className="absolute inset-0" aria-label="Open">
-                <span className="sr-only">Open detail</span>
-              </Link>
-            )}
-          </div>
-        );
-      })}
+      {/* Stack of cards — each row is its own surface */}
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const href = rowHref?.(row);
+          return (
+            <div
+              key={rowKey(row)}
+              className="group relative grid gap-x-6 px-6 py-5 items-center rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300/90 hover:shadow-[0_4px_16px_-4px_rgba(15,23,42,0.10)] hover:-translate-y-px transition-all duration-150"
+              style={{ gridTemplateColumns: grid }}
+            >
+              {columns.map((c) => (
+                <div
+                  key={c.key}
+                  className={`min-w-0 ${c.align === 'right' ? 'text-right' : ''}`}
+                >
+                  {c.render(row)}
+                </div>
+              ))}
+              {href && (
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" />
+              )}
+              {href && (
+                <Link href={href} className="absolute inset-0 rounded-2xl" aria-label="Open">
+                  <span className="sr-only">Open detail</span>
+                </Link>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
