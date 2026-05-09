@@ -50,11 +50,11 @@ export default async function PipelinePanel() {
 
       {/* Pending list */}
       <div className="mt-6 pt-5 border-t border-slate-100">
-        <h3 className="text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-3">
+        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-3">
           Pending requests · {pending.length}
         </h3>
         {pending.length === 0 ? (
-          <p className="text-[12px] text-slate-400 italic">Nothing waiting on you. ✓</p>
+          <p className="text-xs text-slate-400 italic">Nothing waiting on you. ✓</p>
         ) : (
           <ul>
             {pending.map((b) => (
@@ -64,18 +64,18 @@ export default async function PipelinePanel() {
               >
                 <div className="min-w-0 flex items-center gap-3">
                   <span
-                    className={`inline-block text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${BOOKING_STATUS_STYLES[b.status].chip}`}
+                    className={`inline-block text-xs font-mono uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${BOOKING_STATUS_STYLES[b.status].chip}`}
                   >
                     {BOOKING_STATUS_STYLES[b.status].label}
                   </span>
                   <div className="min-w-0">
                     <Link
                       href={`/admin/bookings/${b.id}`}
-                      className="text-[13px] font-bold text-slate-900 truncate hover:text-ocean"
+                      className="text-sm font-bold text-slate-900 truncate hover:text-ocean"
                     >
                       {b.user_name ?? <span className="italic text-slate-400">no user</span>}
                     </Link>
-                    <div className="text-[10px] text-slate-400 truncate">
+                    <div className="text-xs text-slate-400 truncate">
                       {b.property_slug} · {fmtDateRange(b.date_check_in, b.date_check_out)}
                     </div>
                   </div>
@@ -116,10 +116,10 @@ function FunnelStat({
         <span className={`w-6 h-6 rounded-md ring-1 flex items-center justify-center ${tones[tone]}`}>
           {icon}
         </span>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{label}</span>
+        <span className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</span>
       </div>
       <div className="text-2xl font-bold text-slate-900 tabular-nums">{value}</div>
-      <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">{sub}</div>
+      <div className="text-xs text-slate-400 mt-0.5 leading-snug">{sub}</div>
     </div>
   );
 }
@@ -131,10 +131,10 @@ function FunnelBar({ inflow, confirmed }: { inflow: number; confirmed: number })
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+        <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
           30-day inflow → confirmed
         </span>
-        <span className="text-[10px] font-mono text-slate-500 tabular-nums">
+        <span className="text-xs font-mono text-slate-500 tabular-nums">
           {confirmed} / {inflow}
         </span>
       </div>
@@ -150,7 +150,7 @@ function FunnelBar({ inflow, confirmed }: { inflow: number; confirmed: number })
           title={`Pending or other ${stillPendingPct}%`}
         />
       </div>
-      <div className="flex items-center gap-4 text-[10px] font-mono text-slate-500 mt-2">
+      <div className="flex items-center gap-4 text-xs font-mono text-slate-500 mt-2">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-ocean" /> Confirmed
         </span>

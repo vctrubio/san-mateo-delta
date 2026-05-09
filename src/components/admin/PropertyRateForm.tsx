@@ -98,28 +98,28 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
     <form onSubmit={onSubmit} className="space-y-5">
       {/* Presets row */}
       <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-        <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
+        <h4 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
           <Wand2 className="w-3 h-3" /> Quick fill
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PresetCard label="Flat rate" hint="Set every month to the same value">
             <EurInput value={bulk} onChange={setBulk} placeholder="350" />
             <button type="button" onClick={applyAll}
-                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-mono uppercase tracking-widest text-slate-700 hover:border-ocean hover:text-ocean">
+                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono uppercase tracking-widest text-slate-700 hover:border-ocean hover:text-ocean">
               Apply to all 12
             </button>
           </PresetCard>
           <PresetCard label="Low / High split" hint="Jun-Aug at one rate; the rest at another">
             <div className="flex items-center gap-2">
               <EurInput value={low}  onChange={setLow}  placeholder="350" />
-              <span className="text-[10px] font-mono text-slate-400">low</span>
+              <span className="text-xs font-mono text-slate-400">low</span>
             </div>
             <div className="flex items-center gap-2">
               <EurInput value={high} onChange={setHigh} placeholder="480" />
-              <span className="text-[10px] font-mono text-slate-400">high</span>
+              <span className="text-xs font-mono text-slate-400">high</span>
             </div>
             <button type="button" onClick={applySplit}
-                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-mono uppercase tracking-widest text-slate-700 hover:border-ocean hover:text-ocean">
+                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono uppercase tracking-widest text-slate-700 hover:border-ocean hover:text-ocean">
               Apply split
             </button>
           </PresetCard>
@@ -130,7 +130,7 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
       <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+            <tr className="bg-slate-50 text-xs font-mono uppercase tracking-widest text-slate-400">
               <th className="text-left px-4 py-2">Month</th>
               <th className="text-left px-4 py-2">Season</th>
               <th className="text-right px-4 py-2">€ / night</th>
@@ -142,7 +142,7 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
               return (
                 <tr key={m} className="border-t border-slate-50">
                   <td className="px-4 py-2 font-bold text-slate-900">{MONTH_NAMES[m]}</td>
-                  <td className="px-4 py-2 text-[11px]">
+                  <td className="px-4 py-2 text-xs">
                     {isHigh ? (
                       <span className="font-mono uppercase text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-1.5 py-0.5 rounded">high</span>
                     ) : (
@@ -168,7 +168,7 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
           </tbody>
           <tfoot>
             <tr className="bg-slate-50 border-t border-slate-100">
-              <td className="px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-slate-400" colSpan={2}>Sum (12-month total)</td>
+              <td className="px-4 py-2 font-mono text-xs uppercase tracking-widest text-slate-400" colSpan={2}>Sum (12-month total)</td>
               <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-700">
                 €{total.toLocaleString('es-ES')}
               </td>
@@ -192,7 +192,7 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
           {isPending ? 'Saving…' : 'Save rates'}
         </button>
-        <p className="text-[11px] text-slate-400">
+        <p className="text-xs text-slate-400">
           Existing bookings keep their snapshot — rate changes only affect new requests.
         </p>
       </div>
@@ -203,8 +203,8 @@ export default function PropertyRateForm({ slug, rates: initial }: PropertyRateF
 function PresetCard({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl bg-white border border-slate-100 p-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-700">{label}</div>
-      <div className="text-[10px] text-slate-400 mb-2">{hint}</div>
+      <div className="text-xs font-mono uppercase tracking-widest text-slate-700">{label}</div>
+      <div className="text-xs text-slate-400 mb-2">{hint}</div>
       <div className="flex items-center gap-2 flex-wrap">{children}</div>
     </div>
   );

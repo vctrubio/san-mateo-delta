@@ -42,10 +42,10 @@ export default async function NewInvitationPage() {
   );
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-5xl">
       <Link
         href="/admin/invite"
-        className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4"
+        className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> back to invitations
       </Link>

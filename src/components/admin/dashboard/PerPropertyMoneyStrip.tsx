@@ -42,7 +42,7 @@ export default async function PerPropertyMoneyStrip() {
 
             <div className="space-y-3">
               <div className="flex items-baseline justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
                   Total
                 </span>
                 <span className="text-xl font-bold text-slate-900 tabular-nums">
@@ -67,7 +67,7 @@ export default async function PerPropertyMoneyStrip() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <Split
                   label="David"
                   amount={r.david_cents}
@@ -84,7 +84,7 @@ export default async function PerPropertyMoneyStrip() {
 
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
                     Held bookings
                   </span>
                   <span className="text-sm font-bold text-slate-700 tabular-nums">
@@ -115,11 +115,11 @@ function Split({
     <div>
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
-        <span className="text-[9px] font-mono uppercase tracking-widest text-slate-400">
+        <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
           {label} · {pct}%
         </span>
       </div>
-      <div className="text-[12px] font-bold text-slate-900 tabular-nums mt-0.5">
+      <div className="text-xs font-bold text-slate-900 tabular-nums mt-0.5">
         {eur(amount)}
       </div>
     </div>

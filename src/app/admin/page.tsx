@@ -1,3 +1,4 @@
+import AdminSection from '@/components/admin/AdminSection';
 import DashboardMetrics from '@/components/admin/DashboardMetrics';
 import RevenueByMonthChart from '@/components/admin/charts/RevenueByMonthChart';
 import PerPropertyMoneyStrip from '@/components/admin/dashboard/PerPropertyMoneyStrip';
@@ -27,33 +28,26 @@ export default async function AdminDashboardPage() {
   );
 
   return (
-    <div className="p-8 max-w-7xl">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Money + pipeline · what was earned, who&apos;s owed, what&apos;s waiting.
-        </p>
-      </header>
-
-      <Section label="The money">
+    <>
+      <AdminSection eyebrow="The money">
         <DashboardMetrics />
-      </Section>
+      </AdminSection>
 
-      <Section label="By property" hint="Held bookings · David vs Tano split">
+      <AdminSection eyebrow="By property" hint="Held bookings · David vs Tano split">
         <PerPropertyMoneyStrip />
-      </Section>
+      </AdminSection>
 
-      <Section label="Revenue over time">
+      <AdminSection eyebrow="Revenue over time">
         <ChartCard title="Revenue by month" sub={`Last 12 months · net ${eur(totalRevenue)}`}>
           <RevenueByMonthChart data={revenue} />
         </ChartCard>
-      </Section>
+      </AdminSection>
 
-      <Section label="Pipeline" hint="Request → confirmed · what to work next">
+      <AdminSection eyebrow="Pipeline" hint="Request → confirmed · what to work next">
         <PipelinePanel />
-      </Section>
+      </AdminSection>
 
-      <Section label="Insights">
+      <AdminSection eyebrow="Insights">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TopGuestsPanel />
           <RecentActivity
@@ -67,47 +61,21 @@ export default async function AdminDashboardPage() {
             }))}
           />
         </div>
-      </Section>
-    </div>
+      </AdminSection>
+    </>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-function Section({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mb-10">
-      <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
-        <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{label}</h2>
-        {hint && <span className="text-[10px] font-mono text-slate-300">{hint}</span>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ChartCard({
-  title,
-  sub,
-  children,
-}: {
+function ChartCard({ title, sub, children }: {
   title: string;
   sub: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 p-5">
+    <div className="rounded-2xl bg-white border border-slate-200/80 p-5">
       <header className="mb-3">
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-        <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{sub}</p>
+        <p className="text-xs font-mono uppercase tracking-[0.2em] text-slate-400">{sub}</p>
       </header>
       {children}
     </div>
@@ -125,13 +93,13 @@ type RecentEvent = {
 
 function RecentActivity({ events }: { events: RecentEvent[] }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 p-5">
+    <div className="rounded-2xl bg-white border border-slate-200/80 p-5">
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-bold text-slate-900">Recent activity</h3>
-        <span className="text-[10px] font-mono text-slate-300">last {events.length}</span>
+        <span className="text-xs font-mono text-slate-300">last {events.length}</span>
       </div>
       {events.length === 0 ? (
-        <p className="text-[12px] text-slate-400 italic">No activity yet.</p>
+        <p className="text-xs text-slate-400 italic">No activity yet.</p>
       ) : (
         <ul>
           {events.map((e) => (
@@ -140,15 +108,15 @@ function RecentActivity({ events }: { events: RecentEvent[] }) {
               className="flex items-center justify-between gap-3 py-2 border-b border-slate-50 last:border-0"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono text-[10px] text-slate-400 shrink-0">#{e.booking_id}</span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-ocean truncate">
+                <span className="font-mono text-xs text-slate-400 shrink-0">#{e.booking_id}</span>
+                <span className="text-xs font-mono uppercase tracking-[0.2em] text-ocean truncate">
                   {e.event_type}
                 </span>
-                <span className="text-[12px] text-slate-700 truncate">
+                <span className="text-xs text-slate-700 truncate">
                   {e.user_name ?? 'admin'} · {e.property_slug}
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
+              <span className="text-xs font-mono text-slate-400 whitespace-nowrap">
                 {fmtDate(e.created_at)}
               </span>
             </li>

@@ -25,8 +25,8 @@ export default async function AdminUserDetailPage({
   const lifetimeSpend = bookings.reduce((sum, b) => sum + b.paid_cents, 0);
 
   return (
-    <div className="p-8 max-w-5xl">
-      <Link href="/admin/users" className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4">
+    <div className="max-w-5xl">
+      <Link href="/admin/users" className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4">
         <ArrowLeft className="w-3.5 h-3.5" /> back
       </Link>
 
@@ -44,7 +44,7 @@ export default async function AdminUserDetailPage({
         {user.dob         && <Card label="DOB">{fmtDate(user.dob)}</Card>}
       </div>
 
-      <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Their bookings</h2>
+      <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-3">Their bookings</h2>
       {bookings.length === 0 ? (
         <div className="rounded-2xl bg-white border border-slate-100 p-6 text-sm text-slate-400">No bookings.</div>
       ) : (
@@ -52,14 +52,14 @@ export default async function AdminUserDetailPage({
           {bookings.map((b) => (
             <li key={b.id} className="rounded-2xl bg-white border border-slate-100 px-5 py-3 flex items-center justify-between hover:border-ocean transition-colors">
               <Link href={`/admin/bookings/${b.id}`} className="flex items-center gap-3 flex-1">
-                <span className="font-mono text-[11px] text-slate-400">#{b.id}</span>
+                <span className="font-mono text-xs text-slate-400">#{b.id}</span>
                 <StatusBadge status={b.status} />
                 <span className="text-slate-700 font-bold uppercase">{b.property_slug}</span>
-                <span className="text-[12px] text-slate-500">{fmtDateRange(b.date_check_in, b.date_check_out)}</span>
+                <span className="text-xs text-slate-500">{fmtDateRange(b.date_check_in, b.date_check_out)}</span>
               </Link>
               <div className="font-mono tabular-nums text-sm">
                 <span className="text-slate-900">{eur(b.agreed_total_cents)}</span>
-                <span className="text-slate-400 text-[11px] ml-2">paid {eur(b.paid_cents)}</span>
+                <span className="text-slate-400 text-xs ml-2">paid {eur(b.paid_cents)}</span>
               </div>
             </li>
           ))}
@@ -72,7 +72,7 @@ export default async function AdminUserDetailPage({
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-white border border-slate-100 p-4">
-      <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">{label}</h3>
+      <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-1">{label}</h3>
       <div className="text-lg font-bold text-slate-900">{children}</div>
     </div>
   );

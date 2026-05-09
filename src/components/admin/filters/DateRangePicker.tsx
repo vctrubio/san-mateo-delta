@@ -91,14 +91,14 @@ export default function DateRangePicker({
 
   return (
     <div className="flex items-center gap-2 relative" ref={wrapRef}>
-      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 shrink-0">{label}</span>
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-400 shrink-0">{label}</span>
 
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         disabled={isPending}
         className={[
-          'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ring-1 text-[12px] transition-colors bg-white',
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ring-1 text-xs transition-colors bg-white',
           hasValue
             ? 'ring-ocean/30 text-slate-900 hover:ring-ocean/50'
             : 'ring-slate-200 text-slate-500 hover:ring-slate-300',
@@ -129,8 +129,8 @@ export default function DateRangePicker({
       {open && (
         <div className="absolute z-30 top-full left-0 mt-2 w-[28rem] max-w-[92vw] rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 p-4">
           <div className="flex items-baseline justify-between mb-3">
-            <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Pick a range</h4>
-            <span className="text-[10px] font-mono text-slate-300">click 2 days</span>
+            <h4 className="text-xs font-mono uppercase tracking-widest text-slate-400">Pick a range</h4>
+            <span className="text-xs font-mono text-slate-300">click 2 days</span>
           </div>
           <Calendar
             mode="public"

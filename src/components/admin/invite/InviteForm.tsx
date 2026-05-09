@@ -223,7 +223,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
                 ].join(' ')}
               >
                 <span className="uppercase tracking-wider">{p.slug}</span>
-                <span className={`ml-2 text-[10px] font-mono ${active ? 'text-white/60' : 'text-slate-400'}`}>
+                <span className={`ml-2 text-xs font-mono ${active ? 'text-white/60' : 'text-slate-400'}`}>
                   sleeps {p.max_guests}
                 </span>
               </button>
@@ -250,23 +250,23 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Default */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">
+            <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-3">
               Default {isQuoting && <Loader2 className="inline w-3 h-3 ml-1 animate-spin" />}
             </h3>
-            {!range && <p className="text-[12px] text-slate-400 italic">Pick dates to compute.</p>}
+            {!range && <p className="text-xs text-slate-400 italic">Pick dates to compute.</p>}
             {range && defaultError && (
-              <p className="text-[12px] text-amber-700 italic">{defaultError}</p>
+              <p className="text-xs text-amber-700 italic">{defaultError}</p>
             )}
             {range && defaultQuote && (
-              <dl className="space-y-1.5 text-[12px] text-slate-700 tabular-nums">
+              <dl className="space-y-1.5 text-xs text-slate-700 tabular-nums">
                 <Row label={`${eur(defaultQuote.night_rate_cents)} × ${defaultQuote.nights} ${defaultQuote.nights === 1 ? 'night' : 'nights'}`}
                      value={eur(defaultQuote.agreed_property_cents)} />
                 <Row label="Cleaning" value={eur(defaultQuote.agreed_cleaning_cents)} />
                 <div className="pt-2 mt-2 border-t border-slate-200 flex items-baseline justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Total</span>
+                  <span className="text-xs font-mono uppercase tracking-widest text-slate-500">Total</span>
                   <span className="text-base font-bold text-slate-900">{eur(defaultQuote.agreed_total_cents)}</span>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1 font-mono uppercase tracking-widest">
+                <p className="text-xs text-slate-400 mt-1 font-mono uppercase tracking-widest">
                   rate · {defaultQuote.rate_month_label}
                 </p>
               </dl>
@@ -275,7 +275,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
 
           {/* Custom */}
           <div className="rounded-2xl border-2 border-ocean/30 bg-ocean/[0.03] p-5">
-            <h3 className="text-[10px] font-mono uppercase tracking-widest text-ocean mb-3">Custom (admin override)</h3>
+            <h3 className="text-xs font-mono uppercase tracking-widest text-ocean mb-3">Custom (admin override)</h3>
             <div className="space-y-3">
               <EurField
                 label={`Property fee${nights > 0 && customPropertyCents != null ? ` (${eur(Math.round(customPropertyCents / nights))} / night)` : ''}`}
@@ -288,7 +288,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
                 onChange={(v) => { setCustomCleaningEuros(v); setCustomTouched(true); }}
               />
               <div className="pt-2 mt-2 border-t border-ocean/20 flex items-baseline justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-ocean">Total</span>
+                <span className="text-xs font-mono uppercase tracking-widest text-ocean">Total</span>
                 <span className="text-base font-bold text-slate-900">
                   {customTotalCents != null ? eur(customTotalCents) : '—'}
                 </span>
@@ -381,7 +381,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
           />
         </div>
         {confirmNow && (
-          <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-[12px] text-emerald-900 flex items-start gap-2">
+          <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-900 flex items-start gap-2">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               Dates lock immediately and the invitation is filed as <span className="font-mono">accepted</span>.
@@ -449,7 +449,7 @@ function DeliveryOption({
       className={`px-4 py-3 rounded-xl text-left transition ${selected ? selectedClass : 'text-slate-500 hover:text-slate-700'}`}
     >
       <span className="block text-sm font-bold">{label}</span>
-      <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{sub}</span>
+      <span className="block text-xs text-slate-500 leading-snug mt-0.5">{sub}</span>
     </button>
   );
 }
@@ -458,8 +458,8 @@ function Section({ label, hint, children }: { label: string; hint?: string; chil
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-[10px] font-mono uppercase tracking-[0.3em] text-ocean">{label}</h2>
-        {hint && <span className="text-[11px] text-slate-500">{hint}</span>}
+        <h2 className="text-xs font-mono uppercase tracking-[0.3em] text-ocean">{label}</h2>
+        {hint && <span className="text-xs text-slate-500">{hint}</span>}
       </div>
       {children}
     </div>
@@ -469,7 +469,7 @@ function Section({ label, hint, children }: { label: string; hint?: string; chil
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className={`text-[10px] font-mono uppercase tracking-widest ${required ? 'text-slate-700' : 'text-slate-400'}`}>
+      <span className={`text-xs font-mono uppercase tracking-widest ${required ? 'text-slate-700' : 'text-slate-400'}`}>
         {label}
       </span>
       {children}
@@ -480,7 +480,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 function EurField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex items-center gap-3">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 flex-1 min-w-0">
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-500 flex-1 min-w-0">
         {label}
       </span>
       <span className="inline-flex items-center bg-white rounded-lg ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-ocean/30 focus-within:border-ocean shrink-0">
@@ -510,14 +510,14 @@ function Row({ label, value }: { label: string; value: string }) {
 function DiffStrip({ diffCents, diffPct }: { diffCents: number | null; diffPct: number }) {
   if (diffCents == null) {
     return (
-      <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-[12px] text-slate-400 italic">
+      <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-400 italic">
         Diff appears once both default + custom are computed.
       </div>
     );
   }
   if (diffCents === 0) {
     return (
-      <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center gap-2 text-[12px] text-slate-700">
+      <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center gap-2 text-xs text-slate-700">
         <Equal className="w-3.5 h-3.5" />
         <span><strong>No diff</strong> — same as default pricing.</span>
       </div>
@@ -529,7 +529,7 @@ function DiffStrip({ diffCents, diffPct }: { diffCents: number | null; diffPct: 
     : 'bg-amber-50 border-amber-200 text-amber-900';
   const Icon = negative ? ArrowDown : ArrowUp;
   return (
-    <div className={`mt-3 rounded-xl border px-4 py-3 flex items-center gap-2 text-[12px] ${tone}`}>
+    <div className={`mt-3 rounded-xl border px-4 py-3 flex items-center gap-2 text-xs ${tone}`}>
       <Icon className="w-3.5 h-3.5" />
       <span>
         <strong>{negative ? 'Discount' : 'Premium'}:</strong>{' '}

@@ -31,7 +31,7 @@ export default function ResetButton({ keepKeys = [] }: { keepKeys?: string[] }) 
           router.replace(qs ? `${pathname}?${qs}` : pathname);
         });
       }}
-      className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-50"
     >
       <RotateCcw className="w-3 h-3" />
       Reset

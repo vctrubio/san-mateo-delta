@@ -34,11 +34,11 @@ export default function SortSelect({
 
   return (
     <label className="inline-flex items-center gap-2">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</span>
       <select
         value={value}
         onChange={(e) => set(e.target.value)}
-        className={`px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[12px] focus:outline-none focus:ring-2 focus:ring-ocean/30 focus:border-ocean ${isPending ? 'opacity-70' : ''}`}
+        className={`px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-ocean/30 focus:border-ocean ${isPending ? 'opacity-70' : ''}`}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

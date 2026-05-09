@@ -96,13 +96,13 @@ function Tile({ label, value, sub, icon: Icon, tone }: Metric) {
   return (
     <div className="rounded-2xl bg-white border border-slate-100 p-4">
       <div className="flex items-start justify-between mb-3">
-        <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{label}</h4>
+        <h4 className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</h4>
         <span className={`w-7 h-7 rounded-lg flex items-center justify-center ring-1 ${tones[tone]}`}>
           <Icon className="w-3.5 h-3.5" />
         </span>
       </div>
       <div className="text-2xl font-bold text-slate-900 tabular-nums">{value}</div>
-      <div className="text-[10px] text-slate-400 mt-1 leading-snug">{sub}</div>
+      <div className="text-xs text-slate-400 mt-1 leading-snug">{sub}</div>
     </div>
   );
 }
