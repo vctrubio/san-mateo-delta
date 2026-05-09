@@ -4,7 +4,7 @@ import { fmtDateRange, fmtDateTime } from '@/lib/dates';
 
 // ============================================================================
 // DebugInvitations — narrate the new /admin/invite feature with live data.
-// Same pattern as DebugAdminPanel and DebugStripePanel: prose + the actual
+// Same pattern as DebugStripePanel: prose + the actual
 // rows from the DB next to each other so this stays honest as the feature
 // evolves.
 // ============================================================================

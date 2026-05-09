@@ -372,8 +372,9 @@ it's a single DELETE.
 
 ### How to confirm a booking
 
-1. **UI**: the dashboard's PipelinePanel shows pending requests with inline
-   Confirm/Cancel buttons (or `/admin/bookings` row buttons).
+1. **UI**: `/admin/bookings` lists pending requests with inline
+   Confirm/Cancel buttons; `/admin` highlights pending counts in the
+   per-property strip.
 2. **Action**: [`transitionStatus`](../src/actions/bookings.ts) checks the
    `request → confirmed` transition is allowed, runs the UPDATE, and writes
    a `booking_events` row. If the dates overlap an already-held booking,
@@ -416,15 +417,15 @@ WHERE status IN ('confirmed','checked_in','checked_out');
 
 That's it. Held bookings only — bookings that haven't been confirmed (or
 were cancelled) don't count toward earnings. See
-[`docs/dashboard.md`](./dashboard.md) for how this is rendered on `/admin`.
+[`docs/availability.md`](./availability.md) for the upcoming-only lens
+that drives the `/admin` estate dashboard.
 
 ## Related docs
 
 - [`docs/rates.md`](./rates.md) — pricing architecture and rate-selection algorithm.
 - [`docs/refund.md`](./refund.md) — cancellation-refund policy + tier logic.
-- [`docs/dashboard.md`](./dashboard.md) — how the schema surfaces on `/admin`.
+- [`docs/availability.md`](./availability.md) — three-bucket availability rule + the upcoming-only `/admin` dashboard.
 - [`/debug` schema panel](../src/components/debug/DebugSchemaPanel.tsx) — live, color-coded view of every table + enum.
-- [`/debug` admin panel](../src/components/debug/DebugAdminPanel.tsx) — live numbers from the dashboard helpers.
 
 ## Adding a table
 

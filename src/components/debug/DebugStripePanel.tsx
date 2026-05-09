@@ -6,7 +6,7 @@ import { fmtDateTime } from '@/lib/dates';
 
 // ============================================================================
 // DebugStripe — narrate the Stripe integration with live data. Mirrors the
-// philosophy of DebugAdminPanel: tell the story (what changed, what fires what)
+// philosophy of the other debug panels: tell the story (what changed, what fires what)
 // next to the actual numbers from the DB so it stays honest as the system
 // evolves. Read it after every Stripe-related change.
 // ============================================================================

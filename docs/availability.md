@@ -78,8 +78,8 @@ admin dashboard, not a separate route):
    anywhere** — "paid" reuses the ocean (= `confirmed`) tone so there's a
    single positive colour shared between the two cards. SQL:
    `getEstateOverview()` in `src/lib/dashboard.ts`.
-2. **`PerPropertyFutureStrip`** — the property selector. Four cards mirroring
-   `PerPropertyMoneyStrip`. Clicking a card toggles it active (border
+2. **`PerPropertyFutureStrip`** — the property selector. Four side-by-side
+   cards, one per property. Clicking a card toggles it active (border
    highlights ocean blue); clicking the active card again deselects.
 3. **`GanttStrip`** — read-only scanner. Property labels are static spans;
    only item-cells are clickable, opening the booking action modal.
@@ -108,8 +108,7 @@ Notes:
 - **The "to confirm" bucket combines `request` and `invite`** because both
   sit in the same operational lane: a guest is waiting on the host to act.
 - **No property/cleaning split on this surface.** Outstanding is one number
-  for actionable money owed; the David/Tano breakdown lives on the
-  dashboard via `PerPropertyMoneyStrip`.
+  for actionable money owed.
 
 If you change the bucket definitions, change the SQL in `listFuturePropertyData`
 **and** this table — they're a contract.
