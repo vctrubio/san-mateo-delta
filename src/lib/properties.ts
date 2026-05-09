@@ -51,19 +51,29 @@ export type PropertyStats = {
 export type FuturePropertyData = {
   property_id: string;
   slug: string;
-  // --- Today ---
+  // --- Today's stay (held booking covering today, if any) ---
   today_occupied: boolean;
-  today_status: string | null;       // status of the held booking covering today
+  today_status: string | null;
   today_guest_name: string | null;
-  today_check_out: string | null;    // YYYY-MM-DD
+  today_check_out: string | null;       // YYYY-MM-DD
+  today_agreed_cents: number | null;    // agreed_total for that booking
+  today_paid_cents: number | null;      // SUM(succeeded payments) for that booking
+  /**
+   * Status of ANY non-cancelled booking covering today, picked by priority
+   * (held > invite > request). Used by the strip header dot:
+   * yellow (request) / purple (invite) / blue (held) / grey (no booking).
+   * Distinct from `today_status` which only fires for held bookings — soft
+   * bookings don't count as "occupied" but should still surface on the dot.
+   */
+  today_indicator_status: string | null;
   // --- Upcoming counts ---
-  pending_count: number;             // status IN (request, invite), check_out > today
-  confirmed_count: number;           // status = confirmed, check_in >= today
+  pending_count: number;
+  confirmed_count: number;
   // --- Outstanding payments (confirmed-only) ---
-  outstanding_cents: number;         // SUM(agreed_total - paid) across confirmed-upcoming
-  outstanding_count: number;         // # of confirmed-upcoming with anything still owed
-  // --- Next confirmed arrival ---
-  next_check_in: string | null;      // YYYY-MM-DD
+  outstanding_cents: number;
+  outstanding_count: number;
+  // --- Next confirmed arrival (skips today's stay if occupied) ---
+  next_check_in: string | null;
   next_check_in_guest: string | null;
 };
 
@@ -105,6 +115,38 @@ export async function listFuturePropertyData(): Promise<FuturePropertyData[]> {
           AND b.date_check_in <= CURRENT_DATE
           AND b.date_check_out > CURRENT_DATE
         ORDER BY b.date_check_in DESC LIMIT 1) AS today_check_out,
+      (SELECT (b.agreed_property_cents + b.agreed_cleaning_cents)::int FROM bookings b
+        WHERE b.property_id = p.id
+          AND b.status IN ('confirmed','checked_in','checked_out')
+          AND b.date_check_in <= CURRENT_DATE
+          AND b.date_check_out > CURRENT_DATE
+        ORDER BY b.date_check_in DESC LIMIT 1) AS today_agreed_cents,
+      COALESCE((SELECT SUM(bp.amount_cents)::int FROM booking_payments bp
+        WHERE bp.status = 'succeeded'
+          AND bp.booking_id = (
+            SELECT b.id FROM bookings b
+            WHERE b.property_id = p.id
+              AND b.status IN ('confirmed','checked_in','checked_out')
+              AND b.date_check_in <= CURRENT_DATE
+              AND b.date_check_out > CURRENT_DATE
+            ORDER BY b.date_check_in DESC LIMIT 1
+          )), 0) AS today_paid_cents,
+      (SELECT b.status::text FROM bookings b
+        WHERE b.property_id = p.id
+          AND b.status != 'cancelled'
+          AND b.date_check_in <= CURRENT_DATE
+          AND b.date_check_out > CURRENT_DATE
+        ORDER BY
+          CASE b.status
+            WHEN 'confirmed'   THEN 1
+            WHEN 'checked_in'  THEN 1
+            WHEN 'checked_out' THEN 1
+            WHEN 'invite'      THEN 2
+            WHEN 'request'     THEN 3
+            ELSE 4
+          END ASC,
+          b.date_check_in DESC
+        LIMIT 1) AS today_indicator_status,
 
       -- Pending: request/invite still in play.
       COALESCE((SELECT COUNT(*)::int FROM bookings b
@@ -136,16 +178,33 @@ export async function listFuturePropertyData(): Promise<FuturePropertyData[]> {
           AND (b.agreed_property_cents + b.agreed_cleaning_cents) > COALESCE(paid.amount, 0)),
         0) AS outstanding_count,
 
-      -- Next confirmed arrival.
+      -- Next confirmed arrival, AFTER today's stay if today is occupied.
+      -- (If today is free, falls back to >= today.)
       (SELECT b.date_check_in::text FROM bookings b
         WHERE b.property_id = p.id
           AND b.status = 'confirmed'
-          AND b.date_check_in >= CURRENT_DATE
+          AND b.date_check_in >= COALESCE(
+            (SELECT b2.date_check_out FROM bookings b2
+              WHERE b2.property_id = p.id
+                AND b2.status IN ('confirmed','checked_in','checked_out')
+                AND b2.date_check_in <= CURRENT_DATE
+                AND b2.date_check_out > CURRENT_DATE
+              ORDER BY b2.date_check_in DESC LIMIT 1),
+            CURRENT_DATE
+          )
         ORDER BY b.date_check_in ASC LIMIT 1) AS next_check_in,
       (SELECT u.name FROM bookings b LEFT JOIN users u ON u.id = b.user_id
         WHERE b.property_id = p.id
           AND b.status = 'confirmed'
-          AND b.date_check_in >= CURRENT_DATE
+          AND b.date_check_in >= COALESCE(
+            (SELECT b2.date_check_out FROM bookings b2
+              WHERE b2.property_id = p.id
+                AND b2.status IN ('confirmed','checked_in','checked_out')
+                AND b2.date_check_in <= CURRENT_DATE
+                AND b2.date_check_out > CURRENT_DATE
+              ORDER BY b2.date_check_in DESC LIMIT 1),
+            CURRENT_DATE
+          )
         ORDER BY b.date_check_in ASC LIMIT 1) AS next_check_in_guest
 
     FROM properties p

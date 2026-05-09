@@ -5,6 +5,10 @@ import Calendar from '@/components/calendar/Calendar';
 import GanttStrip, { type GanttProperty } from '@/components/calendar/GanttStrip';
 import SelectionSummary from '@/components/calendar/SelectionSummary';
 import PerPropertyFutureStrip from '@/components/admin/PerPropertyFutureStrip';
+import {
+  BookingsListModal,
+  PaymentsListModal,
+} from '@/components/admin/PropertyDetailModals';
 import type { CalendarItem } from '@/lib/calendar';
 import type { FuturePropertyData } from '@/lib/properties';
 
@@ -43,6 +47,9 @@ export default function AdminCalendarView({
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ start: Date; end: Date | null } | null>(null);
   const [activeItem, setActiveItem] = useState<CalendarItem | null>(null);
+  const [openListModal, setOpenListModal] = useState<
+    { type: 'bookings' | 'payments'; slug: string } | null
+  >(null);
 
   const activeProperty = activeSlug
     ? properties.find((p) => p.slug === activeSlug)
@@ -73,7 +80,24 @@ export default function AdminCalendarView({
         rows={futureRows}
         activeSlug={activeSlug}
         onToggleProperty={handleToggleProperty}
+        onOpenBookings={(slug) => setOpenListModal({ type: 'bookings', slug })}
+        onOpenPayments={(slug) => setOpenListModal({ type: 'payments', slug })}
       />
+
+      {openListModal?.type === 'bookings' && (
+        <BookingsListModal
+          slug={openListModal.slug}
+          items={itemsBySlug[openListModal.slug] ?? []}
+          onClose={() => setOpenListModal(null)}
+        />
+      )}
+      {openListModal?.type === 'payments' && (
+        <PaymentsListModal
+          slug={openListModal.slug}
+          items={itemsBySlug[openListModal.slug] ?? []}
+          onClose={() => setOpenListModal(null)}
+        />
+      )}
 
       <GanttStrip
         properties={properties}

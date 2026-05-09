@@ -92,10 +92,12 @@ component must respect these and the SQL is the single source of truth:
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `today_occupied`                     | `EXISTS` a booking with `status IN ('confirmed','checked_in','checked_out')` whose half-open `[date_check_in, date_check_out)` covers `CURRENT_DATE`. |
 | `today_status` / `today_guest_name` / `today_check_out` | Picked from that same held booking — if more than one (shouldn't happen due to `no_overlap_when_held`) we deterministically pick the latest `date_check_in`. |
+| `today_agreed_cents` / `today_paid_cents` | Agreed total + sum of `succeeded` payments for the held booking covering today. Lets the strip show "Fully paid", "Unpaid · €X due", or "€P paid · €O owed" inline on today's stay. `null` when the property is free. |
+| `today_indicator_status` | Status of ANY non-cancelled booking covering today, picked by priority (held > invite > request) — `null` when nothing covers today. Drives the small dot in each strip card's header: amber (request), violet (invite), ocean (held), slate (available). Distinct from `today_status`, which is held-only — soft bookings don't make the property "occupied" but should still surface on the dot. |
 | `pending_count`                      | `status IN ('request','invite')` AND `date_check_out > CURRENT_DATE`. The "to confirm" lane. |
 | `confirmed_count`                    | `status = 'confirmed'` AND `date_check_in >= CURRENT_DATE`. Upcoming arrivals only — already-checked-in/out bookings are operational, not pipeline. |
 | `outstanding_cents` / `outstanding_count` | `SUM` and `COUNT` over confirmed-upcoming bookings where `(agreed_property_cents + agreed_cleaning_cents) > paid_amount`. Outstanding = unpaid balance. |
-| `next_check_in` / `next_check_in_guest` | Earliest `status = 'confirmed'` booking with `date_check_in >= CURRENT_DATE`, or `null` if there are none. |
+| `next_check_in` / `next_check_in_guest` | Earliest `status = 'confirmed'` booking with `date_check_in >= COALESCE(today_check_out, CURRENT_DATE)`. If today is occupied, this skips the current stay and shows the *next* arrival instead. `null` if none. |
 
 Notes:
 - **Cancelled is invisible everywhere on this surface.** It's not a held bucket

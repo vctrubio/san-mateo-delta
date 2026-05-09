@@ -7,7 +7,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Gutter side="left" />
         <div className="min-w-0">
           <AdminNavigation />
-          <main className="px-4 sm:px-6 pb-12">{children}</main>
+          <main className="p-4 sm:px-6">{children}</main>
         </div>
         <Gutter side="right" />
       </div>
