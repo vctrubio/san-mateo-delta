@@ -28,10 +28,12 @@ import {
 //   4. Cancelled                → treated as available (no fill, not clickable)
 //   5. Available                → faint slate         (not clickable)
 //
-// Property selection is NOT done here — that's the PerPropertyFutureStrip's
-// job. Row labels are read-only display; the only interactive elements are
-// per-day item cells, which fire `onSelectItem(item, slug)` to open the
-// booking action modal.
+// Two interactive elements per row:
+//   - The slug label on the left  → fires `onSelectProperty(slug)` to focus
+//                                    the calendar below. The rest of the row
+//                                    is non-interactive for selection.
+//   - Per-day item cells           → fire `onSelectItem(item, slug)` to open
+//                                    the booking action modal.
 //
 // `activeSlug` is still accepted so the row matching the focused property
 // can render with a soft highlight, and `selection` so the in-progress range
@@ -52,6 +54,10 @@ export type GanttStripProps = {
   days?: number;
   /** Highlights the row matching the focused property. Read-only signal. */
   activeSlug?: string | null;
+  /** Fires when an admin clicks the slug label on the left of a row. The
+   *  rest of the row is non-interactive for property selection — only this
+   *  label and the per-day item cells trigger anything. */
+  onSelectProperty?: (slug: string) => void;
   /** Fires when an admin clicks a day cell that covers an item. */
   onSelectItem?: (item: CalendarItem, slug: string) => void;
   /** Echoes the per-property Calendar selection on its row. */
@@ -64,6 +70,7 @@ export default function GanttStrip({
   startDate,
   days = 90,
   activeSlug,
+  onSelectProperty,
   onSelectItem,
   selection,
 }: GanttStripProps) {
@@ -98,15 +105,6 @@ export default function GanttStrip({
 
   return (
     <div className="rounded-3xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100">
-        <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400">
-          Across properties · {days} days
-        </p>
-        <p className="text-[10px] font-mono text-slate-300">
-          click a booking to act
-        </p>
-      </div>
-
       <div className="overflow-x-auto">
         <div className="min-w-[640px] px-5 py-4">
           {/* Month band header */}
@@ -139,13 +137,28 @@ export default function GanttStrip({
                 }`}
                 style={{ gridTemplateColumns: gridTemplate }}
               >
-                <span
-                  className={`pl-1 pr-3 text-left text-[11px] font-mono uppercase tracking-widest truncate ${
-                    isActive ? 'text-slate-900 font-bold' : 'text-slate-500'
-                  }`}
-                >
-                  {p.label}
-                </span>
+                {onSelectProperty ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectProperty(p.slug)}
+                    aria-pressed={isActive}
+                    className={`pl-1 pr-3 text-left text-[11px] font-mono uppercase tracking-widest truncate transition-colors ${
+                      isActive
+                        ? 'text-slate-900 font-bold'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ) : (
+                  <span
+                    className={`pl-1 pr-3 text-left text-[11px] font-mono uppercase tracking-widest truncate ${
+                      isActive ? 'text-slate-900 font-bold' : 'text-slate-500'
+                    }`}
+                  >
+                    {p.label}
+                  </span>
+                )}
                 {dayList.map((day) => (
                   <DayBar
                     key={day.getTime()}

@@ -33,6 +33,7 @@ Rules:
 - A folder under `src/app/` exists only because it represents a URL segment. If a file is not a route file, it does not belong there.
 - Route files import components via the `@/components/<area>/<Name>` alias (configured in `tsconfig.json` paths).
 - Group components by area (`landing/`, `debug/`, `booking/`, `admin/`...), not by type. Avoid a flat `src/components/` dump.
+- Components that wrap the shared `<Modal>` shell (`@/components/shared/Modal`) live next to it in `src/components/shared/`, not in feature folders — even if their content is feature-specific. Keeps the modal family discoverable in one place. Examples: `PropertyDetailModals.tsx` lives in `shared/` because it composes `<Modal>`, even though it shows admin-only data.
 - Static config (estate metadata, copy) lives in JSON at the repo root and is imported with relative paths.
 
 ## Database

@@ -2,24 +2,34 @@
 
 import { ChevronRight } from 'lucide-react';
 import type { FuturePropertyData } from '@/lib/properties';
-import { BOOKING_STATUS_STYLES } from '@/lib/colors';
+import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 import { fmtDate } from '@/lib/dates';
 import type { BookingStatus } from '@db/enums';
 
 // ============================================================================
 // PerPropertyFutureStrip — four cards, one per property.
 //
-// Each card has three click targets:
-//   - Header (slug)            → toggles the property as active (calendar
-//                                opens below)
-//   - Bookings section         → opens the bookings list modal
-//   - Payments section         → opens the outstanding-payments modal
+// Layout per card:
+//   ┌─ LEVANTE                       ● confirmed ─┐
+//   │                                              │
+//   │ ┌─ BOOKINGS  › ┐  ┌─ PAYMENTS  › ┐           │
+//   │ │ 7            │  │ €8,607       │           │
+//   │ │ 2 to confirm │  │ outstanding  │           │
+//   │ │   · 5 confd  │  │   · 5 owed   │           │
+//   │ └──────────────┘  └──────────────┘           │
+//   │                                              │
+//   │ NEXT CHECK-IN                                │
+//   │ 28 May · Tom                                 │
+//   └──────────────────────────────────────────────┘
 //
-// Today + Next check-in are read-only.
+// Click targets:
+//   - The whole card                  → toggle the property as active
+//   - Bookings sub-card               → opens BookingsListModal
+//   - Payments sub-card               → opens PaymentsListModal
 //
-// Hierarchy: every clickable section leads with its TOTAL as the headline
-// number (large, bold, tabular), with breakdown text small + subtle below.
-// Today's section also shows the held booking's payment state inline.
+// Header right side shows a today-status dot — amber (request), violet
+// (invite), ocean (held), slate (available) — driven by
+// `today_indicator_status` from listFuturePropertyData.
 // ============================================================================
 
 function eur(cents: number) {
@@ -34,6 +44,9 @@ export type PerPropertyFutureStripProps = {
   onToggleProperty: (slug: string | null) => void;
   onOpenBookings: (slug: string) => void;
   onOpenPayments: (slug: string) => void;
+  /** Fires when the today-status pill is clicked. Parent finds today's booking
+   *  in itemsBySlug and opens it through the same modal flow as the gantt. */
+  onOpenToday: (slug: string) => void;
 };
 
 export default function PerPropertyFutureStrip({
@@ -42,29 +55,22 @@ export default function PerPropertyFutureStrip({
   onToggleProperty,
   onOpenBookings,
   onOpenPayments,
+  onOpenToday,
 }: PerPropertyFutureStripProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       {rows.map((r) => {
         const isActive = r.slug === activeSlug;
         return (
-          <div
+          <Card
             key={r.slug}
-            className={[
-              'rounded-2xl bg-white p-5 transition-all border-2',
-              isActive
-                ? 'border-ocean shadow-lg shadow-ocean/10'
-                : 'border-slate-100',
-            ].join(' ')}
-          >
-            <Card
-              row={r}
-              isActive={isActive}
-              onToggleActive={() => onToggleProperty(isActive ? null : r.slug)}
-              onOpenBookings={() => onOpenBookings(r.slug)}
-              onOpenPayments={() => onOpenPayments(r.slug)}
-            />
-          </div>
+            row={r}
+            isActive={isActive}
+            onToggleActive={() => onToggleProperty(isActive ? null : r.slug)}
+            onOpenBookings={() => onOpenBookings(r.slug)}
+            onOpenPayments={() => onOpenPayments(r.slug)}
+            onOpenToday={() => onOpenToday(r.slug)}
+          />
         );
       })}
     </div>
@@ -79,61 +85,83 @@ function Card({
   onToggleActive,
   onOpenBookings,
   onOpenPayments,
+  onOpenToday,
 }: {
   row: FuturePropertyData;
   isActive: boolean;
   onToggleActive: () => void;
   onOpenBookings: () => void;
   onOpenPayments: () => void;
+  onOpenToday: () => void;
 }) {
   const totalUpcoming = row.pending_count + row.confirmed_count;
   const fullyPaid = row.outstanding_count === 0;
 
   return (
-    <>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onToggleActive}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggleActive();
+        }
+      }}
+      aria-pressed={isActive}
+      className={[
+        'rounded-2xl bg-white p-5 transition-all border-2 cursor-pointer',
+        isActive
+          ? 'border-ocean shadow-lg shadow-ocean/10'
+          : 'border-slate-100 hover:border-slate-200',
+      ].join(' ')}
+    >
       <Header
         slug={row.slug}
         isActive={isActive}
+        todayBlocked={row.today_blocked}
         todayIndicator={row.today_indicator_status}
-        onClick={onToggleActive}
+        onOpenToday={onOpenToday}
       />
 
-      <ClickableSection label="Bookings" onClick={onOpenBookings}>
-        <Headline value={String(totalUpcoming)} />
-        <Sub>
-          {totalUpcoming === 0 ? (
-            <span className="italic text-slate-400">no upcoming bookings</span>
-          ) : (
-            <BookingsBreakdown pending={row.pending_count} confirmed={row.confirmed_count} />
-          )}
-        </Sub>
-      </ClickableSection>
-
-      <ClickableSection label="Payments" onClick={onOpenPayments}>
-        <Headline
-          value={fullyPaid ? '—' : eur(row.outstanding_cents)}
-          tone={fullyPaid ? 'muted' : 'amber'}
+      <div className="grid grid-cols-2 gap-2 mt-3 mb-3">
+        <SubCard
+          label="Bookings"
+          headline={String(totalUpcoming)}
+          tone="default"
+          onClick={onOpenBookings}
+          sub={
+            totalUpcoming === 0 ? (
+              <span className="italic text-slate-400">no upcoming</span>
+            ) : (
+              <BookingsBreakdown
+                pending={row.pending_count}
+                confirmed={row.confirmed_count}
+              />
+            )
+          }
         />
-        <Sub>
-          {fullyPaid ? (
-            <span className="italic text-slate-400">fully paid</span>
-          ) : (
-            <>
-              outstanding · <span className="tabular-nums">{row.outstanding_count}</span>{' '}
-              {row.outstanding_count === 1 ? 'booking' : 'bookings'}
-            </>
-          )}
-        </Sub>
-      </ClickableSection>
+        <SubCard
+          label="Payments"
+          headline={fullyPaid ? '—' : eur(row.outstanding_cents)}
+          tone={fullyPaid ? 'muted' : 'amber'}
+          onClick={onOpenPayments}
+          sub={
+            fullyPaid ? (
+              <span className="italic text-slate-400">fully paid</span>
+            ) : (
+              <>
+                outstanding · <span className="tabular-nums">{row.outstanding_count}</span>
+              </>
+            )
+          }
+        />
+      </div>
 
-      <Section label="Today">
-        <TodayContent row={row} />
-      </Section>
-
-      <Section label="Next check-in" last>
+      <Section label="Next check-in">
         <NextContent date={row.next_check_in} guest={row.next_check_in_guest} />
       </Section>
-    </>
+    </div>
   );
 }
 
@@ -142,36 +170,56 @@ function Card({
 function Header({
   slug,
   isActive,
+  todayBlocked,
   todayIndicator,
-  onClick,
+  onOpenToday,
 }: {
   slug: string;
   isActive: boolean;
+  todayBlocked: boolean;
   todayIndicator: string | null;
-  onClick: () => void;
+  onOpenToday: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={isActive}
-      className="w-full text-left flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 hover:opacity-80 transition-opacity"
-    >
+    <div className="flex items-center justify-between gap-2">
       <h4 className={`text-base font-bold uppercase tracking-wider ${isActive ? 'text-ocean' : 'text-slate-900'}`}>
         {slug}
       </h4>
-      {isActive ? (
-        <span className="text-[9px] font-mono uppercase tracking-widest text-ocean">
-          active
-        </span>
-      ) : (
-        <TodayIndicator status={todayIndicator} />
-      )}
-    </button>
+      <TodayIndicator
+        blocked={todayBlocked}
+        status={todayIndicator}
+        onClick={onOpenToday}
+      />
+    </div>
   );
 }
 
-function TodayIndicator({ status }: { status: string | null }) {
+function TodayIndicator({
+  blocked,
+  status,
+  onClick,
+}: {
+  blocked: boolean;
+  status: string | null;
+  onClick: () => void;
+}) {
+  // Block takes priority — admin-imposed unavailability is the strongest signal.
+  if (blocked) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-500 hover:scale-110 hover:text-slate-900 transition-transform origin-right"
+        title={`Open today's block · ${PROPERTY_BLOCK_STYLE.label}`}
+      >
+        <span className={`w-2 h-2 rounded-full ${PROPERTY_BLOCK_STYLE.dot}`} />
+        {PROPERTY_BLOCK_STYLE.label}
+      </button>
+    );
+  }
   if (!status) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-400">
@@ -180,78 +228,78 @@ function TodayIndicator({ status }: { status: string | null }) {
       </span>
     );
   }
+  // Use the status palette directly (same source of truth as GanttStrip's day
+  // cells) so checked_in renders emerald, checked_out renders slate-300, etc.
   const s = status as BookingStatus;
-  const dot =
-    s === 'request' ? 'bg-amber-400'
-    : s === 'invite' ? 'bg-violet-400'
-    : 'bg-ocean';
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-500">
-      <span className={`w-2 h-2 rounded-full ${dot}`} />
-      {BOOKING_STATUS_STYLES[s]?.label ?? s}
-    </span>
-  );
-}
-
-function ClickableSection({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+  const style = BOOKING_STATUS_STYLES[s];
   return (
     <button
       type="button"
-      onClick={onClick}
-      className="w-full text-left mb-3 -mx-2 px-2 py-1 rounded-md hover:bg-slate-50 transition-colors group"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-500 hover:scale-110 hover:text-slate-900 transition-transform origin-right"
+      title={`Open today's booking · ${style?.label ?? s}`}
+    >
+      <span className={`w-2 h-2 rounded-full ${style?.dot ?? 'bg-slate-300'}`} />
+      {style?.label ?? s}
+    </button>
+  );
+}
+
+// ----------------------------------------------------------------------------
+
+function SubCard({
+  label,
+  headline,
+  tone,
+  sub,
+  onClick,
+}: {
+  label: string;
+  headline: string;
+  tone: 'default' | 'amber' | 'muted';
+  sub: React.ReactNode;
+  onClick: () => void;
+}) {
+  const headlineCls =
+    tone === 'amber' ? 'text-amber-700'
+    : tone === 'muted' ? 'text-slate-300'
+    : 'text-slate-900';
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="text-left rounded-xl bg-slate-50/60 hover:bg-slate-100 transition-colors p-3 group"
     >
       <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-400 mb-1 flex items-center gap-1">
         {label}
         <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
       </p>
-      {children}
+      <p className={`text-2xl font-bold tabular-nums leading-none ${headlineCls}`}>
+        {headline}
+      </p>
+      <p className="text-[11px] text-slate-500 mt-1 truncate">{sub}</p>
     </button>
   );
 }
 
 function Section({
   label,
-  last,
   children,
 }: {
   label: string;
-  last?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={last ? '' : 'mb-3'}>
+    <div>
       <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-400 mb-1">
         {label}
       </p>
       {children}
     </div>
   );
-}
-
-function Headline({
-  value,
-  tone = 'default',
-}: {
-  value: string;
-  tone?: 'default' | 'amber' | 'muted';
-}) {
-  const cls =
-    tone === 'amber' ? 'text-amber-700'
-    : tone === 'muted' ? 'text-slate-300'
-    : 'text-slate-900';
-  return <p className={`text-2xl font-bold tabular-nums leading-none ${cls}`}>{value}</p>;
-}
-
-function Sub({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] text-slate-500 mt-1">{children}</p>;
 }
 
 // ----------------------------------------------------------------------------
@@ -277,71 +325,6 @@ function BookingsBreakdown({ pending, confirmed }: { pending: number; confirmed:
         </span>
       ))}
     </>
-  );
-}
-
-// ----------------------------------------------------------------------------
-
-function TodayContent({ row }: { row: FuturePropertyData }) {
-  if (!row.today_occupied || !row.today_status) {
-    return <p className="text-[13px] text-slate-400 italic">available</p>;
-  }
-  const status = row.today_status as BookingStatus;
-  const style = BOOKING_STATUS_STYLES[status];
-  return (
-    <div className="text-[13px] leading-snug">
-      <p className="text-slate-700">
-        <span className="font-bold">
-          {row.today_guest_name ?? <span className="italic text-slate-400 font-normal">no guest</span>}
-        </span>
-        <span className={`text-[10px] font-mono uppercase tracking-widest ml-1.5 ${style.text}`}>
-          {style.label}
-        </span>
-      </p>
-      {row.today_check_out && (
-        <p className="text-[11px] text-slate-400">until {fmtDate(row.today_check_out)}</p>
-      )}
-      <TodayPaymentLine
-        agreed={row.today_agreed_cents}
-        paid={row.today_paid_cents}
-      />
-    </div>
-  );
-}
-
-function TodayPaymentLine({
-  agreed,
-  paid,
-}: {
-  agreed: number | null;
-  paid: number | null;
-}) {
-  if (agreed == null) return null;
-  const paidCents = paid ?? 0;
-  const owed = Math.max(0, agreed - paidCents);
-
-  if (owed === 0) {
-    return (
-      <p className="text-[11px] mt-1">
-        <span className="text-ocean font-bold">Fully paid</span>
-        <span className="text-slate-400"> · {eur(agreed)}</span>
-      </p>
-    );
-  }
-  if (paidCents === 0) {
-    return (
-      <p className="text-[11px] mt-1">
-        <span className="text-amber-700 font-bold">Unpaid</span>
-        <span className="text-slate-400"> · {eur(agreed)} due</span>
-      </p>
-    );
-  }
-  return (
-    <p className="text-[11px] mt-1 tabular-nums">
-      <span className="text-slate-600">{eur(paidCents)} paid</span>
-      <span className="text-slate-300"> · </span>
-      <span className="text-amber-700 font-bold">{eur(owed)} owed</span>
-    </p>
   );
 }
 

@@ -66,6 +66,10 @@ export type FuturePropertyData = {
    * bookings don't count as "occupied" but should still surface on the dot.
    */
   today_indicator_status: string | null;
+  /** True if a property_blocks row covers today. Takes priority over the
+   *  booking indicator — admin-imposed unavailability is the most relevant
+   *  signal for the strip dot. */
+  today_blocked: boolean;
   // --- Upcoming counts ---
   pending_count: number;
   confirmed_count: number;
@@ -152,6 +156,12 @@ export async function listFuturePropertyData(): Promise<FuturePropertyData[]> {
           END ASC,
           b.date_check_in DESC
         LIMIT 1) AS today_indicator_status,
+      EXISTS (
+        SELECT 1 FROM property_blocks pb
+        WHERE pb.property_id = p.id
+          AND pb.date_check_in  <= CURRENT_DATE
+          AND pb.date_check_out >  CURRENT_DATE
+      ) AS today_blocked,
 
       -- Pending: request/invite still in play.
       COALESCE((SELECT COUNT(*)::int FROM bookings b

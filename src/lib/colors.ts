@@ -109,6 +109,30 @@ export function isBlockingStatus(s: BookingStatus): boolean {
 }
 
 // ============================================================================
+// STATUS_BUCKET_COLORS — CSS var references for the three booking-status
+// buckets used by the upcoming-only dashboard surfaces (EstateOverview,
+// PerPropertyFutureStrip).
+//
+// Defined as CSS var references — not Tailwind classes — because the
+// consumers feed them into inline `style.backgroundColor` on SplitBar
+// segments whose widths are computed at render time.
+//
+// Stays in lockstep with the --color-status-* vars in src/app/globals.css —
+// retune the palette there and this constant follows.
+//
+// On the Payments card the same three colours are reused with this mapping:
+//   paid     → confirmed   (ocean, positive)
+//   unpaid   → unconfirmed (amber, action-needed)
+//   cleaning → cancelled   (rose, "going elsewhere")
+// ============================================================================
+
+export const STATUS_BUCKET_COLORS = {
+  confirmed:   'var(--color-status-confirmed)',  // ocean       (#0369a1)
+  unconfirmed: 'var(--color-status-request)',    // amber-400   (#fbbf24)
+  cancelled:   'var(--color-status-cancelled)',  // rose-400    (#fb7185)
+} as const;
+
+// ============================================================================
 // Property identity. The 4 estate properties are fixed — this is the canonical
 // list. Chart components reference colors directly via CSS variables defined
 // in src/app/globals.css (e.g. `fill="var(--color-property-levante)"`), so

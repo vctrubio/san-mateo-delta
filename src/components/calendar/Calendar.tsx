@@ -90,9 +90,15 @@ export default function Calendar({
   const [hoverEnd, setHoverEnd] = useState<Date | null>(null);
   const [internalActiveItem, setInternalActiveItem] = useState<CalendarItem | null>(null);
 
-  const activeItem = selectedItem !== undefined ? selectedItem : internalActiveItem;
+  // Controlled mode = the parent is driving the modal (passed both
+  // selectedItem and onSelectItem). When controlled, Calendar still tracks
+  // activeItem for inline behaviour (closing BlockConfirmBar, etc.) but
+  // skips rendering its own Modal — the parent owns the modal so it can
+  // open one without Calendar being mounted.
+  const isControlled = selectedItem !== undefined;
+  const activeItem = isControlled ? selectedItem : internalActiveItem;
   const setActiveItem = (item: CalendarItem | null) => {
-    if (selectedItem === undefined) setInternalActiveItem(item);
+    if (!isControlled) setInternalActiveItem(item);
     onSelectItem?.(item);
   };
 
@@ -297,7 +303,7 @@ export default function Calendar({
         )}
       </div>
 
-      {activeItem && (
+      {!isControlled && activeItem && (
         <Modal onClose={() => setActiveItem(null)}>
           <BookingActionPanel item={activeItem} onClose={() => setActiveItem(null)} />
         </Modal>

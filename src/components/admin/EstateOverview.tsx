@@ -1,5 +1,6 @@
 import { CheckCircle2, Wallet } from 'lucide-react';
 import type { EstateOverview as EstateOverviewData } from '@/lib/dashboard';
+import { STATUS_BUCKET_COLORS as COLOR } from '@/lib/colors';
 
 // ============================================================================
 // EstateOverview — estate-wide upcoming-only summary at the top of
@@ -21,12 +22,6 @@ import type { EstateOverview as EstateOverviewData } from '@/lib/dashboard';
 // are reused on the Payments card: paid = ocean (positive), unpaid = amber
 // (action-needed), cleaning = rose (cleaner's slice).
 // ============================================================================
-
-const COLOR = {
-  confirmed: 'var(--color-status-confirmed)',   // ocean (#0369a1)
-  unconfirmed: 'var(--color-status-request)',   // amber-400 (#fbbf24)
-  cancelled: 'var(--color-status-cancelled)',   // rose-400 (#fb7185)
-};
 
 function eur(cents: number) {
   return new Intl.NumberFormat('es-ES', {

@@ -1,7 +1,5 @@
 import { sql } from '@db/client';
-import AdminSection from '@/components/admin/AdminSection';
 import AdminCalendarView from '@/components/admin/AdminCalendarView';
-import EstateOverview from '@/components/admin/EstateOverview';
 import {
   getCalendarItems,
   windowFor,
@@ -54,15 +52,11 @@ export default async function AdminDashboardPage() {
   }));
 
   return (
-    <AdminSection eyebrow="Estate · upcoming" hint="Money to be made + properties at a glance">
-      <div className="space-y-5">
-        <EstateOverview data={overview} />
-        <AdminCalendarView
-          properties={ganttProperties}
-          itemsBySlug={itemsBySlug}
-          futureBySlug={futureBySlug}
-        />
-      </div>
-    </AdminSection>
+    <AdminCalendarView
+      properties={ganttProperties}
+      itemsBySlug={itemsBySlug}
+      futureBySlug={futureBySlug}
+      overview={overview}
+    />
   );
 }
