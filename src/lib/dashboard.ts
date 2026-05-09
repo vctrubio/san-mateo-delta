@@ -255,12 +255,14 @@ export async function moneyHeadline(): Promise<MoneyHeadline> {
 //   unconfirmed = status IN (request, invite)                     — needs action
 //   cancelled   = status = cancelled                              — fell through
 //
-// Payments card — over upcoming non-cancelled bookings:
+// Payments card — over UPCOMING HELD bookings only (status IN confirmed/
+// checked_in/checked_out). Request and invite don't represent real revenue
+// commitments yet, so they're excluded from every money figure here:
 //   paid     = SUM(succeeded payments)   (money already collected)
 //   unpaid   = total − paid (per-booking, clamped at 0)
-//   cleaning = SUM(agreed_cleaning_cents) — the slice of revenue going to
-//              the cleaner, shown as a separate metric (not a partition of
-//              the bar; cleaning overlaps with paid + unpaid).
+//   cleaning = SUM(agreed_cleaning_cents) — the slice of held revenue
+//              going to the cleaner, shown as a separate metric (not a
+//              partition of the bar; cleaning overlaps with paid + unpaid).
 // ----------------------------------------------------------------------------
 
 export type EstateOverview = {
@@ -268,8 +270,8 @@ export type EstateOverview = {
   confirmed_count: number;       // status IN (confirmed, checked_in, checked_out)
   unconfirmed_count: number;     // status IN (request, invite)
   cancelled_count: number;       // status = cancelled
-  total_cents: number;           // SUM(agreed_total) across upcoming non-cancelled
-  paid_cents: number;            // SUM(succeeded payments)
+  total_cents: number;           // SUM(agreed_total) across upcoming HELD only
+  paid_cents: number;            // SUM(succeeded payments) on held bookings
   unpaid_cents: number;          // SUM(GREATEST(agreed_total − paid, 0)) per booking
   cleaning_cents: number;        // SUM(agreed_cleaning_cents) — slice of total
 };
@@ -286,7 +288,7 @@ export async function getEstateOverview(): Promise<EstateOverview> {
       FROM upcoming u
       LEFT JOIN booking_payments bp
         ON bp.booking_id = u.id AND bp.status = 'succeeded'
-      WHERE u.status != 'cancelled'
+      WHERE u.status IN ('confirmed','checked_in','checked_out')
       GROUP BY u.id
     )
     SELECT
@@ -295,13 +297,13 @@ export async function getEstateOverview(): Promise<EstateOverview> {
       (COUNT(*) FILTER (WHERE u.status IN ('request','invite')))::int          AS unconfirmed_count,
       (COUNT(*) FILTER (WHERE u.status = 'cancelled'))::int                    AS cancelled_count,
       COALESCE(SUM(u.agreed_property_cents + u.agreed_cleaning_cents)
-        FILTER (WHERE u.status != 'cancelled'), 0)::int                        AS total_cents,
+        FILTER (WHERE u.status IN ('confirmed','checked_in','checked_out')), 0)::int                        AS total_cents,
       COALESCE(SUM(p.gross)::int, 0)                                           AS paid_cents,
       COALESCE(SUM(GREATEST(
         (u.agreed_property_cents + u.agreed_cleaning_cents) - COALESCE(p.gross, 0), 0
-      )) FILTER (WHERE u.status != 'cancelled'), 0)::int                       AS unpaid_cents,
+      )) FILTER (WHERE u.status IN ('confirmed','checked_in','checked_out')), 0)::int                       AS unpaid_cents,
       COALESCE(SUM(u.agreed_cleaning_cents)
-        FILTER (WHERE u.status != 'cancelled'), 0)::int                        AS cleaning_cents
+        FILTER (WHERE u.status IN ('confirmed','checked_in','checked_out')), 0)::int                        AS cleaning_cents
     FROM upcoming u
     LEFT JOIN paid_per p ON p.id = u.id
   `);

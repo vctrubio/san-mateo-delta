@@ -8,10 +8,13 @@ import type { EstateOverview as EstateOverviewData } from '@/lib/dashboard';
 //
 // Bookings card — 3-segment split: confirmed (status >= confirmed) /
 // unconfirmed (request, invite) / cancelled. Cancelled IS counted here.
-// Payments card — 3-segment bar: paid + unpaid + cleaning. Cleaning is a
-// slice of total revenue (going to the cleaner) and overlaps with paid +
-// unpaid, so paid+unpaid+cleaning can exceed 100%. The SplitBar uses
-// flex-grow weighting so all three segments render proportionally.
+// Payments card — 3-segment bar: paid + unpaid + cleaning. Scope is
+// HELD bookings only (status IN confirmed/checked_in/checked_out);
+// request/invite don't represent real revenue commitments and are
+// excluded from every money figure. Cleaning is a slice of total revenue
+// (going to the cleaner) and overlaps with paid + unpaid, so
+// paid+unpaid+cleaning can exceed 100% — the SplitBar uses flex-grow
+// weighting so all three segments render proportionally.
 //
 // Colours come from the status palette in src/app/globals.css — confirmed =
 // ocean, request = amber-400, cancelled = rose-400. The same three roles

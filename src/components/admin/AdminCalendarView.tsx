@@ -76,6 +76,18 @@ export default function AdminCalendarView({
 
   return (
     <div className="space-y-5">
+
+      <GanttStrip
+        properties={properties}
+        itemsBySlug={itemsBySlug}
+        activeSlug={activeSlug}
+        onSelectItem={handleGanttItemClick}
+        selection={
+          selection && activeSlug
+            ? { slug: activeSlug, start: selection.start, end: selection.end }
+            : null
+        }
+      />
       <PerPropertyFutureStrip
         rows={futureRows}
         activeSlug={activeSlug}
@@ -99,17 +111,7 @@ export default function AdminCalendarView({
         />
       )}
 
-      <GanttStrip
-        properties={properties}
-        itemsBySlug={itemsBySlug}
-        activeSlug={activeSlug}
-        onSelectItem={handleGanttItemClick}
-        selection={
-          selection && activeSlug
-            ? { slug: activeSlug, start: selection.start, end: selection.end }
-            : null
-        }
-      />
+
 
       {activeProperty && (
         <>

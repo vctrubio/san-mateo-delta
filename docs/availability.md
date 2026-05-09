@@ -44,7 +44,7 @@ that the database would later reject.
 | -------------------------------- | ------------------------------------------------- | ------- | ------ |
 | `/finca/[slug]`                  | `getCalendarItems({ mode: 'public' })`            | public  | 6 mo   |
 | `/admin/properties/[slug]`       | `getCalendarItems({ mode: 'admin' })`             | admin   | 12 mo  |
-| `/admin/calendar`                | `getCalendarItems` per property (admin) + `listFuturePropertyData()` for the right-rail card | admin | 6 mo |
+| `/admin` (dashboard)             | `getCalendarItems` per property (admin) + `listFuturePropertyData()` + `getEstateOverview()` for the top "Estate · upcoming" section | admin | 6 mo |
 | `/admin/invite/new`              | All 4 properties pre-fetched into `calendarsBySlug` (admin mode, 6 mo) | admin   | 6 mo   |
 | Add Booking modal                | `getAddBookingContext()` server action — all 4 properties bundled together | admin | 6 mo |
 
@@ -52,16 +52,19 @@ Public mode strips non-blocking statuses entirely (the public can't see who has
 a pending request). Admin mode returns everything; the modal collapses held →
 confirmed for display only.
 
-## `/admin/calendar` page composition
+## "Estate · upcoming" section on `/admin`
 
-Top-down stack:
+Top-down stack inside the section (the calendar view is now part of the
+admin dashboard, not a separate route):
 
 1. **`EstateOverview`** — upcoming-only summary card pair, same forward lens
    as the calendar grid (`date_check_out > today`).
    - **Bookings** (3 segments) — *confirmed* (`confirmed` / `checked_in` /
      `checked_out`) vs *unconfirmed* (`request` / `invite`) vs *cancelled*.
      All three are counted; `total_bookings` = sum of the three.
-   - **Payments** (computed over non-cancelled only) — 3-segment bar: *paid*
+   - **Payments** (computed over HELD bookings only — `status IN
+     ('confirmed','checked_in','checked_out')`; request/invite are excluded
+     because they aren't real revenue commitments yet) — 3-segment bar: *paid*
      (`SUM(succeeded payments)`) + *unpaid* (per-booking
      `GREATEST(agreed_total − paid, 0)`) + *cleaning*
      (`SUM(agreed_cleaning_cents)`). Cleaning overlaps with paid + unpaid

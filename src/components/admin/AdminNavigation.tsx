@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Building2,
   CalendarRange,
-  CalendarDays,
   Mail,
   CreditCard,
   Users,
@@ -39,7 +38,6 @@ type Route = {
 const NAV: Route[] = [
   { href: '/admin',            label: 'Finca',   icon: LayoutDashboard },
   // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
-  { href: '/admin/calendar',   label: 'Calendar',    icon: CalendarDays },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
   { href: '/admin/invite',     label: 'Invitations', icon: Mail },
   { href: '/admin/payments',   label: 'Payments',    icon: CreditCard },

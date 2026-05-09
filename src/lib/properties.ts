@@ -78,7 +78,12 @@ export type FuturePropertyData = {
 };
 
 export async function listFuturePropertyData(): Promise<FuturePropertyData[]> {
-  // One pass per property — small (4 rows) so subqueries are fine.
+  // One pass per property — small (4 rows) so the repeated "find today's held
+  // booking" subqueries (today_status, today_guest_name, today_check_out,
+  // today_agreed_cents, today_paid_cents) are fine. Correctness is guaranteed
+  // by the `no_overlap_when_held` exclusion constraint in db/schema.sql:
+  // at most one held booking can cover any given date per property, so all
+  // those subqueries select the same row deterministically.
   const rows = await sql<FuturePropertyData>(`
     WITH paid AS (
       SELECT booking_id, SUM(amount_cents)::int AS amount
