@@ -113,7 +113,7 @@ function StateMachineDiagram({ counts }: { counts: Record<BookingStatus, number>
 // What's wired (checklist)
 
 const WIRED: Array<{ title: string; sub: string; href?: string }> = [
-  { title: 'Schema + seed (11 tables, 5 enums, 2 exclusion constraints)', sub: 'db/schema.sql · db/seed.ts · property_blocks added',         href: '/debug' },
+  { title: 'Schema + seed (10 tables, 7 enums, 2 exclusion constraints)', sub: 'db/schema.sql · db/seed.ts · property_blocks added',         href: '/debug' },
   { title: 'Pricing model with seasonal rates',                          sub: 'docs/rates.md · 8 rate rows · selection in lib/bookings#computeQuote' },
   { title: 'Estate config in JSON (no DB row)',                          sub: '/finca.json amenities — change without a migration' },
   { title: 'Public landing + /finca + /finca/[slug] reading from DB',    sub: 'PropertyShowcase via listProperties()',                       href: '/finca' },
