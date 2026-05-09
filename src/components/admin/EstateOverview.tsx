@@ -118,7 +118,7 @@ function Shell({
         </div>
         <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300">upcoming</span>
       </div>
-      <p className="text-3xl font-bold text-slate-900 tabular-nums leading-none mb-3">{total}</p>
+      <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums leading-none mb-3">{total}</p>
       {children}
     </div>
   );

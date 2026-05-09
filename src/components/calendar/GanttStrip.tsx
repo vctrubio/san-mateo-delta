@@ -112,7 +112,7 @@ export default function GanttStrip({
             className="grid items-end gap-px text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1"
             style={{ gridTemplateColumns: gridTemplate }}
           >
-            <div />
+            <div className="sticky left-0 z-10 bg-white" />
             {monthBands.map((b) => (
               <div
                 key={b.key}
@@ -142,7 +142,7 @@ export default function GanttStrip({
                     type="button"
                     onClick={() => onSelectProperty(p.slug)}
                     aria-pressed={isActive}
-                    className={`pl-1 pr-3 text-left text-[11px] font-mono uppercase tracking-widest truncate transition-colors ${
+                    className={`sticky left-0 z-10 bg-white pl-5 pr-3 py-1 text-left text-[11px] font-mono uppercase tracking-widest truncate transition-colors ${
                       isActive
                         ? 'text-slate-900 font-bold'
                         : 'text-slate-500 hover:text-slate-900'
@@ -152,7 +152,7 @@ export default function GanttStrip({
                   </button>
                 ) : (
                   <span
-                    className={`pl-1 pr-3 text-left text-[11px] font-mono uppercase tracking-widest truncate ${
+                    className={`sticky left-0 z-10 bg-white pl-5 pr-3 py-1 text-left text-[11px] font-mono uppercase tracking-widest truncate ${
                       isActive ? 'text-slate-900 font-bold' : 'text-slate-500'
                     }`}
                   >

@@ -217,36 +217,6 @@ export async function listBookingEvents(bookingId: string): Promise<BookingEvent
   );
 }
 
-export async function listRecentBookingEvents(limit = 10) {
-  return sql<{
-    id: string;
-    booking_id: string;
-    event_type: string;
-    payload: Record<string, unknown>;
-    created_at: string;
-    property_slug: string;
-    user_name: string | null;
-  }>(
-    `
-    SELECT
-      e.id::text          AS id,
-      e.booking_id::text  AS booking_id,
-      e.event_type        AS event_type,
-      e.payload           AS payload,
-      e.created_at::text  AS created_at,
-      p.slug              AS property_slug,
-      u.name              AS user_name
-    FROM booking_events e
-    JOIN bookings b    ON b.id = e.booking_id
-    JOIN properties p  ON p.id = b.property_id
-    LEFT JOIN users u  ON u.id = b.user_id
-    ORDER BY e.created_at DESC, e.id DESC
-    LIMIT $1
-    `,
-    [limit],
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Pricing — one row in `properties.rates` JSONB carries the night rate for
 // each calendar month. computeQuote picks `rates[<check-in month>]` and

@@ -120,7 +120,7 @@ function BookingRow({ booking }: { booking: CalendarBooking }) {
         <p className="text-[13px] text-slate-800 font-bold truncate">
           {booking.user_name ?? <span className="italic text-slate-400 font-normal">no user</span>}
         </p>
-        <p className="text-[11px] text-slate-500 tabular-nums">
+        <p className="text-[11px] text-slate-500 tabular-nums truncate">
           {fmtDateRange(booking.start, booking.end)}
         </p>
       </div>
@@ -197,11 +197,11 @@ function PaymentRow({ booking, owed }: { booking: CalendarBooking; owed: number 
         <p className="text-[13px] text-slate-800 font-bold truncate flex-1">
           {booking.user_name ?? <span className="italic text-slate-400 font-normal">no user</span>}
         </p>
-        <p className="text-[11px] text-slate-500 tabular-nums shrink-0">
+        <p className="text-[11px] text-slate-500 tabular-nums shrink-0 truncate">
           {fmtDateRange(booking.start, booking.end)}
         </p>
       </div>
-      <div className="flex items-baseline justify-between gap-2 text-[11px] tabular-nums">
+      <div className="flex items-baseline justify-between gap-2 text-[11px] tabular-nums flex-wrap">
         <span className="text-slate-500">
           {eur(booking.paid_cents)} paid <span className="text-slate-300">of</span> {eur(booking.agreed_total_cents)}
         </span>

@@ -118,7 +118,7 @@ const WIRED: Array<{ title: string; sub: string; href?: string }> = [
   { title: 'Estate config in JSON (no DB row)',                          sub: '/finca.json amenities — change without a migration' },
   { title: 'Public landing + /finca + /finca/[slug] reading from DB',    sub: 'PropertyShowcase via listProperties()',                       href: '/finca' },
   { title: 'BookNowForm — guest creates user + booking in one submit',   sub: 'requestBooking action: upsert user, compute quote, insert booking + event, redirect to /user/[id]', href: '/finca/levante' },
-  { title: 'Admin money + pipeline dashboard',                           sub: 'DashboardMetrics · PerPropertyMoneyStrip · PipelinePanel · TopGuestsPanel · /admin', href: '/admin' },
+  { title: 'Admin estate dashboard (upcoming-only)',                     sub: 'EstateOverview · GanttStrip · PerPropertyFutureStrip · per-property Calendar · /admin', href: '/admin' },
   { title: 'Admin one-click status transitions',                          sub: '/admin/bookings → filterable + paginated · inline buttons per row', href: '/admin/bookings' },
   { title: 'Guest dashboard with grouped bookings',                       sub: 'pending / upcoming / past / cancelled · Pay buttons appear once confirmed', href: '/user' },
   { title: 'Pay deposit / Pay full / Pay balance',                        sub: 'recordPayment action: amount computed server-side from booking + prior payments' },

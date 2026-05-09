@@ -204,6 +204,10 @@ function TodayIndicator({
   onClick: () => void;
 }) {
   // Block takes priority — admin-imposed unavailability is the strongest signal.
+  // Tap target — increased padding for touch friendliness on mobile.
+  const interactiveCls =
+    'inline-flex items-center gap-1.5 py-1 px-1.5 -my-1 -mr-1 text-[9px] font-mono uppercase tracking-widest text-slate-500 hover:scale-110 hover:text-slate-900 transition-transform origin-right';
+
   if (blocked) {
     return (
       <button
@@ -212,7 +216,7 @@ function TodayIndicator({
           e.stopPropagation();
           onClick();
         }}
-        className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-500 hover:scale-110 hover:text-slate-900 transition-transform origin-right"
+        className={interactiveCls}
         title={`Open today's block · ${PROPERTY_BLOCK_STYLE.label}`}
       >
         <span className={`w-2 h-2 rounded-full ${PROPERTY_BLOCK_STYLE.dot}`} />
@@ -239,7 +243,7 @@ function TodayIndicator({
         e.stopPropagation();
         onClick();
       }}
-      className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-500 hover:scale-110 hover:text-slate-900 transition-transform origin-right"
+      className={interactiveCls}
       title={`Open today's booking · ${style?.label ?? s}`}
     >
       <span className={`w-2 h-2 rounded-full ${style?.dot ?? 'bg-slate-300'}`} />
@@ -277,7 +281,7 @@ function SubCard({
         {label}
         <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
       </p>
-      <p className={`text-2xl font-bold tabular-nums leading-none ${headlineCls}`}>
+      <p className={`text-xl sm:text-2xl font-bold tabular-nums leading-none ${headlineCls}`}>
         {headline}
       </p>
       <p className="text-[11px] text-slate-500 mt-1 truncate">{sub}</p>
