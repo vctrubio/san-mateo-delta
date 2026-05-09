@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Users, X, Check, BedDouble, Bath, Maximize, MoveRight } from 'lucide-react';
 import type { Property } from '@/lib/properties';
+import Modal from '@/components/shared/Modal';
 
 const RATIO_BY_INDEX = [
   'col-span-2 md:col-span-4',
@@ -76,19 +77,12 @@ export default function PropertyShowcaseGrid({ properties }: { properties: Prope
 
 function PropertyModal({ property, onClose }: { property: Property; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-      />
+    <Modal onClose={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-5xl bg-white rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh] z-[1001]"
+        className="relative w-full max-w-6xl bg-white rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row min-h-[70vh] max-h-[90vh]"
       >
         <button
           type="button"
@@ -155,7 +149,7 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
           </Link>
         </div>
       </motion.div>
-    </div>
+    </Modal>
   );
 }
 

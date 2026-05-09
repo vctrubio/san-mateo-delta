@@ -11,6 +11,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import AdminActions from './AdminActions';
 
 // ============================================================================
 // Admin shell navigation. Replaces the old left sidebar.
@@ -23,9 +24,9 @@ import {
 //              a tablet without crowding.
 //   ≥ lg       same inline layout but pills show icon + label.
 //
-// `children` is the action area on the right — wired in /app/admin/layout.tsx
-// via a Next.js parallel route (@actions) so each route can render its own
-// buttons.
+// Action buttons (Add / Notifications) live in `AdminActions` — same client
+// component opens both modals, so state stays local and there's no parallel
+// route slot to wire.
 // ============================================================================
 
 type Route = {
@@ -48,7 +49,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
-export default function AdminNavigation({ children }: { children?: React.ReactNode }) {
+export default function AdminNavigation() {
   const pathname = usePathname() ?? '/admin';
 
   return (
@@ -60,14 +61,18 @@ export default function AdminNavigation({ children }: { children?: React.ReactNo
           <div className="flex justify-center">
             <Pills pathname={pathname} hideLabelsBelowLg />
           </div>
-          <div className="flex items-center gap-2 shrink-0">{children}</div>
+          <div className="flex items-center gap-2 shrink-0">
+            <AdminActions />
+          </div>
         </div>
 
         {/* < md: brand + actions on top, nav scrolls horizontally below */}
         <div className="md:hidden">
           <div className="flex items-center justify-between mb-3">
             <Brand />
-            <div className="flex items-center gap-2 shrink-0">{children}</div>
+            <div className="flex items-center gap-2 shrink-0">
+              <AdminActions />
+            </div>
           </div>
           <div className="overflow-x-auto -mx-4 px-4 pb-1">
             <Pills pathname={pathname} />
