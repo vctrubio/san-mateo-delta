@@ -45,11 +45,10 @@ export type BookingActionPanelProps = {
 export default function BookingActionPanel({ item, onClose }: BookingActionPanelProps) {
   return (
     <motion.aside
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 24 }}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.18 }}
-      className="rounded-2xl bg-white border border-slate-100 shadow-xl shadow-slate-200/50 p-5 sticky top-4"
+      className="rounded-2xl bg-white border border-slate-100 shadow-xl shadow-slate-200/50 p-5 w-full max-w-md max-h-[90vh] overflow-y-auto"
     >
       <header className="flex items-start justify-between gap-3 mb-4">
         <div>

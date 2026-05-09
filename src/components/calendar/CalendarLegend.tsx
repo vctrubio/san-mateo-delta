@@ -1,13 +1,11 @@
 import type { BookingStatus } from '@db/enums';
-import type { CalendarMode } from '@/lib/calendar';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 
-// Public mode shows a minimal "Selected / Available / Held" legend — guests
-// don't need to learn the booking state machine.
-// Admin mode shows the full status palette + the block treatment.
+// Public (admin=false) shows a minimal "Selected / Available / Held" legend.
+// Admin shows the full status palette + the block treatment.
 
-export default function CalendarLegend({ mode }: { mode: CalendarMode }) {
-  if (mode === 'public') {
+export default function CalendarLegend({ admin }: { admin: boolean }) {
+  if (!admin) {
     return (
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
         <Item dot="bg-ocean" label="Selected" />

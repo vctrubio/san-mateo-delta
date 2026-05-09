@@ -64,8 +64,8 @@ export default async function AdminPropertyDetailPage({
           </span>
         </div>
         <Calendar
+          admin
           slug={property.slug}
-          mode="admin"
           monthsDefault={4}
           startMonth={calendarStart}
           items={calendarItems}

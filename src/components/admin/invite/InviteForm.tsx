@@ -235,7 +235,7 @@ export default function InviteForm({ properties, users, calendarsBySlug }: Props
       {/* ── Calendar ── */}
       <Section label="Dates" hint={range ? fmtDateRange(range.start, range.end) + ` · ${nights} nights` : 'Click two days'}>
         <Calendar
-          mode="admin"
+          admin
           slug={slug}
           items={items}
           monthsDefault={4}

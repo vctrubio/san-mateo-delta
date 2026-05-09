@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Building2,
   CalendarRange,
+  CalendarDays,
   Mail,
   CreditCard,
   Users,
@@ -36,8 +37,9 @@ type Route = {
 };
 
 const NAV: Route[] = [
-  { href: '/admin',            label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/admin/properties', label: 'Properties',  icon: Building2 },
+  { href: '/admin',            label: 'Finca',   icon: LayoutDashboard },
+  // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
+  { href: '/admin/calendar',   label: 'Calendar',    icon: CalendarDays },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
   { href: '/admin/invite',     label: 'Invitations', icon: Mail },
   { href: '/admin/payments',   label: 'Payments',    icon: CreditCard },
@@ -86,8 +88,8 @@ export default function AdminNavigation() {
 function Brand() {
   return (
     <Link href="/admin" className="flex items-center gap-2.5 shrink-0">
-      <div className="w-9 h-9 rounded-xl bg-slate-900 grid place-items-center font-bold text-white text-xs tracking-tight">
-        FSM
+      <div className="w-9 h-9 rounded-full bg-slate-900 grid place-items-center font-bold text-white text-xs tracking-tight">
+        SM
       </div>
       <div className="text-sm font-bold text-slate-900">San Mateo</div>
     </Link>

@@ -87,7 +87,7 @@ export default function FormsPreviewPage() {
             usedOn="/finca/[slug] (inside BookNowForm)"
             note="Two-click date range selection. Held bookings + property blocks render as unavailable (hatched / colored). Cancelled / request / invite bookings are invisible to the public. Selection drives the parent form's hidden date inputs."
           >
-            <Calendar mode="public" monthsDefault={2} items={MOCK_CALENDAR_ITEMS} />
+            <Calendar monthsDefault={2} items={MOCK_CALENDAR_ITEMS} />
           </Section>
 
           <Section
@@ -96,7 +96,7 @@ export default function FormsPreviewPage() {
             usedOn="/admin/properties/[slug]"
             note="Every booking colored by status. Click an empty range to open BlockConfirmBar (two-click block). Click a booking to open BookingActionPanel with inline status actions. Click a block to remove it. Conflict detection on createBlock surfaces a named error if you try to block dates overlapping a held booking."
           >
-            <Calendar slug={MOCK_PROPERTY.slug} mode="admin" monthsDefault={4} items={MOCK_CALENDAR_ITEMS} />
+            <Calendar admin slug={MOCK_PROPERTY.slug} monthsDefault={4} items={MOCK_CALENDAR_ITEMS} />
           </Section>
 
           <Section

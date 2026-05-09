@@ -133,7 +133,6 @@ export default function DateRangePicker({
             <span className="text-xs font-mono text-slate-300">click 2 days</span>
           </div>
           <Calendar
-            mode="public"
             items={[]}
             monthsDefault={2}
             selectedRange={selectedRange}

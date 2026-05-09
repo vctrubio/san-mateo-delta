@@ -105,7 +105,6 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
       </div>
 
       <Calendar
-        mode="public"
         items={items}
         monthsDefault={2}
         selectedRange={range ? { start: range.start, end: range.end } : undefined}

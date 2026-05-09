@@ -1,6 +1,6 @@
 'use client';
 
-import type { CalendarItem, CalendarMode } from '@/lib/calendar';
+import type { CalendarItem } from '@/lib/calendar';
 import DayCell from './DayCell';
 import {
   WEEKDAY_LABELS_SHORT,
@@ -18,7 +18,7 @@ import {
 export type MonthGridProps = {
   month: Date;
   items: CalendarItem[];
-  mode: CalendarMode;
+  admin: boolean;
   today: Date;
   selectionStart: Date | null;
   selectionEnd: Date | null;
@@ -30,7 +30,7 @@ export type MonthGridProps = {
 export default function MonthGrid({
   month,
   items,
-  mode,
+  admin,
   today,
   selectionStart,
   selectionEnd,
@@ -98,7 +98,7 @@ export default function MonthGrid({
               key={idx}
               day={day}
               items={owning}
-              mode={mode}
+              admin={admin}
               isPast={day.getTime() < today.getTime()}
               isOutOfMonth={outOfMonth}
               selectionStart={selectionStart}
