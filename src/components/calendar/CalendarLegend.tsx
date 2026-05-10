@@ -2,9 +2,18 @@ import type { BookingStatus } from '@db/enums';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 
 // Public (admin=false) shows a minimal "Selected / Available / Held" legend.
-// Admin shows the full status palette + the block treatment.
+// Admin shows the full status palette + the block treatment. Pass
+// `showCancellation` to also surface the cancelled chip — by default it's
+// suppressed in lockstep with Calendar's display filter, so the legend
+// reflects what's actually rendered on the grid.
 
-export default function CalendarLegend({ admin }: { admin: boolean }) {
+export default function CalendarLegend({
+  admin,
+  showCancellation = false,
+}: {
+  admin: boolean;
+  showCancellation?: boolean;
+}) {
   if (!admin) {
     return (
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
@@ -18,14 +27,14 @@ export default function CalendarLegend({ admin }: { admin: boolean }) {
     );
   }
 
-  // admin: every status + block
+  // admin: every status + block (cancelled only when showCancellation=true).
   const orderedStatuses: BookingStatus[] = [
     'request',
     'invite',
     'confirmed',
     'checked_in',
     'checked_out',
-    'cancelled',
+    ...(showCancellation ? (['cancelled'] as const) : []),
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">

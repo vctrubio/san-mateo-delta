@@ -10,20 +10,23 @@ import {
   listFuturePropertyData,
   type FuturePropertyData,
 } from '@/lib/properties';
+import type { SelectionUserOption } from '@/components/shared/SelectionActionModal';
 
 export const dynamic = 'force-dynamic';
 
-type PropertyRow = { id: string; slug: string };
+// max_guests is needed by SelectionActionModal so it can validate party size
+// before submitting createAdminBooking.
+type PropertyRow = { id: string; slug: string; max_guests: number };
 
 export default async function AdminDashboardPage() {
   const properties = await sql<PropertyRow>(
-    `SELECT id::text, slug FROM properties ORDER BY id`,
+    `SELECT id::text, slug, max_guests::int FROM properties ORDER BY id`,
   );
 
   // 6-month forward window — same lens as the per-property strip.
   const { from, to } = windowFor(new Date(), 6);
 
-  const [calendarRows, futureRows, overview] = await Promise.all([
+  const [calendarRows, futureRows, overview, users] = await Promise.all([
     Promise.all(
       properties.map(async (p) => ({
         slug: p.slug,
@@ -37,6 +40,12 @@ export default async function AdminDashboardPage() {
     ),
     listFuturePropertyData(),
     getEstateOverview(),
+    // Users are fetched here (not on demand inside the modal) because the
+    // list is small and the modal needs them for email autocomplete the
+    // moment it opens.
+    sql<SelectionUserOption>(
+      `SELECT id::text, name, email FROM users ORDER BY name`,
+    ),
   ]);
 
   const itemsBySlug: Record<string, CalendarItem[]> = {};
@@ -49,6 +58,7 @@ export default async function AdminDashboardPage() {
     id: p.id,
     slug: p.slug,
     label: p.slug,
+    max_guests: p.max_guests,
   }));
 
   return (
@@ -57,6 +67,7 @@ export default async function AdminDashboardPage() {
       itemsBySlug={itemsBySlug}
       futureBySlug={futureBySlug}
       overview={overview}
+      users={users}
     />
   );
 }

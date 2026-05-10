@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import AdminSection from '@/components/admin/AdminSection';
 import EstateOverview from '@/components/admin/EstateOverview';
 import Calendar from '@/components/calendar/Calendar';
 import GanttStrip, { type GanttProperty } from '@/components/calendar/GanttStrip';
 import SelectionSummary from '@/components/calendar/SelectionSummary';
 import PerPropertyFutureStrip from '@/components/admin/PerPropertyFutureStrip';
-import BookingActionPanel from '@/components/calendar/BookingActionPanel';
-import Modal from '@/components/shared/Modal';
+import BookingActionModal from '@/components/shared/BookingActionModal';
 import {
   BookingsListModal,
   PaymentsListModal,
 } from '@/components/shared/PropertyDetailModals';
+import SelectionActionModal, {
+  type SelectionUserOption,
+} from '@/components/shared/SelectionActionModal';
 import type { CalendarBooking, CalendarBlock, CalendarItem } from '@/lib/calendar';
 import { BLOCKING_BOOKING_STATUSES } from '@/lib/colors';
 import { parseYmd, startOfDay } from '@/components/calendar/dateUtils';
@@ -42,10 +44,11 @@ import type { BookingStatus } from '@db/enums';
 // ============================================================================
 
 export type AdminCalendarViewProps = {
-  properties: (GanttProperty & { id: string })[];
+  properties: (GanttProperty & { id: string; max_guests: number })[];
   itemsBySlug: Record<string, CalendarItem[]>;
   futureBySlug: Record<string, FuturePropertyData>;
   overview: EstateOverviewData;
+  users: SelectionUserOption[];
 };
 
 export default function AdminCalendarView({
@@ -53,10 +56,17 @@ export default function AdminCalendarView({
   itemsBySlug,
   futureBySlug,
   overview,
+  users,
 }: AdminCalendarViewProps) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ start: Date; end: Date | null } | null>(null);
   const [activeItem, setActiveItem] = useState<CalendarItem | null>(null);
+  // Modal-suppression: when the user dismisses the selection-action modal
+  // (Esc or backdrop), we keep the highlighted range visible but stop
+  // re-opening the modal automatically. Re-opening only happens when the
+  // selection changes — so the modal won't pop back the moment the user
+  // tries to inspect the calendar with the selection still on screen.
+  const [selectionModalDismissed, setSelectionModalDismissed] = useState(false);
   const [openListModal, setOpenListModal] = useState<
     { type: 'bookings' | 'payments'; slug: string } | null
   >(null);
@@ -66,6 +76,20 @@ export default function AdminCalendarView({
     : null;
   const activeItems = activeSlug ? itemsBySlug[activeSlug] ?? [] : [];
 
+  // The selection-action modal opens auto-magically the moment a complete
+  // range exists on a focused property AND the range doesn't overlap a held
+  // booking/block. The Calendar surfaces the "no overlap" check internally
+  // by only firing onSelectRange when the range is valid, so we just check
+  // for selection.end here.
+  const selectionModalOpen = useMemo(() => {
+    return Boolean(
+      activeProperty
+      && selection?.start
+      && selection?.end
+      && !selectionModalDismissed,
+    );
+  }, [activeProperty, selection?.start, selection?.end, selectionModalDismissed]);
+
   const futureRows = properties
     .map((p) => futureBySlug[p.slug])
     .filter((r): r is FuturePropertyData => Boolean(r));
@@ -74,6 +98,12 @@ export default function AdminCalendarView({
     setActiveSlug(slug);
     setSelection(null);
     setActiveItem(null);
+    setSelectionModalDismissed(false);
+  }
+
+  function clearSelection() {
+    setSelection(null);
+    setSelectionModalDismissed(false);
   }
 
   function handleToggleProperty(slug: string | null) {
@@ -126,8 +156,8 @@ export default function AdminCalendarView({
     if (candidates.length === 0) return;
     const priority = (s: BookingStatus): number =>
       BLOCKING_BOOKING_STATUSES.includes(s) ? 1 :
-      s === 'invite' ? 2 :
-      s === 'request' ? 3 : 4;
+        s === 'invite' ? 2 :
+          s === 'request' ? 3 : 4;
     candidates.sort((a, b) => priority(a.status) - priority(b.status));
     setActiveItem(candidates[0]);
   }
@@ -177,8 +207,11 @@ export default function AdminCalendarView({
               items={activeItems}
               monthsDefault={4}
               selectedRange={selection ?? undefined}
-              onSelectRange={(start, end) => setSelection({ start, end })}
-              onClearRange={() => setSelection(null)}
+              onSelectRange={(start, end) => {
+                setSelection({ start, end });
+                setSelectionModalDismissed(false);
+              }}
+              onClearRange={clearSelection}
               selectedItem={activeItem}
               onSelectItem={setActiveItem}
             />
@@ -206,12 +239,29 @@ export default function AdminCalendarView({
           Calendar.tsx skips its internal modal when controlled, so this is
           the single source of truth for the active item. */}
       {activeItem && (
-        <Modal onClose={() => setActiveItem(null)}>
-          <BookingActionPanel
-            item={activeItem}
-            onClose={() => setActiveItem(null)}
-          />
-        </Modal>
+        <BookingActionModal
+          item={activeItem}
+          onClose={() => setActiveItem(null)}
+        />
+      )}
+
+      {/* Selection-action modal — auto-opens once admin completes a valid
+          two-day range on a focused property. Replaces the old dark
+          BlockConfirmBar with a chooser-first flow (block vs new booking). */}
+      {selectionModalOpen && activeProperty && selection?.start && selection?.end && (
+        <SelectionActionModal
+          slug={activeProperty.slug}
+          propertyLabel={activeProperty.label}
+          propertyMaxGuests={activeProperty.max_guests}
+          start={selection.start}
+          end={selection.end}
+          users={users}
+          onClose={() => setSelectionModalDismissed(true)}
+          onSuccess={() => {
+            setSelection(null);
+            setSelectionModalDismissed(false);
+          }}
+        />
       )}
     </>
   );

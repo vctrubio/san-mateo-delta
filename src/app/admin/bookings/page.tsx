@@ -136,7 +136,7 @@ export default async function AdminBookingsPage({
 
   return (
     <>
-      <FiltersBar>
+      {/* <FiltersBar>
         <SearchInput placeholder="Search guest name or email…" />
         <FilterChips paramKey="status" label="Status" options={STATUS_CHIPS} />
         <FilterChips paramKey="property" label="Property" options={PROPERTY_CHIPS} />
@@ -144,7 +144,7 @@ export default async function AdminBookingsPage({
         <div className="ml-auto">
           <ResetButton />
         </div>
-      </FiltersBar>
+      </FiltersBar> */}
 
       <AdminSection eyebrow="All bookings">
         <AdminTable

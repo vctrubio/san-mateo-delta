@@ -94,6 +94,88 @@ export async function recordPayment(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// registerCashPayment — admin records an arbitrary cash amount toward a
+// booking. Used by the booking-action modal where the host has just received
+// money in person and wants to log it. Unlike recordPayment (which derives
+// the amount from the type — 30%, full balance, etc.), this takes the amount
+// explicitly so the host can register any partial sum they actually got.
+//
+// Type is the bookkeeping bucket: 'deposit' for a partial pre-stay payment,
+// 'balance' for what completes the agreed total. The form picks one based on
+// whether the entered amount fully clears the outstanding balance.
+// ---------------------------------------------------------------------------
+
+type RegisterCashPaymentResult =
+  | { ok: true; paymentId: string; amountCents: number; type: PaymentType }
+  | { ok: false; error: string };
+
+export async function registerCashPayment(
+  formData: FormData,
+): Promise<RegisterCashPaymentResult> {
+  const bookingId = str(formData, 'booking_id');
+  const amountStr = str(formData, 'amount_cents');
+  const typeStr = str(formData, 'type') as PaymentType | null;
+
+  if (!bookingId) return { ok: false, error: 'booking_id required.' };
+  if (!amountStr)  return { ok: false, error: 'amount_cents required.' };
+  if (!typeStr)    return { ok: false, error: 'type required.' };
+
+  const amount_cents = parseInt(amountStr, 10);
+  if (!Number.isFinite(amount_cents) || amount_cents <= 0) {
+    return { ok: false, error: `Invalid amount_cents: ${amountStr}` };
+  }
+
+  const bookingRows = await pool.query<{
+    user_id: string | null;
+    status: string;
+  }>(
+    `SELECT user_id::text AS user_id, status::text AS status
+       FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  const booking = bookingRows.rows[0];
+  if (!booking) return { ok: false, error: `Booking ${bookingId} not found.` };
+  if (booking.status === 'cancelled') {
+    return { ok: false, error: 'Cannot record payment on a cancelled booking.' };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status)
+       VALUES ($1, $2::payment_type, $3, 'cash', 'succeeded')
+       RETURNING id::text`,
+      [bookingId, typeStr, amount_cents],
+    );
+    await client.query(
+      `INSERT INTO booking_events (booking_id, event_type, payload)
+       VALUES ($1, 'payment.recorded', $2::jsonb)`,
+      [
+        bookingId,
+        JSON.stringify({
+          payment_id: rows[0].id,
+          type: typeStr,
+          amount_cents,
+          method: 'cash',
+          source: 'admin_modal',
+        }),
+      ],
+    );
+    await client.query('COMMIT');
+
+    revalidateForBookingPayment(bookingId, booking.user_id);
+    return { ok: true, paymentId: rows[0].id, amountCents: amount_cents, type: typeStr };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: msg };
+  } finally {
+    client.release();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // markCashReceived — admin clicks "Mark received" on a pending cash payment.
 // Flips status pending → succeeded and updates paid_at to now. The original
 // row was inserted at booking-request time as the "owed cash" promise.

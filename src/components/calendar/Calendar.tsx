@@ -4,11 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import type { CalendarItem } from '@/lib/calendar';
 import { BLOCKING_BOOKING_STATUSES } from '@/lib/colors';
-import Modal from '@/components/shared/Modal';
+import BookingActionModal from '@/components/shared/BookingActionModal';
 import MonthGrid from './MonthGrid';
 import CalendarLegend from './CalendarLegend';
-import BlockConfirmBar from './BlockConfirmBar';
-import BookingActionPanel from './BookingActionPanel';
 import {
   addMonths,
   parseYmd,
@@ -28,10 +26,12 @@ import {
 //
 // ADMIN (admin = true)
 //   Default 4 months, with toggle (4 / 8 / 12). Every booking renders in its
-//   status color. Clicking an item opens BookingActionPanel inside a Modal
-//   for inline status transitions or block removal. Clicking empty days uses
-//   the same two-click selection. When a valid range is set, BlockConfirmBar
-//   appears inline with a reason input; on submit it calls `createBlock`.
+//   status color. Clicking an item opens BookingActionModal for inline
+//   status transitions, cash payment registration, or block removal.
+//   Clicking empty days uses the same two-click selection. When a valid
+//   range is set, the parent (AdminCalendarView) auto-opens
+//   SelectionActionModal — Calendar itself no longer renders any inline
+//   submit panel.
 //
 // `onSelectRange` mirrors the in-progress range to the parent.
 // `onSelectItem` + `selectedItem` let a parent (e.g. AdminCalendarView) drive
@@ -45,7 +45,8 @@ import {
 // ============================================================================
 
 export type CalendarProps = {
-  /** Property slug — used by BlockConfirmBar to call createBlock. Required when admin=true. */
+  /** Property slug — surfaced back to the parent on selection so it can issue
+   *  the right createBlock / createAdminBooking call. Required when admin=true. */
   slug?: string;
   /** First month to render. Defaults to start of current month. */
   startMonth?: Date;
@@ -55,6 +56,10 @@ export type CalendarProps = {
   items: CalendarItem[];
   /** Admin mode toggle. Defaults to false (public). */
   admin?: boolean;
+  /** Show cancelled bookings as colored cells (admin only). Defaults to false
+   *  so the dates stay selectable for re-booking and the legend hides the
+   *  cancelled chip. Public mode never shows cancelled regardless. */
+  showCancellation?: boolean;
   /** Fires whenever the user has a valid two-day range, in either mode. */
   onSelectRange?: (start: Date, end: Date) => void;
   /** Cleared signal when the user resets selection. */
@@ -73,6 +78,7 @@ export default function Calendar({
   monthsDefault,
   items,
   admin = false,
+  showCancellation = false,
   onSelectRange,
   onClearRange,
   selectedRange,
@@ -80,6 +86,18 @@ export default function Calendar({
   onSelectItem,
 }: CalendarProps) {
   const initialMonths = monthsDefault ?? (admin ? 4 : 2);
+
+  // Drop cancelled bookings from the rendered set unless the caller explicitly
+  // opts in. Cancelled is non-blocking, so leaving it visible just clutters
+  // the grid and steals click targets on otherwise free days. Public mode
+  // already filters cancelled out server-side; this guard makes admin
+  // consistent.
+  const displayItems = useMemo(() => {
+    if (showCancellation) return items;
+    return items.filter(
+      (it) => !(it.kind === 'booking' && it.status === 'cancelled'),
+    );
+  }, [items, showCancellation]);
 
   const [months, setMonths] = useState<2 | 4 | 8 | 12>(initialMonths);
   const [currentMonth, setCurrentMonth] = useState<Date>(
@@ -92,9 +110,10 @@ export default function Calendar({
 
   // Controlled mode = the parent is driving the modal (passed both
   // selectedItem and onSelectItem). When controlled, Calendar still tracks
-  // activeItem for inline behaviour (closing BlockConfirmBar, etc.) but
-  // skips rendering its own Modal — the parent owns the modal so it can
-  // open one without Calendar being mounted.
+  // activeItem internally for selection-clearing behaviour, but skips
+  // rendering its own Modal — the parent owns the modal so it can open one
+  // without Calendar being mounted (and so AdminCalendarView can mount the
+  // SelectionActionModal alongside it).
   const isControlled = selectedItem !== undefined;
   const activeItem = isControlled ? selectedItem : internalActiveItem;
   const setActiveItem = (item: CalendarItem | null) => {
@@ -244,7 +263,7 @@ export default function Calendar({
             <MonthGrid
               key={`${m.getFullYear()}-${m.getMonth()}-${i}`}
               month={m}
-              items={items}
+              items={displayItems}
               admin={admin}
               today={today}
               selectionStart={selStart}
@@ -291,26 +310,17 @@ export default function Calendar({
             Selected range overlaps a held booking or block. Pick a clear range.
           </div>
         )}
-
-        {admin && slug && selStart && selEnd && !selectionHasHeldOverlap && !activeItem && (
-          <BlockConfirmBar
-            slug={slug}
-            start={selStart}
-            end={selEnd}
-            onClear={clearSelection}
-            onSuccess={clearSelection}
-          />
-        )}
       </div>
 
       {!isControlled && activeItem && (
-        <Modal onClose={() => setActiveItem(null)}>
-          <BookingActionPanel item={activeItem} onClose={() => setActiveItem(null)} />
-        </Modal>
+        <BookingActionModal
+          item={activeItem}
+          onClose={() => setActiveItem(null)}
+        />
       )}
 
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl">
-        <CalendarLegend admin={admin} />
+        <CalendarLegend admin={admin} showCancellation={showCancellation} />
       </div>
     </div>
   );

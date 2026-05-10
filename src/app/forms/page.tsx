@@ -48,29 +48,34 @@ function ymd(y: number, m: number, d: number) {
 const Y = new Date().getFullYear();
 const NEXT_MONTH = ((new Date().getMonth() + 1) % 12) + 1;
 const M2 = ((NEXT_MONTH) % 12) + 1;
+const MOCK_SLUG = 'levante';
 const MOCK_CALENDAR_ITEMS: CalendarItem[] = [
   // a confirmed booking next month
   { kind: 'booking', id: 'MOCK-B1', status: 'confirmed', start: ymd(Y, NEXT_MONTH, 5),  end: ymd(Y, NEXT_MONTH, 12),
-    label: 'Maria · levante', user_id: 'MOCK-U1', user_name: 'Maria',  user_email: 'maria@example.com',
+    label: 'Maria · levante', property_slug: MOCK_SLUG,
+    user_id: 'MOCK-U1', user_name: 'Maria',  user_email: 'maria@example.com',
     agreed_property_cents: 245000, agreed_cleaning_cents: 12000, agreed_total_cents: 257000, paid_cents: 0,
     guests: { adults: 4, children: 2, infants: 0, pets: 0 }, href: '/admin/bookings/MOCK-B1' },
   // a checked-in booking now
   { kind: 'booking', id: 'MOCK-B2', status: 'checked_in', start: ymd(Y, NEXT_MONTH, 18), end: ymd(Y, NEXT_MONTH, 22),
-    label: 'Tom · levante', user_id: 'MOCK-U2', user_name: 'Tom', user_email: 'tom@example.com',
+    label: 'Tom · levante', property_slug: MOCK_SLUG,
+    user_id: 'MOCK-U2', user_name: 'Tom', user_email: 'tom@example.com',
     agreed_property_cents: 140000, agreed_cleaning_cents: 12000, agreed_total_cents: 152000, paid_cents: 152000,
     guests: { adults: 2, children: 0, infants: 0, pets: 1 } },
   // a request (admin sees, public ignores)
   { kind: 'booking', id: 'MOCK-B3', status: 'request',  start: ymd(Y, M2, 8),  end: ymd(Y, M2, 11),
-    label: 'Carla · levante', user_id: 'MOCK-U3', user_name: 'Carla', user_email: 'carla@example.com',
+    label: 'Carla · levante', property_slug: MOCK_SLUG,
+    user_id: 'MOCK-U3', user_name: 'Carla', user_email: 'carla@example.com',
     agreed_property_cents: 105000, agreed_cleaning_cents: 12000, agreed_total_cents: 117000, paid_cents: 0,
     guests: { adults: 2, children: 0, infants: 0, pets: 0 } },
   // a cancelled booking (admin sees faded, public ignores)
   { kind: 'booking', id: 'MOCK-B4', status: 'cancelled', start: ymd(Y, M2, 24), end: ymd(Y, M2, 27),
-    label: 'Past guest · levante', user_id: null, user_name: null, user_email: null,
+    label: 'Past guest · levante', property_slug: MOCK_SLUG,
+    user_id: null, user_name: null, user_email: null,
     agreed_property_cents: 105000, agreed_cleaning_cents: 12000, agreed_total_cents: 117000, paid_cents: 0,
     guests: { adults: 2, children: 0, infants: 0, pets: 0 } },
   // a property block
-  { kind: 'block', id: 'MOCK-PB1', start: ymd(Y, M2, 1), end: ymd(Y, M2, 6), reason: 'Owner family stay' },
+  { kind: 'block', id: 'MOCK-PB1', start: ymd(Y, M2, 1), end: ymd(Y, M2, 6), reason: 'Owner family stay', property_slug: MOCK_SLUG },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +99,7 @@ export default function FormsPreviewPage() {
             title="Calendar · admin mode (4 months default, toggle 4/8/12)"
             file="src/components/calendar/Calendar.tsx"
             usedOn="/admin/properties/[slug]"
-            note="Every booking colored by status. Click an empty range to open BlockConfirmBar (two-click block). Click a booking to open BookingActionPanel with inline status actions. Click a block to remove it. Conflict detection on createBlock surfaces a named error if you try to block dates overlapping a held booking."
+            note="Every booking colored by status. Click an empty range to auto-open SelectionActionModal (chooser → block dates OR create new booking). Click a booking to open BookingActionModal — same modal kit, with inline status actions and a register-cash-payment section when there's an outstanding balance. Click a block to remove it."
           >
             <Calendar admin slug={MOCK_PROPERTY.slug} monthsDefault={4} items={MOCK_CALENDAR_ITEMS} />
           </Section>
