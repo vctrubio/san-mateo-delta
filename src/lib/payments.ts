@@ -2,6 +2,34 @@ import 'server-only';
 import { sql } from '@db/client';
 import type { PaymentMethod, PaymentStatus, PaymentType } from '@db/enums';
 
+// Lifetime cash / stripe split for a user — sums succeeded payments across
+// every booking they've ever held. Used by the user detail page's PAYMENTS
+// card so admin can see how the user has historically paid (cash on arrival
+// vs Stripe). Pending and failed rows are excluded — the host doesn't have
+// that money yet.
+export async function paymentSplitForUser(
+  userId: string,
+): Promise<{ cash: number; stripe: number }> {
+  const rows = await sql<{ method: string; paid: number }>(
+    `
+    SELECT bp.method::text       AS method,
+           SUM(bp.amount_cents)::int AS paid
+      FROM booking_payments bp
+      JOIN bookings b ON b.id = bp.booking_id
+     WHERE b.user_id = $1
+       AND bp.status = 'succeeded'
+     GROUP BY bp.method
+    `,
+    [userId],
+  );
+  const out = { cash: 0, stripe: 0 };
+  for (const r of rows) {
+    if (r.method === 'cash') out.cash = r.paid;
+    else if (r.method === 'stripe') out.stripe = r.paid;
+  }
+  return out;
+}
+
 export async function listPaymentsForBooking(bookingId: string) {
   return sql<{
     id: string;
