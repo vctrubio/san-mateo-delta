@@ -7,7 +7,6 @@ import {
   Building2,
   CalendarRange,
   Mail,
-  CreditCard,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,11 +35,10 @@ type Route = {
 };
 
 const NAV: Route[] = [
-  { href: '/admin',            label: 'Finca',   icon: LayoutDashboard },
+  { href: '/admin',            label: 'Finca',       icon: LayoutDashboard },
   // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
   { href: '/admin/invite',     label: 'Invitations', icon: Mail },
-  { href: '/admin/payments',   label: 'Payments',    icon: CreditCard },
   { href: '/admin/users',      label: 'Users',       icon: Users },
 ];
 

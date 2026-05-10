@@ -4,6 +4,7 @@ import { sql } from '@db/client';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
 import finca from '../../../../finca.json';
+import { eur } from '@/lib/format';
 
 // Success page is rendered after Stripe redirects back. The webhook does the
 // actual DB writes, so we may briefly see status='pending' while the webhook
@@ -185,10 +186,6 @@ export default async function SuccessPage(props: { searchParams: Promise<{ sessi
 // ---------------------------------------------------------------------------
 // Helpers + sub-components
 // ---------------------------------------------------------------------------
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 function ContactRow({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href: string }) {
   return (

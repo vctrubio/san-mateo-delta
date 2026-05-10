@@ -9,6 +9,7 @@ import Pagination from '@/components/admin/filters/Pagination';
 import { listUsers, type ListUsersSort, type UserWithStats } from '@/lib/users';
 import { fmtDate } from '@/lib/dates';
 import { asInt, asString, paginate, DEFAULT_PAGE_LIMIT } from '@/lib/searchParams';
+import { eur } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +18,6 @@ const SORT_OPTIONS: Array<{ value: ListUsersSort; label: string }> = [
   { value: 'bookings', label: 'Most bookings' },
   { value: 'spend',    label: 'Lifetime spend' },
 ];
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 const COLUMNS: AdminTableColumn<UserWithStats>[] = [
   {

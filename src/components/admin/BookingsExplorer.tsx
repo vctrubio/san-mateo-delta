@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, Pencil } from 'lucide-react';
+import { Search } from 'lucide-react';
 import AdminSection from '@/components/admin/AdminSection';
+import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
 import BookingActionModal from '@/components/shared/BookingActionModal';
 import { fmtDateRange, nightsBetween } from '@/lib/dates';
@@ -14,6 +15,7 @@ import {
 } from '@/lib/colors';
 import type { BookingRow } from '@/lib/bookings';
 import type { CalendarBooking } from '@/lib/calendar';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // BookingsExplorer — the /admin/bookings shell. Server fetches every booking
@@ -63,12 +65,6 @@ function partyLabel(g: BookingRow['guests']): string {
   if (g.infants)  parts.push(`${g.infants}I`);
   if (g.pets)     parts.push(`${g.pets}🐾`);
   return parts.join(' · ');
-}
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(cents / 100);
 }
 
 // ─── Spotlight math-table row shape ────────────────────────────────────────
@@ -366,7 +362,7 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
   return (
     <>
       <AdminSection
-        eyebrow="Spotlight"
+        eyebrow="All Time"
         hint={`${grandTotal.count} ${grandTotal.count === 1 ? 'booking' : 'bookings'} matched`}
       >
         <SpotlightPanel
@@ -403,18 +399,20 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
           activeBucket={bucketFilter}
           onToggleBucket={toggleBucketFilter}
         />
-        <BookingsTable
+        <AdminTable
+          columns={BOOKING_COLUMNS}
           rows={
             activeTab === 'upcoming'  ? upcoming  :
             activeTab === 'history'   ? history   :
                                         cancelled
           }
+          rowKey={(b) => b.id}
+          onRowClick={setActiveBooking}
           emptyMessage={
             activeTab === 'upcoming'  ? 'No upcoming bookings match these filters.'  :
             activeTab === 'history'   ? 'No history matches these filters.'          :
                                         'No cancelled bookings match these filters.'
           }
-          onEdit={setActiveBooking}
         />
       </section>
 
@@ -779,14 +777,12 @@ function SpotlightPanel({
       {/* Math table — property-axis breakdown with a Total at the bottom.
           Cross-filters the bookings table below via row clicks. Status
           breakdown is rendered elsewhere (TBD by caller). */}
-      <div className="pt-4 border-t border-slate-100">
         <MathTable
           propertyRows={propertyRows}
           totalRow={totalRow}
           activeProperty={activeProperty}
           onToggleProperty={onToggleProperty}
         />
-      </div>
     </div>
   );
 }
@@ -944,7 +940,7 @@ function MathTable({
         <table className="w-full min-w-[560px] md:min-w-[720px] text-sm tabular-nums">
           <thead>
             <tr className="text-xs font-mono uppercase tracking-widest text-slate-400">
-              <th scope="col" className="text-left  font-normal py-2 pl-5 pr-3 w-[110px]">{' '}</th>
+              <th scope="col" className="text-left  font-normal py-2 pl-5 pr-3 w-[110px]">{'Properties'}</th>
               <th scope="col" className="hidden md:table-cell text-left font-normal py-2 px-2 min-w-[220px]">{' '}</th>
               <th
                 scope="col"
@@ -1221,168 +1217,78 @@ function MobileBarRow({
   );
 }
 
-// ─── Bookings table ─────────────────────────────────────────────────────────
+// ─── Bookings table column config ──────────────────────────────────────────
 //
-// Purpose-built table for the bookings list. Replaces the old AdminTable
-// (which is "header + stack of fat cards") with a real, dense table layout
-// on desktop and a separate compact card layout on mobile.
-//
-// Columns: Date · Property · Guest · Status · Payment · Edit
-//   * Date — `12 Jul → 19 Jul` with `· 7n` muted in the same tone as the
-//     guest party JSON, so the row feels visually tied together.
-//   * Property — `LEVANTE` slug, mono uppercase, no color dot.
-//   * Guest — name + muted party (`2A · 1🐾`).
-//   * Status — read-only chip. The dropdown toggle is gone; transitions live
-//     in BookingActionModal so there's one place to mutate state.
-//   * Payment — paid € / agreed €, paid is colored (emerald = fully paid,
-//     amber = partial, slate-300 = nothing yet).
-//   * Edit — icon button → opens BookingActionModal in-place. The whole row
-//     also acts as the same trigger so admin can tap anywhere on a phone.
-//
-// Mobile (< sm): the desktop grid is hidden and each row renders as a stacked
-// card with two info rows + a status/payment/edit footer. The full row is one
-// big tap target for the modal.
+// Drives the shared <AdminTable> for the bookings list. Each cell renders
+// the same on desktop (grid row) and mobile (stacked dl) — the table
+// component handles the layout switch. The full row is the click target
+// (opens BookingActionModal); no per-row edit button needed.
 
-function BookingsTable({
-  rows, emptyMessage, onEdit,
-}: {
-  rows: BookingRow[];
-  emptyMessage: string;
-  onEdit: (b: BookingRow) => void;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-2xl bg-white border border-slate-200 p-10 text-center text-sm text-slate-400 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        {emptyMessage}
-      </div>
-    );
-  }
-
-  // Single grid template shared between header and desktop rows so columns
-  // line up perfectly.
-  const GRID = 'sm:grid sm:grid-cols-[1.3fr_0.7fr_1.4fr_0.9fr_1.2fr_44px] sm:gap-4 sm:items-center';
-
-  return (
-    <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      {/* Desktop header */}
-      <div
-        className={`hidden ${GRID} px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 text-xs font-mono uppercase tracking-[0.22em] text-slate-400`}
-      >
-        <div>Date</div>
-        <div>Property</div>
-        <div>Guest</div>
-        <div>Status</div>
-        <div className="text-right">Payment</div>
-        <div className="sr-only">Edit</div>
-      </div>
-
-      <ul className="divide-y divide-slate-100">
-        {rows.map((b) => (
-          <BookingsTableRow key={b.id} b={b} grid={GRID} onEdit={onEdit} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function BookingsTableRow({
-  b, grid, onEdit,
-}: {
-  b: BookingRow;
-  grid: string;
-  onEdit: (b: BookingRow) => void;
-}) {
-  const nights = nightsBetween(b.date_check_in, b.date_check_out);
-  const fullyPaid = b.paid_cents >= b.agreed_total_cents;
-  const paidTone = fullyPaid
-    ? 'text-emerald-700'
-    : b.paid_cents === 0 ? 'text-slate-300' : 'text-amber-700';
-  const dateRange = fmtDateRange(b.date_check_in, b.date_check_out);
-  const guestName = b.user_name ?? null;
-  const party = partyLabel(b.guests);
-
-  return (
-    <li>
-      {/* Desktop row — real grid */}
-      <div
-        className={`hidden ${grid} px-4 py-2.5 hover:bg-slate-50/70 transition-colors group`}
-      >
-        {/* Date — muted ·{n}n in the same slate-400 tone as the guest party */}
+const BOOKING_COLUMNS: AdminTableColumn<BookingRow>[] = [
+  {
+    key: 'date',
+    header: 'Date',
+    width: 'minmax(0,1.3fr)',
+    render: (b) => {
+      const nights = nightsBetween(b.date_check_in, b.date_check_out);
+      return (
         <div className="min-w-0 tabular-nums">
-          <span className="text-sm text-slate-900">{dateRange}</span>
+          <span className="text-sm text-slate-900">
+            {fmtDateRange(b.date_check_in, b.date_check_out)}
+          </span>
           <span className="text-xs text-slate-400 font-mono ml-1.5">· {nights}n</span>
         </div>
-        {/* Property */}
-        <div className="text-xs font-mono uppercase tracking-widest text-slate-700">
-          {b.property_slug}
-        </div>
-        {/* Guest */}
-        <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-sm text-slate-900 truncate">
-            {guestName ?? <span className="italic text-slate-400">no user</span>}
-          </span>
-          <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">{party}</span>
-        </div>
-        {/* Status */}
-        <div className="min-w-0">
-          <StatusBadge status={b.status} />
-        </div>
-        {/* Payment */}
-        <div className="text-right text-sm tabular-nums font-mono">
+      );
+    },
+  },
+  {
+    key: 'property',
+    header: 'Property',
+    width: 'minmax(0,0.7fr)',
+    render: (b) => (
+      <div className="text-xs font-mono uppercase tracking-widest text-slate-700">
+        {b.property_slug}
+      </div>
+    ),
+  },
+  {
+    key: 'guest',
+    header: 'Guest',
+    width: 'minmax(0,1.4fr)',
+    render: (b) => (
+      <div className="min-w-0 flex items-baseline gap-2">
+        <span className="text-sm text-slate-900 truncate">
+          {b.user_name ?? <span className="italic text-slate-400">no user</span>}
+        </span>
+        <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">
+          {partyLabel(b.guests)}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    width: 'minmax(0,0.9fr)',
+    render: (b) => <StatusBadge status={b.status} />,
+  },
+  {
+    key: 'payment',
+    header: 'Payment',
+    align: 'right',
+    width: 'minmax(0,1.2fr)',
+    render: (b) => {
+      const fullyPaid = b.paid_cents >= b.agreed_total_cents;
+      const paidTone = fullyPaid
+        ? 'text-emerald-700'
+        : b.paid_cents === 0 ? 'text-slate-300' : 'text-amber-700';
+      return (
+        <span className="text-sm tabular-nums font-mono">
           <span className={paidTone}>{eur(b.paid_cents)}</span>
           <span className="text-slate-300"> / </span>
           <span className="text-slate-600">{eur(b.agreed_total_cents)}</span>
-        </div>
-        {/* Edit */}
-        <div className="text-right">
-          <EditButton onClick={() => onEdit(b)} />
-        </div>
-      </div>
-
-      {/* Mobile row — stacked card. The whole tile is one tap target. */}
-      <button
-        type="button"
-        onClick={() => onEdit(b)}
-        className="sm:hidden w-full text-left px-4 py-3 hover:bg-slate-50/70 transition-colors flex flex-col gap-1.5"
-      >
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-700">
-            {b.property_slug}
-          </span>
-          <span className="text-sm tabular-nums font-mono">
-            <span className={paidTone}>{eur(b.paid_cents)}</span>
-            <span className="text-slate-300"> / </span>
-            <span className="text-slate-600">{eur(b.agreed_total_cents)}</span>
-          </span>
-        </div>
-        <div className="flex items-baseline gap-2 tabular-nums">
-          <span className="text-sm text-slate-900">{dateRange}</span>
-          <span className="text-xs text-slate-400 font-mono">· {nights}n</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 flex items-baseline gap-2">
-            <span className="text-sm text-slate-700 truncate">
-              {guestName ?? <span className="italic text-slate-400">no user</span>}
-            </span>
-            <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">{party}</span>
-          </div>
-          <StatusBadge status={b.status} />
-        </div>
-      </button>
-    </li>
-  );
-}
-
-function EditButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title="Edit booking"
-      aria-label="Edit booking"
-      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition"
-    >
-      <Pencil className="w-3.5 h-3.5" />
-    </button>
-  );
-}
+        </span>
+      );
+    },
+  },
+];

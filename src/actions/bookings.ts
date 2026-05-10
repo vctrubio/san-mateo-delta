@@ -150,10 +150,10 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
       ],
     );
 
-    // Cash on arrival: record an upfront pending payment so /admin/payments
-    // shows the outstanding cash before check-in. Stripe intents create their
-    // own pending row inside createCheckoutSession after this transaction
-    // commits — we don't insert anything here for them.
+    // Cash on arrival: record an upfront pending payment so the booking
+    // detail page shows the outstanding cash before check-in. Stripe intents
+    // create their own pending row inside createCheckoutSession after this
+    // transaction commits — we don't insert anything here for them.
     const payment_intent = str(formData, 'payment_intent') ?? 'cash_on_arrival';
     if (payment_intent === 'cash_on_arrival') {
       const totalCents = quote.agreed_property_cents + quote.agreed_cleaning_cents;
@@ -587,4 +587,131 @@ export async function cancelBooking(formData: FormData): Promise<void> {
   }
 
   revalidateForBooking(bookingId, booking.user_id);
+}
+
+// ---------------------------------------------------------------------------
+// updateBookingTime — admin manually adjusts time_check_in / time_check_out.
+// These columns are normally auto-stamped by `transitionStatus` (when admin
+// clicks the Check-in / Check-out tile), but the actual arrival/departure
+// often differs from when the click happened — guest arrives late, admin
+// remembers to mark check-out the next morning, etc. This action lets admin
+// rewrite the stamp without changing booking status.
+//
+// Pass an empty `value` to clear the column back to NULL.
+// ---------------------------------------------------------------------------
+
+type UpdateBookingTimeResult =
+  | { ok: true; bookingId: string; field: 'check_in' | 'check_out'; value: string | null }
+  | { ok: false; error: string };
+
+export async function updateBookingTime(formData: FormData): Promise<UpdateBookingTimeResult> {
+  const bookingId = str(formData, 'booking_id');
+  const field     = str(formData, 'field') as 'check_in' | 'check_out' | null;
+  const raw       = formData.get('value');
+  const value     = typeof raw === 'string' ? raw.trim() : '';
+
+  if (!bookingId) return { ok: false, error: 'booking_id required' };
+  if (field !== 'check_in' && field !== 'check_out') {
+    return { ok: false, error: "field must be 'check_in' or 'check_out'" };
+  }
+
+  // Empty string → clear. Otherwise parse + validate.
+  let iso: string | null = null;
+  if (value) {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return { ok: false, error: `Invalid timestamp: ${value}` };
+    }
+    iso = parsed.toISOString();
+  }
+
+  const cur = await pool.query<{ user_id: string | null }>(
+    `SELECT user_id::text AS user_id FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  if (cur.rows.length === 0) return { ok: false, error: `Booking ${bookingId} not found.` };
+
+  const column = field === 'check_in' ? 'time_check_in' : 'time_check_out';
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE bookings SET ${column} = $1::timestamptz WHERE id = $2`,
+      [iso, bookingId],
+    );
+    await client.query(
+      `INSERT INTO booking_events (booking_id, event_type, payload)
+       VALUES ($1, 'booking.time_updated', $2::jsonb)`,
+      [bookingId, JSON.stringify({ field, value: iso })],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  } finally {
+    client.release();
+  }
+
+  revalidateForBooking(bookingId, cur.rows[0].user_id);
+  return { ok: true, bookingId, field, value: iso };
+}
+
+// ---------------------------------------------------------------------------
+// assignUserToBooking — attach an existing user to a ghost booking
+// (user_id IS NULL). Only ghost bookings are candidates: once a booking has
+// a user, swapping users would scramble accounting + audit semantics, so we
+// reject re-assignment outright.
+// ---------------------------------------------------------------------------
+
+type AssignUserResult =
+  | { ok: true; bookingId: string; userId: string }
+  | { ok: false; error: string };
+
+export async function assignUserToBooking(formData: FormData): Promise<AssignUserResult> {
+  const bookingId = str(formData, 'booking_id');
+  const userId = str(formData, 'user_id');
+  if (!bookingId) return { ok: false, error: 'booking_id required' };
+  if (!userId)    return { ok: false, error: 'user_id required'    };
+
+  const cur = await pool.query<{ user_id: string | null; status: string }>(
+    `SELECT user_id::text AS user_id, status::text AS status FROM bookings WHERE id = $1`,
+    [bookingId],
+  );
+  const booking = cur.rows[0];
+  if (!booking)              return { ok: false, error: `Booking ${bookingId} not found.` };
+  if (booking.user_id)       return { ok: false, error: 'Booking already has a user attached.' };
+  if (booking.status === 'cancelled') {
+    return { ok: false, error: 'Cannot attach a user to a cancelled booking.' };
+  }
+
+  const userCheck = await pool.query<{ id: string }>(
+    `SELECT id::text FROM users WHERE id = $1`,
+    [userId],
+  );
+  if (userCheck.rows.length === 0) {
+    return { ok: false, error: `User ${userId} not found.` };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE bookings SET user_id = $1 WHERE id = $2`,
+      [userId, bookingId],
+    );
+    await client.query(
+      `INSERT INTO booking_events (booking_id, event_type, payload)
+       VALUES ($1, 'booking.user_assigned', $2::jsonb)`,
+      [bookingId, JSON.stringify({ user_id: userId, source: 'admin' })],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  } finally {
+    client.release();
+  }
+
+  revalidateForBooking(bookingId, userId);
+  return { ok: true, bookingId, userId };
 }

@@ -2,6 +2,8 @@
   "name": "San Mateo",
   "subtitle": "Tarifa",
   "est": "2002",
+  "check_in_time": "16:00",
+  "check_out_time": "11:00",
   "amenities": [
     "Starlink WiFi",
     "Smart TV",

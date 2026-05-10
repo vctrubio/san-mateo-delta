@@ -2,6 +2,14 @@
 
 import { type ReactNode } from 'react';
 import { AlertCircle, ArrowDown, ArrowUp, Equal, X, ArrowLeft } from 'lucide-react';
+import { eur } from '@/lib/format';
+import { relativeStayLabel } from '@/lib/dates';
+
+// Re-export the pure helpers so existing imports
+// `import { eur, relativeStayLabel } from '@/components/shared/modalKit'`
+// keep working — the source of truth lives in /lib so server components can
+// import from there directly without crossing the 'use client' boundary.
+export { eur, relativeStayLabel };
 
 // ============================================================================
 // modalKit — the shared visual language for admin modals (selection-action,
@@ -97,7 +105,7 @@ export function Section({
   return (
     <div className="py-5 first:pt-0 last:pb-0">
       <div className="flex items-baseline justify-between mb-3 gap-3">
-        <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-ocean font-bold">
+        <h3 className="text-xs font-mono uppercase tracking-widest text-ocean font-bold">
           {label}
         </h3>
         {hint && (
@@ -225,49 +233,3 @@ export function ErrorBanner({ message }: { message: string }) {
   );
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-export function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
-
-// Relative date language used in modal headers. Rules:
-//   - today < check-in   → "in N days" (or "tomorrow"/"today")
-//   - check-in ≤ today < check-out  → "Day X of N"
-//   - today ≥ check-out  → "ended N days ago"
-// Dates come in as YYYY-MM-DD; comparisons are at day granularity in the
-// browser's local zone.
-export function relativeStayLabel(startYmd: string, endYmd: string): string {
-  const today = startOfDay(new Date());
-  const start = parseYmd(startYmd);
-  const end   = parseYmd(endYmd);
-  const day = 86_400_000;
-
-  const totalNights = Math.round((end.getTime() - start.getTime()) / day);
-
-  if (today.getTime() < start.getTime()) {
-    const days = Math.round((start.getTime() - today.getTime()) / day);
-    if (days === 0) return 'check-in today';
-    if (days === 1) return 'tomorrow';
-    return `in ${days} days`;
-  }
-  if (today.getTime() < end.getTime()) {
-    const elapsed = Math.round((today.getTime() - start.getTime()) / day);
-    return `day ${elapsed + 1} of ${totalNights}`;
-  }
-  const days = Math.round((today.getTime() - end.getTime()) / day);
-  if (days === 0) return 'checked out today';
-  if (days === 1) return 'ended yesterday';
-  return `ended ${days} days ago`;
-}
-
-function parseYmd(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}

@@ -54,7 +54,7 @@ export function asBool(v: string | string[] | undefined): boolean | undefined {
 // ----------------------------------------------------------------------------
 // Pagination
 
-/** Shape returned by every paginated list helper (`listBookings`, `listPayments`, `listUsers`). */
+/** Shape returned by every paginated list helper (`listBookings`, `listUsers`). */
 export type Paginated<T> = { rows: T[]; total: number };
 
 export type Pagination = {

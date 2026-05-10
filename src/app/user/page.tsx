@@ -2,12 +2,9 @@ import Link from 'next/link';
 import UserSignUpForm from '@/components/shared/UserSignUpForm';
 import { listUsers } from '@/lib/users';
 import { MoveRight } from 'lucide-react';
+import { eur } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default async function UserIndexPage() {
   // Show all users on the public list (high limit so we don't truncate at 25).

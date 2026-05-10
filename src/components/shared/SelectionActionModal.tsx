@@ -32,6 +32,7 @@ import { previewQuote } from '@/actions/bookings';
 import { ymd } from '@/components/calendar/dateUtils';
 import { fmtDate, fmtDateRange, nightsBetween } from '@/lib/dates';
 import type { Quote } from '@/lib/bookings';
+import fincaData from '../../../finca.json';
 
 // ============================================================================
 // SelectionActionModal — opens after the admin completes a date range on the
@@ -282,8 +283,11 @@ function BookingView({
   const [statusChoice, setStatusChoice] = useState<'invite' | 'confirmed'>('confirmed');
   useEffect(() => { if (!withUser) setStatusChoice('confirmed'); }, [withUser]);
 
-  const [checkInTime, setCheckInTime] = useState('16:00');
-  const [checkOutTime, setCheckOutTime] = useState('11:00');
+  // Defaults come from finca.json so the estate's check-in / check-out
+  // policy lives in one place — admin form, guest-facing copy, and the
+  // booking detail page all read from the same source.
+  const [checkInTime, setCheckInTime] = useState(fincaData.check_in_time);
+  const [checkOutTime, setCheckOutTime] = useState(fincaData.check_out_time);
   const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('none');
   const [customPaymentEuros, setCustomPaymentEuros] = useState('');
 

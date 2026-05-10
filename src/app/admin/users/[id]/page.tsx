@@ -5,12 +5,9 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import { getUserById } from '@/lib/users';
 import { listBookingsForUser } from '@/lib/bookings';
 import { fmtDate, fmtDateRange } from '@/lib/dates';
+import { eur } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default async function AdminUserDetailPage({
   params,

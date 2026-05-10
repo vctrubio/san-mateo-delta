@@ -1,6 +1,7 @@
 import { Mail, Database, ArrowDown, ArrowUp, Equal, FileCode2, ShieldCheck } from 'lucide-react';
 import { listInvitations, invitationStats } from '@/lib/invitations';
 import { fmtDateRange, fmtDateTime } from '@/lib/dates';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // DebugInvitations — narrate the new /admin/invite feature with live data.
@@ -10,10 +11,6 @@ import { fmtDateRange, fmtDateTime } from '@/lib/dates';
 // ============================================================================
 
 export const dynamic = 'force-dynamic';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default async function DebugInvitationsPanel() {
   const [stats, { rows: recent }] = await Promise.all([

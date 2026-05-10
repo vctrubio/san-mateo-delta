@@ -3,12 +3,9 @@ import AdminSection from '@/components/admin/AdminSection';
 import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
 import { listProperties, listPropertyStats, type Property, type PropertyStats } from '@/lib/properties';
 import { PROPERTY_LABELS } from '@/lib/colors';
+import { eur } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 type Row = Property & { stats: PropertyStats | undefined };
 

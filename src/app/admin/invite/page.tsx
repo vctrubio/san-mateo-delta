@@ -14,6 +14,7 @@ import { fmtDateRange, fmtDate } from '@/lib/dates';
 import { asInt, asString, asStringList, asDate, paginate, DEFAULT_PAGE_LIMIT } from '@/lib/searchParams';
 import { INVITATION_STATUSES, type InvitationStatus } from '@db/enums';
 import { PROPERTY_SLUGS, PROPERTY_LABELS } from '@/lib/colors';
+import { eur } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,10 +42,6 @@ const PROPERTY_CHIPS = PROPERTY_SLUGS.map((slug) => ({
   activeClass: 'bg-slate-900 text-white ring-1 ring-slate-900',
   dotClass: `bg-[var(--color-property-${slug})]`,
 }));
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 function InvitationStatusBadge({ status }: { status: InvitationStatus }) {
   const cls =

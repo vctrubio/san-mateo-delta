@@ -9,6 +9,7 @@ import { previewInviteQuote, createInvitation } from '@/actions/invitations';
 import { fmtDateRange, nightsBetween } from '@/lib/dates';
 import type { CalendarItem } from '@/lib/calendar';
 import type { Quote } from '@/lib/bookings';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // InviteForm — admin-only. Workflow:
@@ -47,12 +48,6 @@ type Props = {
   /** Pre-fetched calendar items per property slug. */
   calendarsBySlug: Record<string, CalendarItem[]>;
 };
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 function eurInputVal(cents: number): string {
   // Show as euros (whole). Admin types "100" → 10000 cents.

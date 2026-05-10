@@ -72,10 +72,15 @@ const BOOKING_SELECT = `
   bc.refund_amount_cents::int           AS refund_amount_cents,
   bc.policy_applied                     AS policy_applied,
   b.created_at::text                    AS created_at,
+  -- "Paid" = money actually collected. Pending cash promises and failed
+  -- Stripe sessions do not count toward what is paid — they live in
+  -- booking_payments but until they flip to succeeded the host does not
+  -- have the money. Sums match totalPaidForBooking in lib/payments.ts.
   COALESCE((
     SELECT SUM(bp.amount_cents)::int
     FROM booking_payments bp
     WHERE bp.booking_id = b.id
+      AND bp.status = 'succeeded'
   ), 0)                                 AS paid_cents,
   COALESCE((
     SELECT SUM(pr.amount_cents)::int

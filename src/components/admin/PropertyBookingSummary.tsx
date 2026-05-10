@@ -2,10 +2,7 @@ import Link from 'next/link';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { fmtDateRange } from '@/lib/dates';
 import type { BookingRow } from '@/lib/bookings';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
+import { eur } from '@/lib/format';
 
 export default function PropertyBookingSummary({
   bookings,

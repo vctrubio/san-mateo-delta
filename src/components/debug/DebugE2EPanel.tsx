@@ -225,7 +225,7 @@ const NEXT: Array<{ icon: typeof Mail; title: string; body: string; tier: 'T2' |
   { icon: Mail,        title: 'Email notifications',     body: 'Send the guest a request-received receipt and the host a "new request" email. Resend + React Email plays well with Server Actions.', tier: 'T2' },
   { icon: Calendar,    title: 'Availability calendar',   body: 'A 12-month grid on /finca/[slug] showing booked/blocked dates from the same exclusion constraint logic. Read-only, no auth needed.', tier: 'T2' },
   { icon: BarChart3,   title: 'Cancellation flow',       body: 'cancelBooking(reason) action + button on /admin and /user. Auto-trigger refund if a payment was already made.', tier: 'T2' },
-  { icon: BarChart3,   title: 'Filters + search on tables', body: 'status / property / date-range on /admin/bookings; type filter on /admin/payments; name+email search on /admin/users.', tier: 'T2' },
+  { icon: BarChart3,   title: 'Filters + search on tables', body: 'status / property / date-range on /admin/bookings; name+email search on /admin/users.', tier: 'T2' },
   { icon: ImageIcon,   title: 'Property photos in DB',   body: 'Move /public/images to a property_photos table + Cloudinary or R2 storage. Per-property gallery in /finca/[slug].', tier: 'T3' },
   { icon: Star,        title: 'Reviews after check-out', body: 'Email the guest a /booking/[token]/review link. Insert into a reviews table; surface average rating on /finca and /finca/[slug].', tier: 'T3' },
 ];
@@ -263,7 +263,7 @@ function TryItPanel() {
     { n: 2, label: 'See the request as the guest',      href: '/user',                desc: 'Find the user you just signed up. Their dashboard shows the request as "pending host approval".' },
     { n: 3, label: 'Confirm it as the admin',           href: '/admin/bookings',      desc: 'New request is at the top. Click "Confirm". This revalidates both views.' },
     { n: 4, label: 'Pay deposit as the guest',          href: '/user',                desc: 'Reload the user dashboard. "Pay deposit" / "Pay full" buttons now appear under the booking.' },
-    { n: 5, label: 'Watch payments roll in',            href: '/admin/payments',      desc: 'Every payment shows up here with refund column.' },
+    { n: 5, label: 'Watch payments roll in',            href: '/admin/bookings',      desc: 'Open the booking — Payments card lists every payment with method/status/refund column.' },
     { n: 6, label: 'Run the stay (admin one-click)',    href: '/admin/bookings',      desc: 'Check-in stamps time_check_in. Check-out stamps time_check_out.' },
     { n: 7, label: 'Inspect the audit trail',           href: '/admin/bookings',      desc: 'Open any booking detail — booking_events lists every state transition + payment with the JSON payload.' },
   ];

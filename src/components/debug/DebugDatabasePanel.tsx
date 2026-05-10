@@ -1,4 +1,5 @@
 import { sql } from '@db/client';
+import { eur } from '@/lib/format';
 
 type CountRow = { table_name: string; n: string };
 type BookingRow = {
@@ -29,11 +30,6 @@ const TABLES = [
   'payment_refunds',
   'booking_events',
 ];
-
-function eur(cents: string | number) {
-  const n = typeof cents === 'string' ? Number(cents) : cents;
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n / 100);
-}
 
 async function fetchCounts(): Promise<CountRow[]> {
   // UNION ALL of count(*) from each table, ordered by the original list.
@@ -126,15 +122,15 @@ function DemoBookingCard({ b }: { b: BookingRow }) {
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Agreed (total)</dt>
-          <dd className="font-mono">{eur(b.agreed_total_cents)}</dd>
+          <dd className="font-mono">{eur(Number(b.agreed_total_cents))}</dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Property / Cleaning</dt>
-          <dd className="font-mono text-[11px]">{eur(b.agreed_property_cents)} <span className="text-white/40">(David)</span> + {eur(b.agreed_cleaning_cents)} <span className="text-white/40">(Tano)</span></dd>
+          <dd className="font-mono text-[11px]">{eur(Number(b.agreed_property_cents))} <span className="text-white/40">(David)</span> + {eur(Number(b.agreed_cleaning_cents))} <span className="text-white/40">(Tano)</span></dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Paid</dt>
-          <dd className="font-mono">{eur(b.payment_total_cents)}</dd>
+          <dd className="font-mono">{eur(Number(b.payment_total_cents))}</dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-widest text-white/40">Access token</dt>

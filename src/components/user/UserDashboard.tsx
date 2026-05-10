@@ -6,10 +6,7 @@ import { fmtDateRange } from '@/lib/dates';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import type { BookingRow } from '@/lib/bookings';
 import type { User } from '@/lib/users';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
+import { eur } from '@/lib/format';
 
 const GROUPS: Array<{
   key: 'pending' | 'upcoming' | 'past' | 'cancelled';

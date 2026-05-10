@@ -5,6 +5,7 @@ import type { FuturePropertyData } from '@/lib/properties';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 import { fmtDate } from '@/lib/dates';
 import type { BookingStatus } from '@db/enums';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // PerPropertyFutureStrip — four cards, one per property.
@@ -31,12 +32,6 @@ import type { BookingStatus } from '@db/enums';
 // (invite), ocean (held), slate (available) — driven by
 // `today_indicator_status` from listFuturePropertyData.
 // ============================================================================
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 export type PerPropertyFutureStripProps = {
   rows: FuturePropertyData[];

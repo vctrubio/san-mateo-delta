@@ -7,6 +7,7 @@ import Modal from '@/components/shared/Modal';
 import { BOOKING_STATUS_STYLES, BLOCKING_BOOKING_STATUSES } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
 import type { CalendarBooking, CalendarItem } from '@/lib/calendar';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // PropertyDetailModals — list views opened from the per-property strip card
@@ -29,12 +30,6 @@ import type { CalendarBooking, CalendarItem } from '@/lib/calendar';
 //
 // Both modals are fed from `itemsBySlug` already on the page; no extra fetch.
 // ============================================================================
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 type Bucket = 'confirmed' | 'pending';
 
