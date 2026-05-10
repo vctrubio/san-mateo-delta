@@ -56,7 +56,7 @@ export function ModalHeader({
           </button>
         )}
         <div className="min-w-0">
-          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400">
+          <p className="text-xs font-mono uppercase tracking-[0.4em] text-slate-400">
             {eyebrow}
             {eyebrowAccent && <span className="text-ocean ml-2">{eyebrowAccent}</span>}
           </p>
@@ -64,7 +64,7 @@ export function ModalHeader({
             {title}
           </p>
           {sub && (
-            <p className="text-[11px] font-mono text-slate-400 uppercase tracking-widest mt-1">
+            <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mt-1">
               {sub}
             </p>
           )}
@@ -101,7 +101,7 @@ export function Section({
           {label}
         </h3>
         {hint && (
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+          <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">
             {hint}
           </span>
         )}
@@ -121,7 +121,7 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-500">
         {label}
       </span>
       {children}
@@ -175,7 +175,7 @@ export function PickerTile({
         {label}
       </span>
       {sub && (
-        <span className="block text-[11px] text-slate-500 tabular-nums mt-0.5">{sub}</span>
+        <span className="block text-xs text-slate-500 tabular-nums mt-0.5">{sub}</span>
       )}
     </button>
   );
@@ -191,7 +191,7 @@ export function DiffStrip({
 }) {
   if (diffCents === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 px-3 py-2 flex items-center gap-2 text-[11px] text-slate-600">
+      <div className="rounded-lg border border-slate-200 px-3 py-2 flex items-center gap-2 text-xs text-slate-600">
         <Equal className="w-3 h-3" />
         Matches default
       </div>
@@ -203,7 +203,7 @@ export function DiffStrip({
     : 'bg-amber-50 border-amber-200 text-amber-900';
   const Icon = negative ? ArrowDown : ArrowUp;
   return (
-    <div className={`rounded-lg border px-3 py-2 flex items-center gap-2 text-[11px] ${tone}`}>
+    <div className={`rounded-lg border px-3 py-2 flex items-center gap-2 text-xs ${tone}`}>
       <Icon className="w-3 h-3" />
       <span>
         <strong>{negative ? 'Discount' : 'Premium'}</strong>:{' '}

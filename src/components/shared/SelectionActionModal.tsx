@@ -511,13 +511,13 @@ function BookingView({
           />
         </div>
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-baseline justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Total</span>
+          <span className="text-xs font-mono uppercase tracking-widest text-slate-500">Total</span>
           <div className="text-right">
             <p className="text-xl font-bold text-slate-900 tabular-nums leading-none">
               {customTotalCents != null ? eur(customTotalCents) : '—'}
             </p>
             {defaultQuote && (
-              <p className="text-[10px] text-slate-400 tabular-nums mt-1">
+              <p className="text-xs text-slate-400 tabular-nums mt-1">
                 default {eur(defaultQuote.agreed_total_cents)}
               </p>
             )}
@@ -649,7 +649,7 @@ function EurField({
   const showDiff = defaultCents != null && customCents != null && customCents !== defaultCents;
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <span className="text-[11px] font-mono uppercase tracking-widest text-slate-600 flex-1 min-w-0">
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-600 flex-1 min-w-0">
         {label}
       </span>
       <div className="text-right shrink-0">
@@ -665,7 +665,7 @@ function EurField({
           />
         </span>
         {defaultCents != null && (
-          <p className={`text-[10px] tabular-nums mt-1 ${showDiff ? 'text-slate-500' : 'text-slate-300'}`}>
+          <p className={`text-xs tabular-nums mt-1 ${showDiff ? 'text-slate-500' : 'text-slate-300'}`}>
             default {eur(defaultCents)}
           </p>
         )}

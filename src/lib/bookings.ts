@@ -126,7 +126,10 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  const limit = args.limit ?? 25;
+  // Default limit is high so the admin bookings page can split into
+  // upcoming/history client-side without paging — there are typically a few
+  // hundred rows even after years of bookings, well within one query.
+  const limit = args.limit ?? 1000;
   const offset = args.offset ?? 0;
   params.push(limit);
   const limitParam = `$${++p}`;
@@ -134,6 +137,9 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
   const offsetParam = `$${++p}`;
 
   // COUNT(*) OVER () returns the unfiltered-by-LIMIT total alongside the page.
+  // Sort by check-in date ascending so the page splits naturally into
+  // upcoming (chronological) vs history (most recent past first; the page
+  // reverses the history slice client-side).
   const rows = await sql<BookingRow & { _total: number }>(
     `
     SELECT ${BOOKING_SELECT},
@@ -143,9 +149,7 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
     LEFT JOIN users u           ON u.id = b.user_id
     LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
     ${whereClause}
-    ORDER BY
-      CASE b.status WHEN 'request' THEN 0 WHEN 'confirmed' THEN 1 WHEN 'checked_in' THEN 2 ELSE 3 END,
-      b.created_at DESC
+    ORDER BY b.date_check_in ASC, b.id ASC
     LIMIT ${limitParam} OFFSET ${offsetParam}
     `,
     params as never[],

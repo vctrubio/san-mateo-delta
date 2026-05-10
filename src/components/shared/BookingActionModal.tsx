@@ -112,9 +112,9 @@ function BookingShell({
             {item.user_name ?? <span className="italic text-slate-400 font-normal">No user · admin booking</span>}
           </p>
           {item.user_email && (
-            <p className="text-[12px] font-mono text-slate-500 mt-0.5">{item.user_email}</p>
+            <p className="text-xs font-mono text-slate-500 mt-0.5">{item.user_email}</p>
           )}
-          <p className="text-[11px] text-slate-500 mt-2 tabular-nums">
+          <p className="text-xs text-slate-500 mt-2 tabular-nums">
             {item.guests.adults}A
             {item.guests.children ? ` · ${item.guests.children}C` : ''}
             {item.guests.infants ? ` · ${item.guests.infants}I` : ''}
@@ -132,12 +132,12 @@ function BookingShell({
             <Row label="Cleaning" value={eur(item.agreed_cleaning_cents)} />
           </dl>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-baseline justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Total</span>
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500">Total</span>
             <span className="text-lg font-bold text-slate-900 tabular-nums">
               {eur(item.agreed_total_cents)}
             </span>
           </div>
-          <div className="mt-2 flex items-baseline justify-between text-[11px] tabular-nums">
+          <div className="mt-2 flex items-baseline justify-between text-xs tabular-nums">
             <span className="font-mono uppercase tracking-widest text-slate-400">Paid</span>
             <span>
               <span className={fullyPaid ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
@@ -175,7 +175,7 @@ function BookingShell({
         )}
         {transitions.length === 0 && !cancellable && (
           <Section label="Actions">
-            <p className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">
+            <p className="text-xs font-mono text-slate-400 uppercase tracking-widest">
               Terminal · no further actions
             </p>
           </Section>
@@ -186,7 +186,7 @@ function BookingShell({
         <div className="px-5 py-3 border-t border-slate-100">
           <Link
             href={item.href}
-            className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-ocean hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest text-ocean hover:underline"
           >
             View full booking <ExternalLink className="w-3 h-3" />
           </Link>
@@ -271,7 +271,7 @@ function ActionsRow({
         )}
       </div>
       {isPending && (
-        <p className="text-[11px] text-slate-400 mt-2 inline-flex items-center gap-1.5">
+        <p className="text-xs text-slate-400 mt-2 inline-flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" /> Working…
         </p>
       )}
@@ -484,7 +484,7 @@ function RemoveBlockButton({
         sub="Frees the dates"
       />
       {isPending && (
-        <p className="text-[11px] text-slate-400 mt-2 inline-flex items-center gap-1.5">
+        <p className="text-xs text-slate-400 mt-2 inline-flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" /> Removing…
         </p>
       )}
@@ -497,8 +497,8 @@ function RemoveBlockButton({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between text-[12px]">
-      <dt className="font-mono uppercase tracking-widest text-slate-400 text-[10px]">{label}</dt>
+    <div className="flex items-baseline justify-between text-xs">
+      <dt className="font-mono uppercase tracking-widest text-slate-400 text-xs">{label}</dt>
       <dd className="text-slate-700 tabular-nums">{value}</dd>
     </div>
   );
