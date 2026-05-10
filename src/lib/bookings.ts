@@ -181,6 +181,37 @@ export async function listBookingsForUser(userId: string): Promise<BookingRow[]>
   );
 }
 
+// Bulk variant of listBookingsForUser. Returns a Map keyed by user_id so
+// the /admin/users table can render each row's status chips inline without
+// firing N queries. Filters to "live" bookings (anything not cancelled and
+// not already checked out) so the chip strip shows what admin can act on.
+export async function listLiveBookingsByUser(
+  userIds: string[],
+): Promise<Map<string, BookingRow[]>> {
+  const out = new Map<string, BookingRow[]>();
+  if (userIds.length === 0) return out;
+  const rows = await sql<BookingRow>(
+    `
+    SELECT ${BOOKING_SELECT}
+    FROM bookings b
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
+    WHERE b.user_id = ANY($1::bigint[])
+      AND b.status NOT IN ('cancelled', 'checked_out')
+    ORDER BY b.date_check_in ASC, b.id ASC
+    `,
+    [userIds],
+  );
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    const list = out.get(r.user_id) ?? [];
+    list.push(r);
+    out.set(r.user_id, list);
+  }
+  return out;
+}
+
 export async function listBookingsForProperty(propertyId: string): Promise<BookingRow[]> {
   return sql<BookingRow>(
     `

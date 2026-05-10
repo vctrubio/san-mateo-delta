@@ -14,7 +14,7 @@ import {
   type PropertySlug,
 } from '@/lib/colors';
 import type { BookingRow } from '@/lib/bookings';
-import type { CalendarBooking } from '@/lib/calendar';
+import { bookingRowToCalendarBooking } from '@/lib/bookingAdapters';
 import { eur } from '@/lib/format';
 
 // ============================================================================
@@ -424,33 +424,6 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
       )}
     </>
   );
-}
-
-// ─── BookingRow → CalendarBooking adapter ───────────────────────────────────
-//
-// BookingActionModal speaks `CalendarItem` (it's the same modal the calendar
-// surfaces use). The shape overlaps almost 1:1 with `BookingRow`; we just
-// rename `date_check_in/out` → `start/end` and drop the row-only fields.
-
-function bookingRowToCalendarBooking(b: BookingRow): CalendarBooking {
-  return {
-    kind: 'booking',
-    id: b.id,
-    status: b.status,
-    start: b.date_check_in,
-    end: b.date_check_out,
-    label: `${b.user_name ?? 'no user'} · ${b.property_slug}`,
-    property_slug: b.property_slug,
-    href: `/admin/bookings/${b.id}`,
-    user_id: b.user_id,
-    user_name: b.user_name,
-    user_email: b.user_email,
-    agreed_property_cents: b.agreed_property_cents,
-    agreed_cleaning_cents: b.agreed_cleaning_cents,
-    agreed_total_cents: b.agreed_total_cents,
-    paid_cents: b.paid_cents,
-    guests: b.guests,
-  };
 }
 
 // ─── Upcoming / History switch ──────────────────────────────────────────────

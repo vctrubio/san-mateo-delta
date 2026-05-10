@@ -9,6 +9,7 @@ import SortSelect from '@/components/admin/filters/SortSelect';
 import ResetButton from '@/components/admin/filters/ResetButton';
 import Pagination from '@/components/admin/filters/Pagination';
 import { listUsers, type ListUsersSort, type UserWithStats } from '@/lib/users';
+import { listLiveBookingsByUser, type BookingRow } from '@/lib/bookings';
 import { listInvitations, type InvitationRow } from '@/lib/invitations';
 import { revokeInvitation } from '@/actions/invitations';
 import { fmtDate, fmtDateRange } from '@/lib/dates';
@@ -16,6 +17,7 @@ import { asInt, asString, paginate, DEFAULT_PAGE_LIMIT } from '@/lib/searchParam
 import { PROPERTY_LABELS } from '@/lib/colors';
 import type { InvitationStatus } from '@db/enums';
 import { eur } from '@/lib/format';
+import { UserBookingChips } from '@/components/admin/UserBookingChips';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,52 +29,67 @@ const SORT_OPTIONS: Array<{ value: ListUsersSort; label: string }> = [
 
 // ─── User table ────────────────────────────────────────────────────────────
 
-const USER_COLUMNS: AdminTableColumn<UserWithStats>[] = [
-  {
-    key: 'id',
-    header: '#',
-    width: '64px',
-    render: (u) => <span className="font-mono text-xs text-slate-400">#{u.id}</span>,
-  },
-  {
-    key: 'identity',
-    header: 'Name · Email',
-    width: 'minmax(0,2fr)',
-    render: (u) => (
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-slate-900">{u.name}</div>
-        <div className="text-xs text-slate-500 mt-1 font-mono truncate">{u.email}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'nationality',
-    header: 'Nationality',
-    width: 'minmax(0,0.7fr)',
-    render: (u) => <span className="text-xs text-slate-500">{u.nationality ?? '—'}</span>,
-  },
-  {
-    key: 'bookings',
-    header: 'Bookings',
-    align: 'right',
-    width: '100px',
-    render: (u) => <span className="font-mono tabular-nums text-sm text-slate-700">{u.total_bookings}</span>,
-  },
-  {
-    key: 'spend',
-    header: 'Lifetime',
-    align: 'right',
-    width: '120px',
-    render: (u) => <span className="font-mono tabular-nums text-sm text-slate-900">{eur(u.lifetime_spend_cents)}</span>,
-  },
-  {
-    key: 'joined',
-    header: 'Joined',
-    align: 'right',
-    width: '140px',
-    render: (u) => <span className="text-xs text-slate-400">{fmtDate(u.created_at)}</span>,
-  },
-];
+// Columns are built from a closure over the bookings-by-user map so each
+// row's Status cell can render this user's live bookings as clickable chips
+// (via UserBookingChips). The map is keyed by user_id; missing entries mean
+// no live bookings, which renders as "—".
+
+function userColumns(
+  bookingsByUser: Map<string, BookingRow[]>,
+): AdminTableColumn<UserWithStats>[] {
+  return [
+    {
+      key: 'identity',
+      header: 'Name · Email',
+      width: 'minmax(0,1.6fr)',
+      render: (u) => (
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900">{u.name}</div>
+          <div className="text-xs text-slate-500 mt-1 font-mono truncate">{u.email}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: 'minmax(0,1.6fr)',
+      render: (u) => (
+        <UserBookingChips bookings={bookingsByUser.get(u.id) ?? []} />
+      ),
+    },
+    {
+      key: 'bookings',
+      header: 'Bookings',
+      align: 'right',
+      width: '90px',
+      render: (u) => (
+        <span className="font-mono tabular-nums text-sm text-slate-700">
+          {u.total_bookings}
+        </span>
+      ),
+    },
+    {
+      key: 'spend',
+      header: 'Lifetime',
+      align: 'right',
+      width: '110px',
+      render: (u) => (
+        <span className="font-mono tabular-nums text-sm text-slate-900">
+          {eur(u.lifetime_spend_cents)}
+        </span>
+      ),
+    },
+    {
+      key: 'joined',
+      header: 'Joined',
+      align: 'right',
+      width: '120px',
+      render: (u) => (
+        <span className="text-xs text-slate-400">{fmtDate(u.created_at)}</span>
+      ),
+    },
+  ];
+}
 
 // ─── Invitations table (embedded) ──────────────────────────────────────────
 //
@@ -231,6 +248,12 @@ export default async function AdminUsersPage({
     listUsers({ search, sort, limit, offset }),
     listInvitations({ limit: 25 }),
   ]);
+
+  // Live bookings per visible user — drives the Status column's chip strip.
+  // Single SQL hop keyed on the page's user_ids; users with nothing live
+  // render "—".
+  const bookingsByUser = await listLiveBookingsByUser(users.map((u) => u.id));
+  const USER_COLUMNS = userColumns(bookingsByUser);
 
   return (
     <>
