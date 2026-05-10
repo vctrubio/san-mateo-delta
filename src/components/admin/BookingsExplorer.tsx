@@ -1,13 +1,19 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Pencil } from 'lucide-react';
 import AdminSection from '@/components/admin/AdminSection';
-import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
-import StatusActionToggle from '@/components/admin/StatusActionToggle';
+import StatusBadge from '@/components/admin/StatusBadge';
+import BookingActionModal from '@/components/shared/BookingActionModal';
 import { fmtDateRange, nightsBetween } from '@/lib/dates';
-import { PROPERTY_LABELS, PROPERTY_SLUGS, type PropertySlug } from '@/lib/colors';
+import {
+  PROPERTY_LABELS,
+  PROPERTY_SLUGS,
+  STATUS_BUCKET_COLORS as COLOR,
+  type PropertySlug,
+} from '@/lib/colors';
 import type { BookingRow } from '@/lib/bookings';
+import type { CalendarBooking } from '@/lib/calendar';
 
 // ============================================================================
 // BookingsExplorer — the /admin/bookings shell. Server fetches every booking
@@ -33,13 +39,6 @@ import type { BookingRow } from '@/lib/bookings';
 // ============================================================================
 
 type StatusBucket = 'pending' | 'unpaid' | 'completed' | 'cancelled';
-
-const STATUS_BUCKET_LABELS: Record<StatusBucket, string> = {
-  pending:   'Pending',
-  unpaid:    'Unpaid',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
 
 function bucketOf(b: BookingRow): StatusBucket {
   if (b.status === 'cancelled') return 'cancelled';
@@ -72,6 +71,95 @@ function eur(cents: number) {
   }).format(cents / 100);
 }
 
+// ─── Spotlight math-table row shape ────────────────────────────────────────
+//
+// One row = one slice (a property or a status bucket, plus the grand total).
+// Lives at module scope so SpotlightPanel and MathTable can both name it
+// without prop-type contortions.
+
+type MathRow = {
+  key: string;
+  label: string;
+  upcoming: number;
+  count: number;
+  /** Status-segment counts — used to paint the segmented bar. `invite` is
+   *  kept distinct from `request` (instead of bucketing both as
+   *  "unconfirmed") so the friend-and-family flow shows up as its own
+   *  violet segment on the bar. Both still count as Upcoming via
+   *  `isUpcoming` (cancelled and checked_out are the only exclusions). */
+  confirmed: number;
+  request: number;
+  invite: number;
+  cancelled: number;
+  agreed: number;
+  paid: number;
+  owed: number;
+  cleaning: number;
+};
+
+function emptyMathRow(key: string, label: string): MathRow {
+  return {
+    key, label,
+    upcoming: 0, count: 0,
+    confirmed: 0, request: 0, invite: 0, cancelled: 0,
+    agreed: 0, paid: 0, owed: 0, cleaning: 0,
+  };
+}
+
+function accumulateMath(row: MathRow, b: BookingRow, today: string) {
+  row.count++;
+  row.agreed   += b.agreed_total_cents;
+  row.paid     += b.paid_cents;
+  row.cleaning += b.agreed_cleaning_cents;
+  // "Owed" only for non-cancelled — once a refund settles, the cancelled
+  // remainder is meaningless.
+  if (b.status !== 'cancelled') {
+    row.owed += Math.max(0, b.agreed_total_cents - b.paid_cents);
+  }
+  if (isUpcoming(b, today)) row.upcoming++;
+  // Status-segment counts for the bar.
+  if      (b.status === 'cancelled') row.cancelled++;
+  else if (b.status === 'invite')    row.invite++;
+  else if (b.status === 'request')   row.request++;
+  else                                row.confirmed++;
+}
+
+// ─── Tab pill sub-row shape ─────────────────────────────────────────────────
+
+type SubRow = {
+  label: string;
+  /** Bucket key — clicking the sub-row toggles `bucketFilter` to this. */
+  bucket: StatusBucket;
+  count: number;
+  total: number;
+  /** Suffix word printed after the muted euro figure ("agreed", "owed", …). */
+  suffix: string;
+};
+
+function computeBucketSubRows(rows: BookingRow[]): SubRow[] {
+  let pendingCount = 0,   pendingAgreed = 0;
+  let unpaidCount = 0,    unpaidOwed = 0;
+  let completedCount = 0, completedPaid = 0;
+  for (const b of rows) {
+    const bk = bucketOf(b);
+    if (bk === 'pending') {
+      pendingCount++;
+      pendingAgreed += b.agreed_total_cents;
+    } else if (bk === 'unpaid') {
+      unpaidCount++;
+      unpaidOwed += Math.max(0, b.agreed_total_cents - b.paid_cents);
+    } else if (bk === 'completed') {
+      completedCount++;
+      completedPaid += b.paid_cents;
+    }
+  }
+  const out: SubRow[] = [];
+  if (pendingCount > 0)   out.push({ label: 'Pending',   bucket: 'pending',   count: pendingCount,   total: pendingAgreed, suffix: 'agreed'    });
+  if (unpaidCount > 0)    out.push({ label: 'Unpaid',    bucket: 'unpaid',    count: unpaidCount,    total: unpaidOwed,    suffix: 'owed'      });
+  if (completedCount > 0) out.push({ label: 'Completed', bucket: 'completed', count: completedCount, total: completedPaid, suffix: 'collected' });
+  return out;
+}
+
 function fmtSliderDate(ymd: string): string {
   const [y, m, d] = ymd.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', {
@@ -101,6 +189,8 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
   const [propertyFilter, setPropertyFilter] = useState<PropertySlug | null>(null);
   const [bucketFilter, setBucketFilter] = useState<StatusBucket | null>(null);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'history' | 'cancelled'>('upcoming');
+  const [activeBooking, setActiveBooking] = useState<BookingRow | null>(null);
 
   // Date-range slider bounds. Computed from the dataset so the slider spans
   // exactly the data we have. Falls back to today + 1 year if there are no
@@ -122,22 +212,22 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
   const fromYmd = ymdAddDays(minDate, fromDays);
   const toYmd = ymdAddDays(minDate, toDays);
 
-  // Filter pipeline — broken into stages so each card can see the right
-  // upstream slice. Cross-filter rule: each card ignores its own axis but
-  // respects every other filter. That way clicking LEVANTE lets the status
-  // card show LEVANTE's bucket breakdown, while the property card still
-  // shows totals across all four properties so admin can compare.
+  // Filter pipeline — broken into stages so the math table can stay a
+  // stable broad overview while the bookings table reflects the full filter
+  // stack. Math-table rows derive from `spotlightFiltered` (search + date
+  // only) so clicking LEVANTE doesn't collapse the property axis to one
+  // row; the active row just lights up. The bookings table consumes the
+  // fully-filtered set.
   //
-  //   bookings ─[spotlight: search + date range]─▶ spotlightFiltered
-  //   spotlightFiltered ─[bucket]─▶ propertyStats       (ignores property)
-  //   spotlightFiltered ─[property]─▶ bucketStats       (ignores bucket)
-  //   spotlightFiltered ─[property, bucket]─▶ filtered  (table + spotlight stats)
+  //   bookings ─[search + date range]─▶ spotlightFiltered
+  //   spotlightFiltered ─▶ propertyMathRows / statusMathRows / grandTotal
+  //   spotlightFiltered ─[property, bucket]─▶ filtered  (bookings table)
   const spotlightFiltered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return bookings.filter((b) => {
       if (b.date_check_in < fromYmd || b.date_check_in > toYmd) return false;
-      // Search only matches guest name — property is already a filter axis
-      // on the cards above, and email/id aren't useful enough as a haystack.
+      // Search only matches guest name — property/status are filter axes on
+      // the math-table rows, and email/id aren't useful enough as a haystack.
       if (q) {
         const name = (b.user_name ?? '').toLowerCase();
         if (!name.includes(q)) return false;
@@ -154,67 +244,106 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
     });
   }, [spotlightFiltered, propertyFilter, bucketFilter]);
 
-  // Property card stats — respect spotlight + bucket, ignore property filter.
-  const propertyStats = useMemo(() => {
-    const today = ymdToday();
-    const stats: Record<PropertySlug, { upcoming: number; history: number }> = {
-      levante:  { upcoming: 0, history: 0 },
-      estrecho: { upcoming: 0, history: 0 },
-      marea:    { upcoming: 0, history: 0 },
-      cala:     { upcoming: 0, history: 0 },
-    };
-    for (const b of spotlightFiltered) {
-      if (bucketFilter && bucketOf(b) !== bucketFilter) continue;
-      const slug = b.property_slug as PropertySlug;
-      if (!(slug in stats)) continue;
-      if (isUpcoming(b, today)) stats[slug].upcoming++;
-      else stats[slug].history++;
-    }
-    return stats;
-  }, [spotlightFiltered, bucketFilter]);
+  // ─── Math-table rows for the Spotlight panel ──────────────────────────────
+  //
+  // One axis = property, other axis = status bucket. Both axes are computed
+  // from `spotlightFiltered` (search + date window applied; property/bucket
+  // card filters NOT applied), so the table stays a stable broad overview —
+  // clicking LEVANTE doesn't collapse the property axis into one row. The
+  // active row(s) just light up. The grand total at the bottom is the same
+  // dataset summed once, and it's mathematically equal whether you sum the
+  // property column or the status column (which is the whole point of the
+  // math-table layout).
+  //
+  // Columns per row:
+  //   upcoming  — count of bookings where date_check_out >= today and
+  //               status is not cancelled / checked_out
+  //   count     — total bookings in this slice
+  //   agreed    — Σ agreed_total_cents
+  //   paid      — Σ paid_cents
+  //   owed      — Σ max(0, agreed - paid) for non-cancelled only (cancelled
+  //               bookings' "remaining" is meaningless once refunds settle)
+  //   cleaning  — Σ agreed_cleaning_cents (cleaner's slice of agreed)
 
-  // Status card stats — respect spotlight + property, ignore bucket filter.
-  const bucketStats = useMemo(() => {
-    const stats: Record<StatusBucket, { count: number; agreed: number; paid: number }> = {
-      pending:   { count: 0, agreed: 0, paid: 0 },
-      unpaid:    { count: 0, agreed: 0, paid: 0 },
-      completed: { count: 0, agreed: 0, paid: 0 },
-      cancelled: { count: 0, agreed: 0, paid: 0 },
+  const propertyMathRows = useMemo<MathRow[]>(() => {
+    const today = ymdToday();
+    const acc: Record<PropertySlug, MathRow> = {
+      levante:  emptyMathRow('levante',  PROPERTY_LABELS.levante),
+      estrecho: emptyMathRow('estrecho', PROPERTY_LABELS.estrecho),
+      marea:    emptyMathRow('marea',    PROPERTY_LABELS.marea),
+      cala:     emptyMathRow('cala',     PROPERTY_LABELS.cala),
     };
     for (const b of spotlightFiltered) {
-      if (propertyFilter && b.property_slug !== propertyFilter) continue;
-      const bk = bucketOf(b);
-      stats[bk].count++;
-      stats[bk].agreed += b.agreed_total_cents;
-      stats[bk].paid   += b.paid_cents;
+      const slug = b.property_slug as PropertySlug;
+      if (!(slug in acc)) continue;
+      accumulateMath(acc[slug], b, today);
     }
-    return stats;
+    return PROPERTY_SLUGS.map((s) => acc[s]);
+  }, [spotlightFiltered]);
+
+  const statusMathRows = useMemo<MathRow[]>(() => {
+    const today = ymdToday();
+    const acc: Record<StatusBucket, MathRow> = {
+      pending:   emptyMathRow('pending',   'Pending'),
+      unpaid:    emptyMathRow('unpaid',    'Unpaid'),
+      completed: emptyMathRow('completed', 'Completed'),
+      cancelled: emptyMathRow('cancelled', 'Cancelled'),
+    };
+    for (const b of spotlightFiltered) {
+      accumulateMath(acc[bucketOf(b)], b, today);
+    }
+    return (['pending', 'unpaid', 'completed', 'cancelled'] as StatusBucket[]).map((s) => acc[s]);
+  }, [spotlightFiltered]);
+
+  const grandTotal = useMemo<MathRow>(() => {
+    const today = ymdToday();
+    const row = emptyMathRow('total', 'Total');
+    for (const b of spotlightFiltered) accumulateMath(row, b, today);
+    return row;
+  }, [spotlightFiltered]);
+
+  // ─── Split filtered into upcoming / history / cancelled ───
+  // Cancelled is its own bucket so it doesn't bury settled bookings (refunded
+  // / lost revenue) inside History. History is now strictly "the booking
+  // happened and is done" — checked-out or pre-today non-cancelled stays.
+  const today = ymdToday();
+  const upcoming  = filtered.filter((b) => isUpcoming(b, today));
+  const cancelled = filtered.filter((b) => b.status === 'cancelled').reverse();
+  const history   = filtered
+    .filter((b) => !isUpcoming(b, today) && b.status !== 'cancelled')
+    .reverse();
+
+  const upcomingTotal  = upcoming.reduce((s, b) => s + b.agreed_total_cents, 0);
+  const historyTotal   = history.reduce((s, b) => s + b.agreed_total_cents, 0);
+  const cancelledTotal = cancelled.reduce((s, b) => s + b.agreed_total_cents, 0);
+
+  // Per-tab status sublines — clickable bucket filter triggers. Computed
+  // from pre-bucket-filter data so the list stays stable when admin
+  // selects one (otherwise picking "pending" would collapse "unpaid" /
+  // "completed" sublines to zero, defeating the picker UX).
+  //
+  // Each bucket surfaces the figure that's actionable for that state:
+  //   pending   → € agreed     (potential revenue, awaiting confirmation)
+  //   unpaid    → € owed       (the actual ask if admin chases)
+  //   completed → € collected  (revenue actually in)
+  // Cancelled tab has no sublines — every booking in it shares one bucket.
+  const preBucketFiltered = useMemo(() => {
+    return spotlightFiltered.filter((b) => {
+      if (propertyFilter && b.property_slug !== propertyFilter) return false;
+      return true;
+    });
   }, [spotlightFiltered, propertyFilter]);
 
-  // ─── Spotlight aggregates: across the *filtered* set ───
-  const spotlight = useMemo(() => {
-    let agreed = 0;
-    let paid = 0;
-    let owed = 0;
-    for (const b of filtered) {
-      agreed += b.agreed_total_cents;
-      paid += b.paid_cents;
-      // Owed only for non-cancelled bookings — a cancelled booking's
-      // "remaining" is meaningless (the refund policy already settled it).
-      if (b.status !== 'cancelled') {
-        owed += Math.max(0, b.agreed_total_cents - b.paid_cents);
-      }
-    }
-    return { count: filtered.length, agreed, paid, owed };
-  }, [filtered]);
-
-  // ─── Split filtered into upcoming/history ───
-  const today = ymdToday();
-  const upcoming = filtered.filter((b) => isUpcoming(b, today));
-  const history  = filtered.filter((b) => !isUpcoming(b, today)).reverse();
-
-  const upcomingTotal = upcoming.reduce((s, b) => s + b.agreed_total_cents, 0);
-  const historyTotal  = history.reduce((s, b) => s + b.agreed_total_cents, 0);
+  const upcomingSubRows = useMemo(
+    () => computeBucketSubRows(preBucketFiltered.filter((b) => isUpcoming(b, today))),
+    [preBucketFiltered, today],
+  );
+  const historySubRows = useMemo(
+    () => computeBucketSubRows(
+      preBucketFiltered.filter((b) => !isUpcoming(b, today) && b.status !== 'cancelled'),
+    ),
+    [preBucketFiltered, today],
+  );
 
   function togglePropertyFilter(slug: PropertySlug) {
     setPropertyFilter((cur) => (cur === slug ? null : slug));
@@ -222,14 +351,9 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
   function toggleBucketFilter(b: StatusBucket) {
     setBucketFilter((cur) => (cur === b ? null : b));
   }
-  function resetFilters() {
+  function resetAll() {
     setPropertyFilter(null);
     setBucketFilter(null);
-    setSearch('');
-    setFromDays(0);
-    setToDays(totalDays);
-  }
-  function resetSpotlight() {
     setSearch('');
     setFromDays(0);
     setToDays(totalDays);
@@ -242,34 +366,8 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
   return (
     <>
       <AdminSection
-        eyebrow="At a glance"
-        hint={anyFilterActive ? (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="text-xs font-mono uppercase tracking-widest text-ocean hover:underline"
-          >
-            Reset filters
-          </button>
-        ) : undefined}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PropertyCardGrid
-            stats={propertyStats}
-            active={propertyFilter}
-            onToggle={togglePropertyFilter}
-          />
-          <StatusCardGrid
-            stats={bucketStats}
-            active={bucketFilter}
-            onToggle={toggleBucketFilter}
-          />
-        </div>
-      </AdminSection>
-
-      <AdminSection
         eyebrow="Spotlight"
-        hint={`${spotlight.count} ${spotlight.count === 1 ? 'booking' : 'bookings'} matched`}
+        hint={`${grandTotal.count} ${grandTotal.count === 1 ? 'booking' : 'bookings'} matched`}
       >
         <SpotlightPanel
           search={search}
@@ -281,153 +379,269 @@ export default function BookingsExplorer({ bookings }: { bookings: BookingRow[] 
           toDays={toDays}
           onFromChange={setFromDays}
           onToChange={setToDays}
-          aggregates={spotlight}
-          onReset={resetSpotlight}
+          onReset={resetAll}
+          anyFilterActive={anyFilterActive}
+          propertyRows={propertyMathRows}
+          totalRow={grandTotal}
+          activeProperty={propertyFilter}
+          onToggleProperty={togglePropertyFilter}
         />
       </AdminSection>
 
-      <AdminSection
-        eyebrow="Upcoming"
-        hint={`${upcoming.length} ${upcoming.length === 1 ? 'booking' : 'bookings'} · ${eur(upcomingTotal)} to be made`}
-      >
-        <AdminTable
-          columns={COLUMNS}
-          rows={upcoming}
-          rowKey={(b) => b.id}
-          rowHref={(b) => `/admin/bookings/${b.id}`}
-          emptyMessage="No upcoming bookings match these filters."
+      <section className="mb-10">
+        <BookingsTabs
+          active={activeTab}
+          onChange={setActiveTab}
+          upcomingCount={upcoming.length}
+          upcomingTotal={upcomingTotal}
+          upcomingSubRows={upcomingSubRows}
+          historyCount={history.length}
+          historyTotal={historyTotal}
+          historySubRows={historySubRows}
+          cancelledCount={cancelled.length}
+          cancelledTotal={cancelledTotal}
+          activeBucket={bucketFilter}
+          onToggleBucket={toggleBucketFilter}
         />
-      </AdminSection>
+        <BookingsTable
+          rows={
+            activeTab === 'upcoming'  ? upcoming  :
+            activeTab === 'history'   ? history   :
+                                        cancelled
+          }
+          emptyMessage={
+            activeTab === 'upcoming'  ? 'No upcoming bookings match these filters.'  :
+            activeTab === 'history'   ? 'No history matches these filters.'          :
+                                        'No cancelled bookings match these filters.'
+          }
+          onEdit={setActiveBooking}
+        />
+      </section>
 
-      <AdminSection
-        eyebrow="History"
-        hint={`${history.length} ${history.length === 1 ? 'booking' : 'bookings'} · ${eur(historyTotal)} agreed`}
-      >
-        <AdminTable
-          columns={COLUMNS}
-          rows={history}
-          rowKey={(b) => b.id}
-          rowHref={(b) => `/admin/bookings/${b.id}`}
-          emptyMessage="No history matches these filters."
+      {activeBooking && (
+        <BookingActionModal
+          item={bookingRowToCalendarBooking(activeBooking)}
+          onClose={() => setActiveBooking(null)}
         />
-      </AdminSection>
+      )}
     </>
   );
 }
 
-// ─── Property card ──────────────────────────────────────────────────────────
+// ─── BookingRow → CalendarBooking adapter ───────────────────────────────────
+//
+// BookingActionModal speaks `CalendarItem` (it's the same modal the calendar
+// surfaces use). The shape overlaps almost 1:1 with `BookingRow`; we just
+// rename `date_check_in/out` → `start/end` and drop the row-only fields.
 
-function PropertyCardGrid({
-  stats, active, onToggle,
+function bookingRowToCalendarBooking(b: BookingRow): CalendarBooking {
+  return {
+    kind: 'booking',
+    id: b.id,
+    status: b.status,
+    start: b.date_check_in,
+    end: b.date_check_out,
+    label: `${b.user_name ?? 'no user'} · ${b.property_slug}`,
+    property_slug: b.property_slug,
+    href: `/admin/bookings/${b.id}`,
+    user_id: b.user_id,
+    user_name: b.user_name,
+    user_email: b.user_email,
+    agreed_property_cents: b.agreed_property_cents,
+    agreed_cleaning_cents: b.agreed_cleaning_cents,
+    agreed_total_cents: b.agreed_total_cents,
+    paid_cents: b.paid_cents,
+    guests: b.guests,
+  };
+}
+
+// ─── Upcoming / History switch ──────────────────────────────────────────────
+//
+// Single-pill segmented control. Replaces two stacked AdminSection blocks so
+// admin doesn't have to scroll between upcoming and history. Each pill shows
+// its count + euro total inline; the active pill rises out of the slate-100
+// well via white bg + soft shadow. The inactive pill stays clickable so the
+// counts on both sides act as live previews of what's on the other tab.
+//
+//   ┌─────────────────────────────────────────────────────────┐
+//   │ ┌──────────────────┐                                    │
+//   │ │ UPCOMING         │   HISTORY                          │
+//   │ │ 12 · €4,200      │   38 · €18,000                     │
+//   │ └──────────────────┘                                    │
+//   └─────────────────────────────────────────────────────────┘
+
+function BookingsTabs({
+  active, onChange,
+  upcomingCount, upcomingTotal, upcomingSubRows,
+  historyCount, historyTotal, historySubRows,
+  cancelledCount, cancelledTotal,
+  activeBucket, onToggleBucket,
 }: {
-  stats: Record<PropertySlug, { upcoming: number; history: number }>;
-  active: PropertySlug | null;
-  onToggle: (slug: PropertySlug) => void;
+  active: 'upcoming' | 'history' | 'cancelled';
+  onChange: (t: 'upcoming' | 'history' | 'cancelled') => void;
+  upcomingCount: number;
+  upcomingTotal: number;
+  upcomingSubRows: SubRow[];
+  historyCount: number;
+  historyTotal: number;
+  historySubRows: SubRow[];
+  cancelledCount: number;
+  cancelledTotal: number;
+  activeBucket: StatusBucket | null;
+  onToggleBucket: (b: StatusBucket) => void;
 }) {
   return (
-    <Card title="Properties" subtitle="upcoming · history">
-      <div className="grid grid-cols-2 gap-2">
-        {PROPERTY_SLUGS.map((slug) => {
-          const isActive = active === slug;
-          const s = stats[slug];
-          // Cell is empty when the current filter scope has zero bookings on
-          // this property. Mute + disable so admin can see "nothing to slice
-          // into here" at a glance.
-          const empty = s.upcoming + s.history === 0;
-          return (
-            <button
-              key={slug}
-              type="button"
-              onClick={() => onToggle(slug)}
-              aria-pressed={isActive}
-              disabled={empty && !isActive}
-              className={[
-                'rounded-xl border bg-white px-3 py-3 text-left transition',
-                isActive
-                  ? 'border-ocean ring-2 ring-ocean/15'
-                  : empty
-                    ? 'border-slate-100 opacity-40 cursor-not-allowed'
-                    : 'border-slate-200 hover:border-slate-300',
-              ].join(' ')}
-            >
-              <p className="text-sm font-bold uppercase tracking-widest text-slate-900">
-                {PROPERTY_LABELS[slug]}
-              </p>
-              <p className="text-xs text-slate-500 tabular-nums mt-1">
-                <span className="text-slate-900 font-bold">{s.upcoming}</span> upcoming
-                <span className="text-slate-300"> · </span>
-                <span className="text-slate-700 font-bold">{s.history}</span> history
-              </p>
-            </button>
-          );
-        })}
-      </div>
-    </Card>
+    <div
+      role="tablist"
+      aria-label="Bookings view"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1.5 mb-3"
+    >
+      <TabPill
+        label="Upcoming"
+        count={upcomingCount}
+        total={upcomingTotal}
+        revenueLabel="to be made"
+        subRows={upcomingSubRows}
+        active={active === 'upcoming'}
+        onClick={() => onChange('upcoming')}
+        activeBucket={activeBucket}
+        onToggleBucket={onToggleBucket}
+      />
+      <TabPill
+        label="History"
+        count={historyCount}
+        total={historyTotal}
+        revenueLabel="agreed"
+        subRows={historySubRows}
+        active={active === 'history'}
+        onClick={() => onChange('history')}
+        activeBucket={activeBucket}
+        onToggleBucket={onToggleBucket}
+      />
+      <TabPill
+        label="Cancelled"
+        count={cancelledCount}
+        total={cancelledTotal}
+        revenueLabel="lost"
+        tone="rose"
+        subRows={[]}
+        active={active === 'cancelled'}
+        onClick={() => onChange('cancelled')}
+        activeBucket={activeBucket}
+        onToggleBucket={onToggleBucket}
+      />
+    </div>
   );
 }
 
-// ─── Status card ────────────────────────────────────────────────────────────
+// TabPill — owns its tab-switch behaviour on the title region and exposes
+// each status subline as its own bucket-filter button. Layout:
+//
+//   ┌─ pill (rounded-xl, white when active) ───────────────────┐
+//   │  UPCOMING                                            26  │  ← title button
+//   │  53.874 € to be made                                     │     (text-2xl count)
+//   │  ─── divider ───────────────────────────────────────     │
+//   │  PENDING            10.824 € agreed                  5   │  ← bucket buttons
+//   │  UNPAID             23.595 € owed                   14   │     (active = ocean tint)
+//   │  COMPLETED          13.860 € collected               7   │
+//   └──────────────────────────────────────────────────────────┘
+//
+// Outer is a <div role="tab">, NOT a <button>, so the inner buttons
+// (title + sublines) are valid HTML. Sublines toggle the bucket filter,
+// active state highlights with bg-ocean/10 + bold ocean eyebrow.
 
-function StatusCardGrid({
-  stats, active, onToggle,
+function TabPill({
+  label, count, total, revenueLabel, active, onClick, tone = 'ocean', subRows,
+  activeBucket, onToggleBucket,
 }: {
-  stats: Record<StatusBucket, { count: number; agreed: number; paid: number }>;
-  active: StatusBucket | null;
-  onToggle: (b: StatusBucket) => void;
+  label: string;
+  count: number;
+  total: number;
+  revenueLabel: string;
+  active: boolean;
+  onClick: () => void;
+  tone?: 'ocean' | 'rose';
+  subRows: SubRow[];
+  activeBucket: StatusBucket | null;
+  onToggleBucket: (b: StatusBucket) => void;
 }) {
-  // Per-bucket "primary number" — what the admin most cares about for that
-  // slice. Pending = € agreed (potential), Unpaid = € owed (action),
-  // Completed = € collected (revenue), Cancelled = € lost.
-  const primary: Record<StatusBucket, string> = {
-    pending:   eur(stats.pending.agreed),
-    unpaid:    eur(stats.unpaid.agreed - stats.unpaid.paid),
-    completed: eur(stats.completed.paid),
-    cancelled: eur(stats.cancelled.agreed),
-  };
-  const primaryLabel: Record<StatusBucket, string> = {
-    pending:   'agreed',
-    unpaid:    'owed',
-    completed: 'collected',
-    cancelled: 'lost',
-  };
-
+  const titleEyebrow = active
+    ? (tone === 'rose' ? 'text-rose-600' : 'text-ocean')
+    : 'text-slate-400';
   return (
-    <Card title="Status" subtitle="count · primary €">
-      <div className="grid grid-cols-2 gap-2">
-        {(Object.keys(STATUS_BUCKET_LABELS) as StatusBucket[]).map((b) => {
-          const isActive = active === b;
-          const s = stats[b];
-          const empty = s.count === 0;
-          return (
-            <button
-              key={b}
-              type="button"
-              onClick={() => onToggle(b)}
-              aria-pressed={isActive}
-              disabled={empty && !isActive}
-              className={[
-                'rounded-xl border bg-white px-3 py-3 text-left transition',
-                isActive
-                  ? 'border-ocean ring-2 ring-ocean/15'
-                  : empty
-                    ? 'border-slate-100 opacity-40 cursor-not-allowed'
-                    : 'border-slate-200 hover:border-slate-300',
-              ].join(' ')}
-            >
-              <p className="text-sm font-bold uppercase tracking-widest text-slate-900">
-                {STATUS_BUCKET_LABELS[b]}
-              </p>
-              <p className="text-xs text-slate-500 tabular-nums mt-1">
-                <span className="text-slate-900 font-bold">{s.count}</span>
-                {' · '}
-                <span className="text-slate-700 font-bold">{primary[b]}</span>
-                <span className="text-slate-300"> {primaryLabel[b]}</span>
-              </p>
-            </button>
-          );
-        })}
-      </div>
-    </Card>
+    <div
+      role="tab"
+      aria-selected={active}
+      className={[
+        'rounded-xl transition flex flex-col',
+        active
+          ? 'bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+          : 'hover:bg-white/60',
+      ].join(' ')}
+    >
+      {/* Title region — click to switch tabs */}
+      <button
+        type="button"
+        onClick={onClick}
+        className="px-4 pt-3 pb-2 text-left rounded-t-xl"
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <p className={[
+            'text-xs font-mono uppercase tracking-[0.25em] truncate',
+            titleEyebrow,
+          ].join(' ')}>
+            {label}
+          </p>
+          <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">
+            {count}
+          </p>
+        </div>
+        <p className="text-xs text-slate-400 tabular-nums mt-1">
+          {eur(total)} <span className="text-slate-300">{revenueLabel}</span>
+        </p>
+      </button>
+
+      {/* Sub-row buttons — each one toggles `bucketFilter` */}
+      {subRows.length > 0 && (
+        <div className="border-t border-slate-100 mx-3 pt-1.5 pb-2 space-y-0.5">
+          {subRows.map((s) => {
+            const isActiveSub = activeBucket === s.bucket;
+            return (
+              <button
+                key={s.bucket}
+                type="button"
+                onClick={() => onToggleBucket(s.bucket)}
+                aria-pressed={isActiveSub}
+                title={isActiveSub ? `Clear ${s.label.toLowerCase()} filter` : `Filter table to ${s.label.toLowerCase()}`}
+                className={[
+                  'w-full flex items-baseline justify-between gap-2 px-2 py-1 rounded-md text-xs transition',
+                  isActiveSub
+                    ? 'bg-ocean/10'
+                    : 'hover:bg-slate-100/80',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'font-mono uppercase tracking-[0.2em] truncate',
+                    isActiveSub ? 'text-ocean font-bold' : 'text-slate-500',
+                  ].join(' ')}
+                >
+                  {s.label}
+                </span>
+                <span className="flex items-baseline gap-2 shrink-0 tabular-nums">
+                  <span className="text-slate-400">
+                    {eur(s.total)} <span className="text-slate-300">{s.suffix}</span>
+                  </span>
+                  <span className={isActiveSub ? 'font-bold text-slate-900' : 'font-bold text-slate-700'}>
+                    {s.count}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -436,7 +650,9 @@ function StatusCardGrid({
 function SpotlightPanel({
   search, onSearch,
   minDate, maxDate, totalDays, fromDays, toDays, onFromChange, onToChange,
-  aggregates, onReset,
+  onReset, anyFilterActive,
+  propertyRows, totalRow,
+  activeProperty, onToggleProperty,
 }: {
   search: string;
   onSearch: (v: string) => void;
@@ -447,9 +663,14 @@ function SpotlightPanel({
   toDays: number;
   onFromChange: (n: number) => void;
   onToChange: (n: number) => void;
-  aggregates: { count: number; agreed: number; paid: number; owed: number };
-  /** Clears search + date window; leaves property/bucket cards alone. */
+  /** Clears search, dates AND property/status filters in one shot. */
   onReset: () => void;
+  /** True when any filter is non-default — drives the Reset button enabled state. */
+  anyFilterActive: boolean;
+  propertyRows: MathRow[];
+  totalRow: MathRow;
+  activeProperty: PropertySlug | null;
+  onToggleProperty: (slug: PropertySlug) => void;
 }) {
   const fromYmd = ymdAddDays(minDate, fromDays);
   const toYmd = ymdAddDays(minDate, toDays);
@@ -490,7 +711,8 @@ function SpotlightPanel({
         <button
           type="button"
           onClick={onReset}
-          disabled={!search && fromDays === 0 && toDays === totalDays}
+          disabled={!anyFilterActive}
+          title="Clear search, dates, and active row filters"
           className="px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-xs font-mono uppercase tracking-widest text-slate-600 hover:border-slate-300 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Reset
@@ -554,12 +776,16 @@ function SpotlightPanel({
         </div>
       </div>
 
-      {/* Aggregates */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 border-t border-slate-100">
-        <Stat label="Bookings" value={String(aggregates.count)} tone="slate" />
-        <Stat label="Agreed" value={eur(aggregates.agreed)} tone="slate" />
-        <Stat label="Paid" value={eur(aggregates.paid)} tone="emerald" />
-        <Stat label="Owed" value={eur(aggregates.owed)} tone={aggregates.owed > 0 ? 'amber' : 'slate'} />
+      {/* Math table — property-axis breakdown with a Total at the bottom.
+          Cross-filters the bookings table below via row clicks. Status
+          breakdown is rendered elsewhere (TBD by caller). */}
+      <div className="pt-4 border-t border-slate-100">
+        <MathTable
+          propertyRows={propertyRows}
+          totalRow={totalRow}
+          activeProperty={activeProperty}
+          onToggleProperty={onToggleProperty}
+        />
       </div>
     </div>
   );
@@ -646,129 +872,517 @@ function DateRangeSlider({
   );
 }
 
-function Stat({
-  label, value, tone,
+// ─── Math table ─────────────────────────────────────────────────────────────
+//
+// Spotlight's analytic core. Two-axis breakdown (property + status) with one
+// shared Total — both axes sum to the same number (the "math invariant"; if
+// it desynchronises, the bug is in `accumulateMath`).
+//
+// Layout:
+//   * Desktop (md+): a single <table> where Property rows render a
+//     status-segmented bar in column 2, then numeric columns to the right.
+//     Status rows leave the bar cell empty (a Status row would just be one
+//     solid colour — not informative). Bar column hides on mobile via
+//     `hidden md:table-cell` on every bar cell, including the header.
+//   * Mobile (<md): bar graph + count rendered ABOVE as its own block (so
+//     admin gets the visual at-a-glance read), followed by the numeric
+//     table without the bar column.
+//   * Total row at the bottom of the table in both layouts.
+//
+//   Desktop:
+//   ┌──────────┬────────────────────┬────┬────┬─────────┬─────────┬─────────┬──────────┐
+//   │ Property │ Bar                │ Up │ Bk │ Agreed  │ Paid    │ Owed    │ Cleaning │
+//   │ LEVANTE  │ ████████▓▒░░░░░░░░ │ 5  │ 12 │ €4,200  │ €3,000  │ €1,200  │ €120     │
+//   │ ESTRECHO │ ██████████▓▒░░░░░░ │ 3  │ 14 │ €5,200  │ €4,000  │ €1,200  │ €130     │
+//   │ ...                                                                                │
+//   │ Status                                                                             │
+//   │ Pending  │                    │ 2  │ 2  │ €800    │ —       │ €800    │ €80      │
+//   │ ...                                                                                │
+//   │ Total    │                    │ 10 │ 36 │ €13,400 │ €12,500 │ €4,900  │ €420     │
+//   └──────────┴────────────────────┴────┴────┴─────────┴─────────┴─────────┴──────────┘
+//
+//   Mobile:
+//     LEVANTE  ████████▓▒░░░░░░  12      ← bar block (property only)
+//     ESTRECHO ██████████▓▒░░░░  14
+//     MAREA    ██████░░░░░░░░░░   8
+//     CALA     ██░░░░░░░░░░░░░░   2
+//     ──────────────────────────────
+//     Property | Up Bk Agreed ... ← table follows
+
+function MathTable({
+  propertyRows, totalRow,
+  activeProperty, onToggleProperty,
 }: {
-  label: string;
-  value: string;
-  tone: 'slate' | 'emerald' | 'amber';
+  propertyRows: MathRow[];
+  totalRow: MathRow;
+  activeProperty: PropertySlug | null;
+  onToggleProperty: (slug: PropertySlug) => void;
 }) {
-  const valueClass =
-    tone === 'emerald' ? 'text-emerald-700' :
-    tone === 'amber'   ? 'text-amber-700'   :
-                         'text-slate-900';
+  // Common bar scale — busiest property maxes the bar; others are
+  // proportional. Floor at 1 to dodge divide-by-zero when spotlight is
+  // empty.
+  const maxCount = Math.max(1, ...propertyRows.map((r) => r.count));
+
   return (
     <div>
-      <p className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</p>
-      <p className={`text-base font-bold tabular-nums mt-0.5 ${valueClass}`}>{value}</p>
+      {/* Mobile-only property bar block — at-a-glance visual before the
+          number-dense table below. Each row is also a clickable filter
+          trigger, kept in sync with the in-table property rows. */}
+      <div className="md:hidden mb-4 space-y-1">
+        {propertyRows.map((r) => (
+          <MobileBarRow
+            key={r.key}
+            row={r}
+            maxCount={maxCount}
+            active={activeProperty === r.key}
+            onClick={() => onToggleProperty(r.key as PropertySlug)}
+          />
+        ))}
+      </div>
+
+      <div className="overflow-x-auto -mx-5">
+        <table className="w-full min-w-[560px] md:min-w-[720px] text-sm tabular-nums">
+          <thead>
+            <tr className="text-xs font-mono uppercase tracking-widest text-slate-400">
+              <th scope="col" className="text-left  font-normal py-2 pl-5 pr-3 w-[110px]">{' '}</th>
+              <th scope="col" className="hidden md:table-cell text-left font-normal py-2 px-2 min-w-[220px]">{' '}</th>
+              <th
+                scope="col"
+                title="Upcoming / Total — Upcoming = stay isn't done and isn't cancelled. Total = all bookings in this slice."
+                className="text-right font-normal py-2 px-1.5 whitespace-nowrap cursor-help underline-offset-4 decoration-dotted hover:underline hover:text-slate-600 transition-colors"
+              >
+                Bookings
+              </th>
+              <th
+                scope="col"
+                title="Paid / Agreed — Paid = € collected so far. Agreed = € committed at booking time."
+                className="text-right font-normal py-2 px-1.5 whitespace-nowrap cursor-help underline-offset-4 decoration-dotted hover:underline hover:text-slate-600 transition-colors"
+              >
+                Payments
+              </th>
+              <th
+                scope="col"
+                title="Outstanding balance (Agreed − Paid). Cancelled bookings are excluded — their refund policy already settled."
+                className="text-right font-normal py-2 px-1.5 cursor-help underline-offset-4 decoration-dotted hover:underline hover:text-slate-600 transition-colors"
+              >
+                Owed
+              </th>
+              <th
+                scope="col"
+                title="Cleaning fees (the cleaner's slice of agreed €). Flat per-booking, separate from property revenue."
+                className="text-right font-normal py-2 pl-1.5 pr-5 cursor-help underline-offset-4 decoration-dotted hover:underline hover:text-slate-600 transition-colors"
+              >
+                Cleaning
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {propertyRows.map((r) => (
+              <MathRowEl
+                key={r.key}
+                row={r}
+                showBar
+                maxCount={maxCount}
+                active={activeProperty === r.key}
+                onClick={() => onToggleProperty(r.key as PropertySlug)}
+              />
+            ))}
+          </tbody>
+
+          <tfoot>
+            <tr className="border-t-2 border-slate-200">
+              <th
+                scope="row"
+                className="text-left py-2.5 pl-5 pr-3 text-xs font-mono uppercase tracking-widest text-slate-700"
+              >
+                Total
+              </th>
+              <td className="hidden md:table-cell" />
+              <td className="text-right py-2.5 px-1.5 whitespace-nowrap">
+                {totalRow.count === 0 ? (
+                  <span className="text-slate-300">—</span>
+                ) : (
+                  <>
+                    <span className="font-bold text-slate-900">{totalRow.upcoming}</span>
+                    <span className="text-slate-300"> / </span>
+                    <span className="text-slate-500">{totalRow.count}</span>
+                  </>
+                )}
+              </td>
+              <td className="text-right py-2.5 px-1.5 whitespace-nowrap">
+                {totalRow.count === 0 ? (
+                  <span className="text-slate-300">—</span>
+                ) : (
+                  <>
+                    <span className={totalRow.paid > 0 ? 'font-bold text-emerald-700' : 'text-slate-300'}>
+                      {eur(totalRow.paid)}
+                    </span>
+                    <span className="text-slate-300"> / </span>
+                    <span className="text-slate-500">{eur(totalRow.agreed)}</span>
+                  </>
+                )}
+              </td>
+              <td className={`text-right py-2.5 px-1.5 font-bold ${totalRow.owed > 0 ? 'text-amber-700' : 'text-slate-300'}`}>
+                {eur(totalRow.owed)}
+              </td>
+              <td className="text-right py-2.5 pl-1.5 pr-5 font-bold text-slate-700">
+                {eur(totalRow.cleaning)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }
 
-// ─── Card shell ─────────────────────────────────────────────────────────────
-
-function Card({
-  title, subtitle, children,
+function MathRowEl({
+  row, showBar, maxCount, active, onClick,
 }: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
+  row: MathRow;
+  /** True for property rows (paint the segmented bar). False for status
+   *  rows — their bar would be a single solid colour, no signal. */
+  showBar: boolean;
+  maxCount: number;
+  active: boolean;
+  onClick: () => void;
 }) {
+  const empty = row.count === 0;
+  const disabled = empty && !active;
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-700 font-bold">
-          {title}
-        </h3>
-        <span className="text-xs font-mono uppercase tracking-widest text-slate-300">
-          {subtitle}
-        </span>
+    <tr
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-pressed={active}
+      aria-disabled={disabled}
+      onClick={disabled ? undefined : onClick}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={[
+        'transition-colors border-t border-slate-100',
+        active
+          ? 'bg-ocean/5'
+          : disabled
+            ? 'opacity-40 cursor-not-allowed'
+            : 'cursor-pointer hover:bg-slate-50',
+      ].join(' ')}
+    >
+      <th
+        scope="row"
+        className={[
+          'text-left py-2 pl-5 pr-3 text-xs font-mono uppercase tracking-widest',
+          active ? 'text-slate-900 font-bold' : empty ? 'text-slate-400' : 'text-slate-700',
+        ].join(' ')}
+      >
+        {row.label}
+      </th>
+      <td className="hidden md:table-cell px-2 py-2 min-w-[220px]">
+        {showBar ? <SegmentedBar row={row} maxCount={maxCount} /> : null}
+      </td>
+      {/* Bookings: upcoming / count — numerator (upcoming) is the live
+          number admin acts on, denominator (count) is the ceiling, muted. */}
+      <td className="text-right py-2 px-1.5 whitespace-nowrap">
+        {empty ? (
+          <span className="text-slate-300">—</span>
+        ) : (
+          <>
+            <span className="font-semibold text-slate-900">{row.upcoming}</span>
+            <span className="text-slate-300"> / </span>
+            <span className="text-slate-500">{row.count}</span>
+          </>
+        )}
+      </td>
+      {/* Payments: paid / agreed — paid is emerald when something's
+          collected, slate-300 when zero; agreed sits muted as the ceiling. */}
+      <td className="text-right py-2 px-1.5 whitespace-nowrap">
+        {empty ? (
+          <span className="text-slate-300">—</span>
+        ) : (
+          <>
+            <span className={row.paid > 0 ? 'font-semibold text-emerald-700' : 'text-slate-300'}>
+              {eur(row.paid)}
+            </span>
+            <span className="text-slate-300"> / </span>
+            <span className="text-slate-500">{eur(row.agreed)}</span>
+          </>
+        )}
+      </td>
+      <td className={`text-right py-2 px-1.5 ${empty ? 'text-slate-300' : row.owed > 0 ? 'text-amber-700' : 'text-slate-300'}`}>
+        {empty ? '—' : eur(row.owed)}
+      </td>
+      <td className={`text-right py-2 pl-1.5 pr-5 ${empty ? 'text-slate-300' : 'text-slate-500'}`}>
+        {empty ? '—' : eur(row.cleaning)}
+      </td>
+    </tr>
+  );
+}
+
+// ─── Bar graph helpers ──────────────────────────────────────────────────────
+//
+// Visual borrows from GanttStrip: a thin pill, normalised to the busiest
+// property. Inside, three flex segments weighted by status counts so the
+// row's overall cancelled/unconfirmed share is legible at a glance. Same
+// palette as EstateOverview's BookingsCard (ocean / amber / rose).
+
+function SegmentedBar({ row, maxCount }: { row: MathRow; maxCount: number }) {
+  const widthPct = maxCount === 0 ? 0 : (row.count / maxCount) * 100;
+  return (
+    <div
+      className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden"
+      role="img"
+      aria-label={`${row.label}: ${row.confirmed} confirmed, ${row.request} request, ${row.invite} invite, ${row.cancelled} cancelled`}
+    >
+      <div className="h-full flex" style={{ width: `${widthPct}%` }}>
+        {row.confirmed > 0 && (
+          <div
+            className="h-full"
+            style={{ flexGrow: row.confirmed, backgroundColor: COLOR.confirmed }}
+            title={`${row.confirmed} confirmed`}
+          />
+        )}
+        {row.request > 0 && (
+          <div
+            className="h-full"
+            style={{ flexGrow: row.request, backgroundColor: COLOR.request }}
+            title={`${row.request} request`}
+          />
+        )}
+        {row.invite > 0 && (
+          <div
+            className="h-full"
+            style={{ flexGrow: row.invite, backgroundColor: COLOR.invite }}
+            title={`${row.invite} invite`}
+          />
+        )}
+        {row.cancelled > 0 && (
+          <div
+            className="h-full"
+            style={{ flexGrow: row.cancelled, backgroundColor: COLOR.cancelled }}
+            title={`${row.cancelled} cancelled`}
+          />
+        )}
       </div>
-      {children}
     </div>
   );
 }
 
-// ─── Table columns ──────────────────────────────────────────────────────────
+// Mobile-only bar block: label + bar + count. Click toggles the same
+// property filter as the in-table row (state lives in BookingsExplorer).
 
-const COLUMNS: AdminTableColumn<BookingRow>[] = [
-  {
-    key: 'date',
-    header: 'Date',
-    width: 'minmax(0,1.4fr)',
-    render: (b) => {
-      const nights = nightsBetween(b.date_check_in, b.date_check_out);
-      const slugLabel = PROPERTY_LABELS[b.property_slug as keyof typeof PROPERTY_LABELS] ?? b.property_slug;
-      return (
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2 tabular-nums">
-            <span className="text-sm font-semibold text-slate-900">
-              {fmtDateRange(b.date_check_in, b.date_check_out)}
-            </span>
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
-              · {nights}n
-            </span>
-          </div>
-          <p className="text-xs font-mono uppercase tracking-widest text-slate-500 mt-1">
-            {slugLabel}
-          </p>
-        </div>
-      );
-    },
-  },
-  {
-    key: 'guest',
-    header: 'Guest',
-    width: 'minmax(0,1.2fr)',
-    render: (b) => (
-      <div className="min-w-0">
-        <p className="text-sm text-slate-900 truncate">
-          {b.user_name ?? <span className="italic text-slate-400">no user</span>}
-        </p>
-        <p className="text-xs text-slate-500 tabular-nums mt-0.5">
-          {partyLabel(b.guests)}
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    width: 'minmax(0,0.9fr)',
-    render: (b) => (
-      <StatusActionToggle
-        bookingId={b.id}
-        status={b.status}
-        dateCheckIn={b.date_check_in}
-      />
-    ),
-  },
-  {
-    key: 'agreed',
-    header: 'Agreed',
-    align: 'right',
-    width: '110px',
-    render: (b) => (
-      <span className="font-mono tabular-nums text-sm text-slate-900">
-        {eur(b.agreed_total_cents)}
+function MobileBarRow({
+  row, maxCount, active, onClick,
+}: {
+  row: MathRow;
+  maxCount: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const empty = row.count === 0;
+  const disabled = empty && !active;
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      className={[
+        'grid grid-cols-[80px_1fr_28px] items-center gap-3 py-1.5 px-2 -mx-2 rounded-lg w-full text-left transition',
+        active
+          ? 'bg-ocean/5 ring-1 ring-ocean/20'
+          : disabled
+            ? 'opacity-40 cursor-not-allowed'
+            : 'hover:bg-slate-50',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'text-xs font-mono uppercase tracking-widest truncate',
+          active ? 'text-slate-900 font-bold' : empty ? 'text-slate-400' : 'text-slate-600',
+        ].join(' ')}
+      >
+        {row.label}
       </span>
-    ),
-  },
-  {
-    key: 'paid',
-    header: 'Paid',
-    align: 'right',
-    width: '110px',
-    render: (b) => {
-      const fullyPaid = b.paid_cents >= b.agreed_total_cents;
-      const tone = fullyPaid
-        ? 'text-emerald-700'
-        : b.paid_cents === 0 ? 'text-slate-300' : 'text-amber-700';
-      return (
-        <span className={`font-mono tabular-nums text-sm ${tone}`}>
-          {eur(b.paid_cents)}
-        </span>
-      );
-    },
-  },
-];
+      <SegmentedBar row={row} maxCount={maxCount} />
+      <span
+        className={[
+          'text-xs font-mono tabular-nums text-right',
+          empty ? 'text-slate-300' : 'text-slate-900 font-bold',
+        ].join(' ')}
+      >
+        {row.count || '—'}
+      </span>
+    </button>
+  );
+}
+
+// ─── Bookings table ─────────────────────────────────────────────────────────
+//
+// Purpose-built table for the bookings list. Replaces the old AdminTable
+// (which is "header + stack of fat cards") with a real, dense table layout
+// on desktop and a separate compact card layout on mobile.
+//
+// Columns: Date · Property · Guest · Status · Payment · Edit
+//   * Date — `12 Jul → 19 Jul` with `· 7n` muted in the same tone as the
+//     guest party JSON, so the row feels visually tied together.
+//   * Property — `LEVANTE` slug, mono uppercase, no color dot.
+//   * Guest — name + muted party (`2A · 1🐾`).
+//   * Status — read-only chip. The dropdown toggle is gone; transitions live
+//     in BookingActionModal so there's one place to mutate state.
+//   * Payment — paid € / agreed €, paid is colored (emerald = fully paid,
+//     amber = partial, slate-300 = nothing yet).
+//   * Edit — icon button → opens BookingActionModal in-place. The whole row
+//     also acts as the same trigger so admin can tap anywhere on a phone.
+//
+// Mobile (< sm): the desktop grid is hidden and each row renders as a stacked
+// card with two info rows + a status/payment/edit footer. The full row is one
+// big tap target for the modal.
+
+function BookingsTable({
+  rows, emptyMessage, onEdit,
+}: {
+  rows: BookingRow[];
+  emptyMessage: string;
+  onEdit: (b: BookingRow) => void;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white border border-slate-200 p-10 text-center text-sm text-slate-400 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  // Single grid template shared between header and desktop rows so columns
+  // line up perfectly.
+  const GRID = 'sm:grid sm:grid-cols-[1.3fr_0.7fr_1.4fr_0.9fr_1.2fr_44px] sm:gap-4 sm:items-center';
+
+  return (
+    <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      {/* Desktop header */}
+      <div
+        className={`hidden ${GRID} px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 text-xs font-mono uppercase tracking-[0.22em] text-slate-400`}
+      >
+        <div>Date</div>
+        <div>Property</div>
+        <div>Guest</div>
+        <div>Status</div>
+        <div className="text-right">Payment</div>
+        <div className="sr-only">Edit</div>
+      </div>
+
+      <ul className="divide-y divide-slate-100">
+        {rows.map((b) => (
+          <BookingsTableRow key={b.id} b={b} grid={GRID} onEdit={onEdit} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BookingsTableRow({
+  b, grid, onEdit,
+}: {
+  b: BookingRow;
+  grid: string;
+  onEdit: (b: BookingRow) => void;
+}) {
+  const nights = nightsBetween(b.date_check_in, b.date_check_out);
+  const fullyPaid = b.paid_cents >= b.agreed_total_cents;
+  const paidTone = fullyPaid
+    ? 'text-emerald-700'
+    : b.paid_cents === 0 ? 'text-slate-300' : 'text-amber-700';
+  const dateRange = fmtDateRange(b.date_check_in, b.date_check_out);
+  const guestName = b.user_name ?? null;
+  const party = partyLabel(b.guests);
+
+  return (
+    <li>
+      {/* Desktop row — real grid */}
+      <div
+        className={`hidden ${grid} px-4 py-2.5 hover:bg-slate-50/70 transition-colors group`}
+      >
+        {/* Date — muted ·{n}n in the same slate-400 tone as the guest party */}
+        <div className="min-w-0 tabular-nums">
+          <span className="text-sm text-slate-900">{dateRange}</span>
+          <span className="text-xs text-slate-400 font-mono ml-1.5">· {nights}n</span>
+        </div>
+        {/* Property */}
+        <div className="text-xs font-mono uppercase tracking-widest text-slate-700">
+          {b.property_slug}
+        </div>
+        {/* Guest */}
+        <div className="min-w-0 flex items-baseline gap-2">
+          <span className="text-sm text-slate-900 truncate">
+            {guestName ?? <span className="italic text-slate-400">no user</span>}
+          </span>
+          <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">{party}</span>
+        </div>
+        {/* Status */}
+        <div className="min-w-0">
+          <StatusBadge status={b.status} />
+        </div>
+        {/* Payment */}
+        <div className="text-right text-sm tabular-nums font-mono">
+          <span className={paidTone}>{eur(b.paid_cents)}</span>
+          <span className="text-slate-300"> / </span>
+          <span className="text-slate-600">{eur(b.agreed_total_cents)}</span>
+        </div>
+        {/* Edit */}
+        <div className="text-right">
+          <EditButton onClick={() => onEdit(b)} />
+        </div>
+      </div>
+
+      {/* Mobile row — stacked card. The whole tile is one tap target. */}
+      <button
+        type="button"
+        onClick={() => onEdit(b)}
+        className="sm:hidden w-full text-left px-4 py-3 hover:bg-slate-50/70 transition-colors flex flex-col gap-1.5"
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-xs font-mono uppercase tracking-widest text-slate-700">
+            {b.property_slug}
+          </span>
+          <span className="text-sm tabular-nums font-mono">
+            <span className={paidTone}>{eur(b.paid_cents)}</span>
+            <span className="text-slate-300"> / </span>
+            <span className="text-slate-600">{eur(b.agreed_total_cents)}</span>
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2 tabular-nums">
+          <span className="text-sm text-slate-900">{dateRange}</span>
+          <span className="text-xs text-slate-400 font-mono">· {nights}n</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex items-baseline gap-2">
+            <span className="text-sm text-slate-700 truncate">
+              {guestName ?? <span className="italic text-slate-400">no user</span>}
+            </span>
+            <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">{party}</span>
+          </div>
+          <StatusBadge status={b.status} />
+        </div>
+      </button>
+    </li>
+  );
+}
+
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Edit booking"
+      aria-label="Edit booking"
+      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition"
+    >
+      <Pencil className="w-3.5 h-3.5" />
+    </button>
+  );
+}

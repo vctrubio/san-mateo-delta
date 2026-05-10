@@ -129,6 +129,8 @@ export function isBlockingStatus(s: BookingStatus): boolean {
 export const STATUS_BUCKET_COLORS = {
   confirmed:   'var(--color-status-confirmed)',  // ocean       (#0369a1)
   unconfirmed: 'var(--color-status-request)',    // amber-400   (#fbbf24)
+  request:     'var(--color-status-request)',    // amber-400   (#fbbf24)
+  invite:      'var(--color-status-invite)',     // violet-400  (#a78bfa)
   cancelled:   'var(--color-status-cancelled)',  // rose-400    (#fb7185)
 } as const;
 
