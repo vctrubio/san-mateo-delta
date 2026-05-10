@@ -7,7 +7,6 @@ import CancelBookingForm from '@/components/admin/CancelBookingForm';
 import PropertyEditForm from '@/components/admin/PropertyEditForm';
 import PropertyRateForm from '@/components/admin/PropertyRateForm';
 import Calendar from '@/components/calendar/Calendar';
-import InviteForm, { type PropertyOption, type UserOption } from '@/components/admin/invite/InviteForm';
 import type { Property } from '@/lib/properties';
 import type { CalendarItem } from '@/lib/calendar';
 import type { BookingStatus } from '@db/enums';
@@ -208,36 +207,11 @@ export default function FormsPreviewPage() {
             <PropertyRateForm slug={MOCK_PROPERTY.slug} rates={MOCK_PROPERTY.rates} />
           </Section>
 
-          <Section
-            title="InviteForm · admin-priced bookings for friends"
-            file="src/components/admin/invite/InviteForm.tsx"
-            usedOn="/admin/invite/new"
-            note="Admin picks a property, dates, an existing or new guest, and overrides the property + cleaning fees. The form previews what the rate engine would have charged so the diff vs default shows whether this is a discount or a premium. Submits createInvitation → both bookings + booking_invitations rows in one tx."
-          >
-            <InviteForm
-              properties={MOCK_INVITE_PROPERTIES}
-              users={MOCK_INVITE_USERS}
-              calendarsBySlug={{ [MOCK_PROPERTY.slug]: MOCK_CALENDAR_ITEMS }}
-            />
-          </Section>
         </div>
       </div>
     </main>
   );
 }
-
-const MOCK_INVITE_PROPERTIES: PropertyOption[] = [
-  { id: 'MOCK-P1', slug: 'levante',  title: 'The Villa',     cleaning_fee_cents: 12000, max_guests: 6 },
-  { id: 'MOCK-P2', slug: 'estrecho', title: 'The Residence', cleaning_fee_cents:  9000, max_guests: 4 },
-  { id: 'MOCK-P3', slug: 'marea',    title: 'The Retreat',   cleaning_fee_cents:  6000, max_guests: 2 },
-  { id: 'MOCK-P4', slug: 'cala',     title: 'The Bungalow',  cleaning_fee_cents:  5000, max_guests: 2 },
-];
-
-const MOCK_INVITE_USERS: UserOption[] = [
-  { id: 'MOCK-U1', name: 'Maria Garcia',  email: 'maria@example.com' },
-  { id: 'MOCK-U2', name: 'Tom Johnson',   email: 'tom@example.com' },
-  { id: 'MOCK-U3', name: 'Lukas Müller',  email: 'lukas@example.com' },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 

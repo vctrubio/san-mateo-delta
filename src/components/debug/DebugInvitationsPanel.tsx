@@ -4,10 +4,14 @@ import { fmtDateRange, fmtDateTime } from '@/lib/dates';
 import { eur } from '@/lib/format';
 
 // ============================================================================
-// DebugInvitations — narrate the new /admin/invite feature with live data.
-// Same pattern as DebugStripePanel: prose + the actual
-// rows from the DB next to each other so this stays honest as the feature
-// evolves.
+// DebugInvitations — narrate the invitations feature with live data.
+// Same pattern as DebugStripePanel: prose + actual rows from the DB next
+// to each other so this stays honest as the feature evolves.
+//
+// Invitations no longer have their own route — the table lives embedded in
+// /admin/users (Invitations section). New invites are created via the
+// admin calendar's SelectionActionModal (`createAdminBooking` with
+// status='invite').
 // ============================================================================
 
 export const dynamic = 'force-dynamic';
@@ -48,9 +52,10 @@ function Header() {
         </span>
       </div>
       <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-        Admin-issued bookings priced manually for friends &amp; family. Lives at{' '}
-        <code className="font-mono px-1 rounded bg-slate-100">/admin/invite</code>. Long-form spec
-        in <code className="font-mono px-1 rounded bg-slate-100">docs/invitations.md</code>.
+        Admin-issued bookings priced manually for friends &amp; family. Embedded in{' '}
+        <code className="font-mono px-1 rounded bg-slate-100">/admin/users</code> as the
+        Invitations section, created from the calendar&apos;s SelectionActionModal.
+        Long-form spec in <code className="font-mono px-1 rounded bg-slate-100">docs/invitations.md</code>.
       </p>
     </div>
   );
@@ -70,9 +75,9 @@ function Story() {
         </li>
         <li>
           An <strong>invitation</strong> comes from{' '}
-          <code className="font-mono">createInvitation</code> on{' '}
-          <code className="font-mono">/admin/invite/new</code> — admin sets prices manually.
-          Status starts as <code className="font-mono">invite</code>. Both
+          <code className="font-mono">createAdminBooking</code> with{' '}
+          <code className="font-mono">status=&apos;invite&apos;</code> via the calendar&apos;s
+          SelectionActionModal — admin sets prices manually. Both
           <code className="font-mono"> agreed_property_cents</code> and{' '}
           <code className="font-mono">agreed_cleaning_cents</code> can be anything &gt;= 0
           (including <code className="font-mono">0</code> for a free stay).
@@ -131,7 +136,7 @@ function StatsCard({ stats }: { stats: { invited: number; accepted: number; decl
       </h3>
       {stats.total === 0 ? (
         <p className="text-[12px] text-slate-400 italic">
-          No invitations yet. Create one at <code className="font-mono">/admin/invite/new</code>.
+          No invitations yet. Create one from the admin calendar — drag a date range, pick &quot;Create booking&quot;, choose &quot;Hold for invite&quot;.
           (The full-season seed only sets <code className="font-mono">bookings.status=&apos;invite&apos;</code>;
           it doesn&apos;t populate the <code className="font-mono">booking_invitations</code> table —
           this is intentional so the inbox is empty until real admin action.)
@@ -242,11 +247,10 @@ function Files() {
   const items = [
     ['db/schema.sql', 'booking_invitations table + invitation_status enum'],
     ['src/lib/invitations.ts', 'listInvitations, getInvitationById, invitationStats'],
-    ['src/actions/invitations.ts', 'createInvitation, revokeInvitation, previewInviteQuote'],
-    ['src/components/admin/invite/InviteForm.tsx', 'client form: property → calendar → guest → custom fees + diff'],
-    ['src/components/admin/invite/InvitationsTable.tsx', 'list rendering with custom-vs-default + revoke'],
-    ['src/app/admin/invite/page.tsx', 'list + filters + stats strip'],
-    ['src/app/admin/invite/new/page.tsx', 'form server-shell (prefetches users + calendars)'],
+    ['src/actions/invitations.ts', 'revokeInvitation (creation flows through createAdminBooking)'],
+    ['src/actions/bookings.ts', 'createAdminBooking — inserts booking + booking_invitations row when status=invite'],
+    ['src/components/shared/SelectionActionModal.tsx', 'admin calendar entry point for new invitations'],
+    ['src/app/admin/users/page.tsx', 'embedded Invitations section + revoke action'],
   ];
   return (
     <div className="rounded-2xl bg-white border border-slate-200 p-5 mb-5">

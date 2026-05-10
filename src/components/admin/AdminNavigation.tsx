@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Building2,
   CalendarRange,
-  Mail,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -38,7 +37,6 @@ const NAV: Route[] = [
   { href: '/admin',            label: 'Finca',       icon: LayoutDashboard },
   // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
-  { href: '/admin/invite',     label: 'Invitations', icon: Mail },
   { href: '/admin/users',      label: 'Users',       icon: Users },
 ];
 
