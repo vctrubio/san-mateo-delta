@@ -4,8 +4,7 @@ import { useState } from 'react';
 import BookingActionModal from '@/components/shared/BookingActionModal';
 import { BOOKING_STATUS_STYLES } from '@/lib/colors';
 import { relativeStayLabel } from '@/lib/dates';
-import { bookingRowToCalendarBooking } from '@/lib/bookingAdapters';
-import type { BookingRow } from '@/lib/bookings';
+import { bookingRowToCalendarBooking, type BookingChipSource } from '@/lib/bookingAdapters';
 
 // ============================================================================
 // UserBookingChips — clickable strip of "live" bookings rendered inside the
@@ -19,8 +18,8 @@ import type { BookingRow } from '@/lib/bookings';
 // edge so this component just renders.
 // ============================================================================
 
-export function UserBookingChips({ bookings }: { bookings: BookingRow[] }) {
-  const [active, setActive] = useState<BookingRow | null>(null);
+export function UserBookingChips({ bookings }: { bookings: BookingChipSource[] }) {
+  const [active, setActive] = useState<BookingChipSource | null>(null);
 
   if (bookings.length === 0) {
     return <span className="text-xs text-slate-300 font-mono">—</span>;

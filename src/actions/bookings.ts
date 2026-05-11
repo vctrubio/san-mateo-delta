@@ -195,8 +195,10 @@ export async function requestBookingAndRedirect(formData: FormData): Promise<voi
 
 // ---------------------------------------------------------------------------
 // createAdminBooking — admin issues a booking directly from the calendar
-// selection modal. Differs from createInvitation (in invitations.ts) in two
-// ways:
+// selection modal. The only "admin booking" entry point — friend-and-family
+// invitations also go through here with status='invite'.
+//
+// Two notable behaviours:
 //   1. The user is OPTIONAL — admin can hold dates without attaching anyone
 //      yet (user_id stays NULL; the schema allows it).
 //   2. An optional initial booking_payment row can be inserted in the same
@@ -329,9 +331,9 @@ export async function createAdminBooking(formData: FormData): Promise<CreateAdmi
     );
     const bookingId = bookingRows[0].id;
 
-    // Mirror createInvitation: when status='invite' we also need a
-    // booking_invitations row so the existing invite list / accept flow can
-    // pick it up.
+    // When status='invite' we also write a booking_invitations row so the
+    // /admin/users Invitations section can list it and the future accept
+    // flow has somewhere to update.
     if (status === 'invite' && email && userId) {
       await client.query(
         `INSERT INTO booking_invitations (booking_id, email, status)
@@ -393,7 +395,7 @@ export async function createAdminBooking(formData: FormData): Promise<CreateAdmi
     await client.query('COMMIT');
 
     revalidateForBooking(bookingId, userId);
-    revalidatePath('/admin/invite');
+    revalidatePath('/admin/users');
 
     return { ok: true, bookingId, userId, paymentId };
   } catch (err) {

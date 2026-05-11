@@ -51,6 +51,40 @@ export function StatsCard({
   );
 }
 
+// ─── Section ───────────────────────────────────────────────────────────────
+//
+// Same shell as StatsCard (rounded-2xl + border + soft shadow + eyebrow) but
+// no big "total" slot — for content blocks like History tables that share
+// the visual rhythm of a StatsCard but aren't a metric. Use this instead of
+// hand-rolling the markup so eyebrow spacing + corner-hint behaviour stay
+// in lockstep with the rest of the family.
+
+export function Section({
+  eyebrow, icon, hint, children,
+}: {
+  eyebrow: string;
+  icon: ReactNode;
+  /** Top-right slot — typically a count like "4 bookings". */
+  hint?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400">
+          {icon} {eyebrow}
+        </div>
+        {hint && (
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300">
+            {hint}
+          </span>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 // ─── SplitBar ───────────────────────────────────────────────────────────────
 //
 // flex-grow weighting (rather than literal width %) lets the bar stay full

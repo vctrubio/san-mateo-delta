@@ -45,7 +45,6 @@ that the database would later reject.
 | `/finca/[slug]`                  | `getCalendarItems({ mode: 'public' })`            | public  | 6 mo   |
 | `/admin/properties/[slug]`       | `getCalendarItems({ mode: 'admin' })`             | admin   | 12 mo  |
 | `/admin` (dashboard)             | `getCalendarItems` per property (admin) + `listFuturePropertyData()` + `getEstateOverview()` for the top "Estate · upcoming" section | admin | 6 mo |
-| `/admin/invite/new`              | All 4 properties pre-fetched into `calendarsBySlug` (admin mode, 6 mo) | admin   | 6 mo   |
 | Add Booking modal                | `getAddBookingContext()` server action — all 4 properties bundled together | admin | 6 mo |
 
 Public mode strips non-blocking statuses entirely (the public can't see who has

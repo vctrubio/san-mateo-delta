@@ -24,6 +24,21 @@ function ordinal(n: number): string {
   }
 }
 
+/** Today's local date as YYYY-MM-DD. Centralised so every "is this today?"
+ *  comparison uses the same boundary (start of local day). */
+export function todayYmd(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Add `days` to a YYYY-MM-DD string, returning YYYY-MM-DD. Local-time math. */
+export function addDaysYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
 function toDate(input: Date | string | null | undefined): Date | null {
   if (input == null) return null;
   if (input instanceof Date) return Number.isNaN(input.getTime()) ? null : input;

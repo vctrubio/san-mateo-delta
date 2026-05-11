@@ -358,7 +358,7 @@ function BookingView({
     // payment section is hidden on invite, so don't gate on it then.
     (statusChoice !== 'confirmed' || paymentChoice !== 'custom' || (parseEur(customPaymentEuros) ?? 0) > 0);
 
-  // ─── Email autocomplete (mirror InviteForm) ───
+  // ─── Email autocomplete — autofill name when an existing user matches. ───
   function onEmailChange(v: string) {
     setEmail(v);
     if (!name) {

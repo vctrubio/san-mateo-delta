@@ -46,14 +46,14 @@ longer have:
 
 | Old knob          | New equivalent                                          |
 | ----------------- | ------------------------------------------------------- |
-| **Long-Stay rate** with high `min_nights` | Custom snapshot via `/admin/invite` — admin overrides the property/cleaning fees per booking. |
+| **Long-Stay rate** with high `min_nights` | Custom snapshot via the admin calendar's SelectionActionModal (`createAdminBooking`) — admin overrides the property/cleaning fees per booking. |
 | **Public vs invite-only** rate            | Same path. Invitations carry whatever price admin types.       |
-| **Easter / Christmas one-off** rate       | Edit the relevant month's value, or use `/admin/invite` for a single booking. |
+| **Easter / Christmas one-off** rate       | Edit the relevant month's value, or issue an admin booking for a single date range. |
 
 The trade is deliberate: admin gets one number to set per month, plus a
-separate path (`/admin/invite`) for one-off custom prices. Easier to reason
-about, harder to misconfigure (a missing rate row used to silently fall
-through to "no quote available").
+separate path (admin-calendar selection → `createAdminBooking`) for one-off
+custom prices. Easier to reason about, harder to misconfigure (a missing
+rate row used to silently fall through to "no quote available").
 
 ## Multi-month stays
 

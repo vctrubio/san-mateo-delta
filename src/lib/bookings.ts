@@ -181,10 +181,21 @@ export async function listBookingsForUser(userId: string): Promise<BookingRow[]>
   );
 }
 
+/** Per-user cap for `listLiveBookingsByUser`. The chip strip is a "what
+ *  needs attention now?" surface, not a history view — six rows is enough
+ *  to show the closest upcoming bookings and keeps the table cell from
+ *  blowing up if a user accumulates a long pending queue. */
+export const LIVE_BOOKINGS_PER_USER = 6;
+
 // Bulk variant of listBookingsForUser. Returns a Map keyed by user_id so
 // the /admin/users table can render each row's status chips inline without
-// firing N queries. Filters to "live" bookings (anything not cancelled and
-// not already checked out) so the chip strip shows what admin can act on.
+// firing N queries.
+//
+// Filters:
+//   - "live" only: status NOT IN ('cancelled', 'checked_out')
+//   - per-user LIMIT via ROW_NUMBER PARTITION (LIVE_BOOKINGS_PER_USER)
+//
+// Sorted by check-in date so each user's slice is the next N upcoming.
 export async function listLiveBookingsByUser(
   userIds: string[],
 ): Promise<Map<string, BookingRow[]>> {
@@ -192,16 +203,26 @@ export async function listLiveBookingsByUser(
   if (userIds.length === 0) return out;
   const rows = await sql<BookingRow>(
     `
+    WITH ranked AS (
+      SELECT
+        b.id,
+        ROW_NUMBER() OVER (
+          PARTITION BY b.user_id
+          ORDER BY b.date_check_in ASC, b.id ASC
+        ) AS rn
+      FROM bookings b
+      WHERE b.user_id = ANY($1::bigint[])
+        AND b.status NOT IN ('cancelled', 'checked_out')
+    )
     SELECT ${BOOKING_SELECT}
     FROM bookings b
+    JOIN ranked r               ON r.id = b.id AND r.rn <= $2::int
     JOIN properties p           ON p.id = b.property_id
     LEFT JOIN users u           ON u.id = b.user_id
     LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
-    WHERE b.user_id = ANY($1::bigint[])
-      AND b.status NOT IN ('cancelled', 'checked_out')
     ORDER BY b.date_check_in ASC, b.id ASC
     `,
-    [userIds],
+    [userIds, LIVE_BOOKINGS_PER_USER],
   );
   for (const r of rows) {
     if (!r.user_id) continue;
@@ -263,9 +284,9 @@ export async function listBookingEvents(bookingId: string): Promise<BookingEvent
 // multiplies by nights. Cleaning fee comes from the same row. See docs/rates.md.
 //
 // No min-nights, no active/public flag, no separate rate rows. If admin
-// wants a one-off custom price for friends, they use /admin/invite which
-// snapshots a different price onto the booking — properties.rates is never
-// edited per-booking.
+// wants a one-off custom price for friends, they go through the calendar's
+// SelectionActionModal (createAdminBooking) which snapshots a different
+// price onto the booking — properties.rates is never edited per-booking.
 
 export type Quote = {
   /** Convenience copy of the month's rate from properties.rates. */

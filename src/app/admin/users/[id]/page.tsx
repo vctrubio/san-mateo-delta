@@ -3,16 +3,15 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, User as UserIcon, Wallet } from 'lucide-react';
 import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
 import StatusBadge from '@/components/admin/StatusBadge';
-import { StatsCard, SplitBar, Split } from '@/components/admin/StatsCard';
-import { getUserById } from '@/lib/users';
-import { listBookingsForUser, type BookingRow } from '@/lib/bookings';
-import { paymentSplitForUser } from '@/lib/payments';
+import { StatsCard, SplitBar, Split, Section } from '@/components/admin/StatsCard';
+import { getUserDashboard } from '@/lib/userDashboard';
+import type { BookingRow } from '@/lib/bookings';
 import { fmtDate, fmtDateRange, nightsBetween } from '@/lib/dates';
 import { eur } from '@/lib/format';
-import { BLOCKING_BOOKING_STATUSES, STATUS_BUCKET_COLORS as COLOR } from '@/lib/colors';
+import { STATUS_BUCKET_COLORS as COLOR } from '@/lib/colors';
 
-// Same palette the booking detail page uses for the PAYMENTS card so the two
-// surfaces read identically. Cash + Stripe match the existing chip colours.
+// Booking detail's PAYMENTS palette — same three colours so the user detail
+// page and the booking detail page read as one family.
 const CASH_COLOR   = 'var(--color-status-request)';     // amber-400
 const STRIPE_COLOR = 'var(--color-status-invite)';      // violet-400
 const UNPAID_COLOR = 'var(--color-status-checked_out)'; // slate-300
@@ -20,19 +19,22 @@ const UNPAID_COLOR = 'var(--color-status-checked_out)'; // slate-300
 export const dynamic = 'force-dynamic';
 
 // ============================================================================
-// /admin/users/[id] — single user view. Same visual rhythm as the booking
-// detail page so the two surfaces feel like one family:
+// /admin/users/[id] — single user view, same rhythm as /admin and the
+// booking detail page:
 //
 //   ┌─ Back link ─────────────────────────────────────┐
 //   │ ← Users                                          │
 //   ├─ BOOKINGS ──────────┬─ PAYMENTS ────────────────┤
 //   │ count + 3-split bar │ lifetime + 3-split bar    │
-//   │ confirmed/pend/canc │ paid / owed / cleaning    │
+//   │ confirmed/pend/canc │ cash / stripe / unpaid    │
 //   ├─ Profile ───────────┴───────────────────────────┤
 //   │ name · email · tif · nationality · dob · joined │
 //   ├─ History ───────────────────────────────────────┤
 //   │ AdminTable: Date · Property · Status · Payment  │
 //   └──────────────────────────────────────────────────┘
+//
+// Aggregation lives in getUserDashboard / aggregateBookings — this file is
+// pure render.
 // ============================================================================
 
 export default async function AdminUserDetailPage({
@@ -41,53 +43,27 @@ export default async function AdminUserDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getUserById(id);
-  if (!user) notFound();
-  const [bookings, split] = await Promise.all([
-    listBookingsForUser(id),
-    paymentSplitForUser(id),
-  ]);
+  const dashboard = await getUserDashboard(id);
+  if (!dashboard) notFound();
 
-  // ─ Booking aggregates ────────────────────────────────────────────────────
-  // Confirmed = anything held (confirmed/checked_in/checked_out). Pending =
-  // request / invite. Cancelled = its own bucket. Same split EstateOverview
-  // uses on the global dashboard, so the visual reads identically.
-  let confirmed = 0;
-  let pending = 0;
-  let cancelled = 0;
-  for (const b of bookings) {
-    if (b.status === 'cancelled') cancelled++;
-    else if (BLOCKING_BOOKING_STATUSES.includes(b.status)) confirmed++;
-    else pending++;
-  }
-  const totalCount = bookings.length;
+  const { user, bookings, aggregate, paymentSplit } = dashboard;
+  const { confirmed, pending, cancelled } = aggregate.byBucket;
+  const { paidTotal, owedTotal, agreedTotal } = aggregate.money;
+  const totalCount = aggregate.total;
 
-  // ─ Payment aggregates ────────────────────────────────────────────────────
-  // Cash + Stripe split comes from `paymentSplitForUser` (succeeded only,
-  // grouped by method). Owed is computed from the booking rows since it's
-  // a function of agreed_total - paid, scoped to non-cancelled bookings.
-  let agreedTotal = 0;
-  let owedTotal = 0;
-  for (const b of bookings) {
-    agreedTotal += b.agreed_total_cents;
-    if (b.status !== 'cancelled') {
-      owedTotal += Math.max(0, b.agreed_total_cents - b.paid_cents);
-    }
-  }
-  const paidTotal = split.cash + split.stripe;
-  const cashPct   = agreedTotal === 0 ? 0 : Math.round((split.cash   / agreedTotal) * 100);
-  const stripePct = agreedTotal === 0 ? 0 : Math.round((split.stripe / agreedTotal) * 100);
-  const owedPct   = agreedTotal === 0 ? 0 : Math.round((owedTotal    / agreedTotal) * 100);
+  // ─ Percentages for the SplitBars ─────────────────────────────────────────
+  // Cancelled is the rounding remainder so the bar always sums to 100.
 
   const confirmedPct = totalCount === 0 ? 0 : Math.round((confirmed / totalCount) * 100);
   const pendingPct   = totalCount === 0 ? 0 : Math.round((pending   / totalCount) * 100);
-  // Floor cancelled to the remainder so the bar always sums to 100 even
-  // after rounding.
   const cancelledPct = totalCount === 0 ? 0 : Math.max(0, 100 - confirmedPct - pendingPct);
+
+  const cashPct   = agreedTotal === 0 ? 0 : Math.round((paymentSplit.cash   / agreedTotal) * 100);
+  const stripePct = agreedTotal === 0 ? 0 : Math.round((paymentSplit.stripe / agreedTotal) * 100);
+  const owedPct   = agreedTotal === 0 ? 0 : Math.round((owedTotal           / agreedTotal) * 100);
 
   return (
     <div className="max-w-5xl mx-auto pb-16">
-      {/* Back to users */}
       <Link
         href="/admin/users"
         className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4"
@@ -95,8 +71,7 @@ export default async function AdminUserDetailPage({
         <ArrowLeft className="w-3.5 h-3.5" /> Users
       </Link>
 
-      {/* Top row: BOOKINGS + PAYMENTS — same shells as /admin and the
-          booking detail page. */}
+      {/* Top row: BOOKINGS + PAYMENTS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         <StatsCard
           title="Bookings"
@@ -131,23 +106,20 @@ export default async function AdminUserDetailPage({
               { pct: owedPct,   color: UNPAID_COLOR },
             ]}
           />
-          {/* Same hide-when-zero rule as the booking detail page: a "0 €"
-              tile is just noise. Cash + Stripe collapse when there's no
-              activity for that method; Unpaid collapses when fully paid. */}
+          {/* Hide-when-zero: a "0 €" tile is just noise. Mirrors the booking
+              detail page's PAYMENTS card. */}
           <div
             className="grid gap-2 mt-3"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))' }}
           >
-            {split.cash   > 0 && <Split label="Cash"   value={eur(split.cash)}   pct={cashPct}   dot={CASH_COLOR}   />}
-            {split.stripe > 0 && <Split label="Stripe" value={eur(split.stripe)} pct={stripePct} dot={STRIPE_COLOR} />}
-            {owedTotal    > 0 && <Split label="Unpaid" value={eur(owedTotal)}    pct={owedPct}   dot={UNPAID_COLOR} />}
+            {paymentSplit.cash   > 0 && <Split label="Cash"   value={eur(paymentSplit.cash)}   pct={cashPct}   dot={CASH_COLOR}   />}
+            {paymentSplit.stripe > 0 && <Split label="Stripe" value={eur(paymentSplit.stripe)} pct={stripePct} dot={STRIPE_COLOR} />}
+            {owedTotal           > 0 && <Split label="Unpaid" value={eur(owedTotal)}           pct={owedPct}   dot={UNPAID_COLOR} />}
           </div>
         </StatsCard>
       </div>
 
-      {/* Profile card — full width. Big total carries the user's name,
-          corner shows when they joined; body lays out the rest of the
-          schema fields (email link + tif/nationality/dob). */}
+      {/* Profile */}
       <div className="mb-3">
         <StatsCard
           title="Profile"
@@ -174,17 +146,12 @@ export default async function AdminUserDetailPage({
         </StatsCard>
       </div>
 
-      {/* History — full width AdminTable. Click a row to drill into the
-          booking detail. No Guest column since it's all this user. */}
-      <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-5">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400">
-            <CheckCircle2 className="w-3.5 h-3.5" /> History
-          </div>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300">
-            {totalCount} {totalCount === 1 ? 'booking' : 'bookings'}
-          </span>
-        </div>
+      {/* History */}
+      <Section
+        eyebrow="History"
+        icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+        hint={`${totalCount} ${totalCount === 1 ? 'booking' : 'bookings'}`}
+      >
         <AdminTable
           columns={USER_BOOKING_COLUMNS}
           rows={bookings}
@@ -192,14 +159,12 @@ export default async function AdminUserDetailPage({
           rowHref={(b) => `/admin/bookings/${b.id}`}
           emptyMessage="No bookings yet."
         />
-      </section>
+      </Section>
     </div>
   );
 }
 
-// ─── Booking columns — drop the Guest column (it's all this user) but
-// keep Date / Property / Status / Payment so the table reads the same as
-// the bookings list. ─────────────────────────────────────────────────────
+// ─── Booking columns — Guest column is dropped (it's all this user). ──────
 
 const USER_BOOKING_COLUMNS: AdminTableColumn<BookingRow>[] = [
   {

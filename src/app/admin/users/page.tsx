@@ -9,7 +9,7 @@ import SortSelect from '@/components/admin/filters/SortSelect';
 import ResetButton from '@/components/admin/filters/ResetButton';
 import Pagination from '@/components/admin/filters/Pagination';
 import { listUsers, type ListUsersSort, type UserWithStats } from '@/lib/users';
-import { listLiveBookingsByUser, type BookingRow } from '@/lib/bookings';
+import { listLiveBookingsByUser } from '@/lib/bookings';
 import { listInvitations, type InvitationRow } from '@/lib/invitations';
 import { revokeInvitation } from '@/actions/invitations';
 import { fmtDate, fmtDateRange } from '@/lib/dates';
@@ -18,6 +18,7 @@ import { PROPERTY_LABELS } from '@/lib/colors';
 import type { InvitationStatus } from '@db/enums';
 import { eur } from '@/lib/format';
 import { UserBookingChips } from '@/components/admin/UserBookingChips';
+import { toBookingChipSource, type BookingChipSource } from '@/lib/bookingAdapters';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ const SORT_OPTIONS: Array<{ value: ListUsersSort; label: string }> = [
 // no live bookings, which renders as "—".
 
 function userColumns(
-  bookingsByUser: Map<string, BookingRow[]>,
+  bookingsByUser: Map<string, BookingChipSource[]>,
 ): AdminTableColumn<UserWithStats>[] {
   return [
     {
@@ -251,8 +252,14 @@ export default async function AdminUsersPage({
 
   // Live bookings per visible user — drives the Status column's chip strip.
   // Single SQL hop keyed on the page's user_ids; users with nothing live
-  // render "—".
-  const bookingsByUser = await listLiveBookingsByUser(users.map((u) => u.id));
+  // render "—". Map each row through `toBookingChipSource` so the prop
+  // payload sent to UserBookingChips excludes internal fields
+  // (access_token, cancellation metadata, time stamps, etc.).
+  const rawBookingsByUser = await listLiveBookingsByUser(users.map((u) => u.id));
+  const bookingsByUser = new Map<string, BookingChipSource[]>();
+  for (const [userId, rows] of rawBookingsByUser) {
+    bookingsByUser.set(userId, rows.map(toBookingChipSource));
+  }
   const USER_COLUMNS = userColumns(bookingsByUser);
 
   return (
