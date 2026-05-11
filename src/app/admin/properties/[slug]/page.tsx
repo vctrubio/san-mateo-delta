@@ -40,10 +40,10 @@ export default async function AdminPropertyDetailPage({
   const stats = allStats.find((s) => s.property_id === property.id);
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="max-w-6xl">
       <Link
         href="/admin/properties"
-        className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4"
+        className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-ocean mb-4"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> back
       </Link>
@@ -51,21 +51,21 @@ export default async function AdminPropertyDetailPage({
       <div className="mb-8">
         <span className="text-xs font-mono text-ocean uppercase tracking-[0.4em]">{property.title}</span>
         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mt-1">{displayName(property.slug)}</h1>
-        <p className="text-[11px] font-mono text-slate-400 mt-1">slug: {property.slug}</p>
+        <p className="text-xs font-mono text-slate-400 mt-1">slug: {property.slug}</p>
       </div>
 
       <section className="mb-10">
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
-          <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">
             Calendar
           </h2>
-          <span className="text-[10px] font-mono text-slate-300">
+          <span className="text-xs font-mono text-slate-300">
             click an empty range to block · click a booking to act
           </span>
         </div>
         <Calendar
+          admin
           slug={property.slug}
-          mode="admin"
           monthsDefault={4}
           startMonth={calendarStart}
           items={calendarItems}
@@ -73,7 +73,7 @@ export default async function AdminPropertyDetailPage({
       </section>
 
       <section className="mb-10">
-        <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">
+        <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-3">
           Booking summary
         </h2>
         <PropertyBookingSummary
@@ -85,20 +85,20 @@ export default async function AdminPropertyDetailPage({
 
       <section className="mb-10">
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
-          <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">
             Property details
           </h2>
-          <span className="text-[10px] font-mono text-slate-300">edits affect new bookings only · snapshots</span>
+          <span className="text-xs font-mono text-slate-300">edits affect new bookings only · snapshots</span>
         </div>
         <PropertyEditForm property={property} />
       </section>
 
       <section className="mb-10">
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
-          <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">
             Rates · 12 months
           </h2>
-          <span className="text-[10px] font-mono text-slate-300">see docs/rates.md</span>
+          <span className="text-xs font-mono text-slate-300">see docs/rates.md</span>
         </div>
         <PropertyRateForm slug={property.slug} rates={property.rates} />
       </section>

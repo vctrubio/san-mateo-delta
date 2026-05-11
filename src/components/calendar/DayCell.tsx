@@ -1,6 +1,6 @@
 'use client';
 
-import type { CalendarItem, CalendarMode } from '@/lib/calendar';
+import type { CalendarItem } from '@/lib/calendar';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE, isBlockingStatus } from '@/lib/colors';
 import { isSameDay, isWithinClosed, isWithinHalfOpen, parseYmd } from './dateUtils';
 
@@ -22,7 +22,7 @@ export type DayCellProps = {
   day: Date;
   /** Items overlapping this day. Pre-filtered by parent. */
   items: CalendarItem[];
-  mode: CalendarMode;
+  admin: boolean;
   isPast: boolean;
   isOutOfMonth: boolean;
   selectionStart: Date | null;
@@ -36,7 +36,7 @@ export type DayCellProps = {
 export default function DayCell({
   day,
   items,
-  mode,
+  admin,
   isPast,
   isOutOfMonth,
   selectionStart,
@@ -61,13 +61,12 @@ export default function DayCell({
   );
 
   // public mode: invisible items (cancelled, request, invite) → treat as empty
-  const visibleSoft = mode === 'admin' ? softBooking : undefined;
+  const visibleSoft = admin ? softBooking : undefined;
 
   const isHeld = !!block || !!heldBooking;
-  const isSelectableForBlock = mode === 'admin' && !isPast && !isHeld;
-  const isSelectableForBooking = mode === 'public' && !isPast && !isHeld;
+  const isSelectableForBooking = !admin && !isPast && !isHeld;
   // Held cells are clickable in admin (open the action panel) but not in public.
-  const isClickable = mode === 'admin' || isSelectableForBooking;
+  const isClickable = admin || isSelectableForBooking;
 
   // --- selection ---
   const isStart = selectionStart && isSameDay(day, selectionStart);
@@ -92,11 +91,11 @@ export default function DayCell({
   } else if (block) {
     bg = PROPERTY_BLOCK_STYLE.cell;
     text = 'text-white';
-    cursor = mode === 'admin' ? 'cursor-pointer' : 'cursor-not-allowed';
+    cursor = admin ? 'cursor-pointer' : 'cursor-not-allowed';
   } else if (heldBooking && heldBooking.kind === 'booking') {
     const s = BOOKING_STATUS_STYLES[heldBooking.status];
     bg = s.cell;
-    cursor = mode === 'admin' ? 'cursor-pointer' : 'cursor-not-allowed';
+    cursor = admin ? 'cursor-pointer' : 'cursor-not-allowed';
   } else if (visibleSoft && visibleSoft.kind === 'booking') {
     // soft (request/invite/cancelled) only shows in admin mode, with reduced intensity
     const s = BOOKING_STATUS_STYLES[visibleSoft.status];

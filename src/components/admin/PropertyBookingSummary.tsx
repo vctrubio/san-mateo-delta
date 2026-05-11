@@ -2,10 +2,7 @@ import Link from 'next/link';
 import StatusBadge from '@/components/admin/StatusBadge';
 import { fmtDateRange } from '@/lib/dates';
 import type { BookingRow } from '@/lib/bookings';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
+import { eur } from '@/lib/format';
 
 export default function PropertyBookingSummary({
   bookings,
@@ -32,7 +29,7 @@ export default function PropertyBookingSummary({
       </div>
 
       <div>
-        <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2">Recent ({recent.length})</h3>
+        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400 mb-2">Recent ({recent.length})</h3>
         {recent.length === 0 ? (
           <div className="text-sm text-slate-400 italic">None.</div>
         ) : (
@@ -43,13 +40,13 @@ export default function PropertyBookingSummary({
                   href={`/admin/bookings/${b.id}`}
                   className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white border border-slate-100 hover:border-ocean transition-colors"
                 >
-                  <span className="font-mono text-[10px] text-slate-400">#{b.id}</span>
+                  <span className="font-mono text-xs text-slate-400">#{b.id}</span>
                   <StatusBadge status={b.status} />
-                  <span className="text-[12px] text-slate-600 flex-1">
+                  <span className="text-xs text-slate-600 flex-1">
                     {fmtDateRange(b.date_check_in, b.date_check_out)}
                   </span>
-                  <span className="text-slate-700 text-[12px]">{b.user_name ?? <span className="italic text-slate-400">no user</span>}</span>
-                  <span className="font-mono tabular-nums text-[12px] text-slate-900">{eur(b.agreed_total_cents)}</span>
+                  <span className="text-slate-700 text-xs">{b.user_name ?? <span className="italic text-slate-400">no user</span>}</span>
+                  <span className="font-mono tabular-nums text-xs text-slate-900">{eur(b.agreed_total_cents)}</span>
                 </Link>
               </li>
             ))}
@@ -63,9 +60,9 @@ export default function PropertyBookingSummary({
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl bg-white border border-slate-100 p-4">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{label}</div>
+      <div className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</div>
       <div className="text-2xl font-bold text-slate-900 tabular-nums mt-1">{value}</div>
-      {sub && <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
     </div>
   );
 }

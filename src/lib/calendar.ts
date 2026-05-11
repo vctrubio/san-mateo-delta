@@ -17,6 +17,8 @@ export type CalendarBooking = {
   end:   string; // YYYY-MM-DD (date_check_out, exclusive)
   /** "Maria · Levante" — used in tooltips and the admin action panel. */
   label: string;
+  /** Property slug (LEVANTE / ESTRECHO / MAREA / CALA). Used by modal headers. */
+  property_slug: string;
   /** Detail link, e.g. /admin/bookings/42. Optional for public mode. */
   href?: string;
   /** Optional metadata surfaced in the admin action panel. */
@@ -36,6 +38,8 @@ export type CalendarBlock = {
   start: string;
   end:   string;
   reason: string | null;
+  /** Property slug — same role as on CalendarBooking. */
+  property_slug: string;
 };
 
 export type CalendarItem = CalendarBooking | CalendarBlock;
@@ -119,14 +123,17 @@ export async function getCalendarItems(args: {
     start: string;
     end: string;
     reason: string | null;
+    property_slug: string;
   }>(
     `
     SELECT
       pb.id::text                AS id,
       pb.date_check_in::text     AS start,
       pb.date_check_out::text    AS "end",
-      pb.reason                  AS reason
+      pb.reason                  AS reason,
+      p.slug                     AS property_slug
     FROM property_blocks pb
+    JOIN properties p ON p.id = pb.property_id
     WHERE pb.property_id = $1
       AND pb.date_check_in  <  $3::date
       AND pb.date_check_out >  $2::date
@@ -142,6 +149,7 @@ export async function getCalendarItems(args: {
     start: b.start,
     end:   b.end,
     label: b.user_name ? `${b.user_name} · ${b.property_slug}` : `Admin booking · ${b.property_slug}`,
+    property_slug: b.property_slug,
     href:  args.mode === 'admin' ? `/admin/bookings/${b.id}` : undefined,
     user_id: b.user_id,
     user_name: b.user_name,
@@ -159,6 +167,7 @@ export async function getCalendarItems(args: {
     start: b.start,
     end:   b.end,
     reason: b.reason,
+    property_slug: b.property_slug,
   }));
 
   return [...bookingItems, ...blockItems];

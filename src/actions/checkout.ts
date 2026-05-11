@@ -34,7 +34,7 @@ export type CheckoutResult =
  *      populates stripe_payment_intent + stripe_charge_id.
  *   4. payment_intent.payment_failed webhook flips status to 'failed'.
  *
- * The booking_payments row exists from step 1 onward so the admin /payments
+ * The booking_payments row exists from step 1 onward so the booking detail
  * page reflects in-flight Stripe sessions, not just settled ones.
  */
 export async function createCheckoutSession(
@@ -185,7 +185,7 @@ export async function createCheckoutSession(
     client.release();
   }
 
-  revalidatePath('/admin/payments');
+  revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${bookingId}`);
 
   return { ok: true, url: session.url, sessionId: session.id, amount_cents };

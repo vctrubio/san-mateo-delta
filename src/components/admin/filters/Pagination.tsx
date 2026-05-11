@@ -41,7 +41,7 @@ export default function Pagination({
 
   return (
     <div className="flex items-center justify-between mt-5 px-2">
-      <span className="text-[11px] font-mono uppercase tracking-widest text-slate-400">
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
         Showing {start}–{end} of {total}
       </span>
       <div className="flex items-center gap-1">
@@ -54,7 +54,7 @@ export default function Pagination({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="px-3 py-1.5 text-[11px] font-mono text-slate-500 tabular-nums">
+        <span className="px-3 py-1.5 text-xs font-mono text-slate-500 tabular-nums">
           {page} / {lastPage}
         </span>
         <button

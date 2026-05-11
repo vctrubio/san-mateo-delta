@@ -8,6 +8,7 @@ import Calendar from '@/components/calendar/Calendar';
 import { ymd } from '@/components/calendar/dateUtils';
 import type { CalendarItem } from '@/lib/calendar';
 import type { Quote } from '@/lib/bookings';
+import { eur } from '@/lib/format';
 
 type PaymentIntent = 'stripe_full' | 'cash_on_arrival';
 
@@ -17,10 +18,6 @@ type Props = {
   /** Pre-fetched server-side, covers ~6 future months from /finca/[slug]/page.tsx. */
   items: CalendarItem[];
 };
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default function BookNowForm({ slug, maxGuests, items }: Props) {
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
@@ -105,7 +102,6 @@ export default function BookNowForm({ slug, maxGuests, items }: Props) {
       </div>
 
       <Calendar
-        mode="public"
         items={items}
         monthsDefault={2}
         selectedRange={range ? { start: range.start, end: range.end } : undefined}

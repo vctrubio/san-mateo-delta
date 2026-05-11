@@ -21,7 +21,7 @@ finca.json                 # static estate config at project root
 public/images/             # property + host images
 docs/                      # design + architecture docs (all markdown lives here)
   schema.md                # tables, relationships, enums, invariants, recipes
-  dashboard.md             # what /admin shows, why, what it deliberately omits
+  availability.md          # three-bucket availability + the /admin estate dashboard
   rates.md                 # pricing architecture + rate-selection algorithm
   refund.md                # cancellation-refund policy + tier logic
   stripe.md                # payment methods, webhooks, lifecycle, test cards
@@ -33,6 +33,7 @@ Rules:
 - A folder under `src/app/` exists only because it represents a URL segment. If a file is not a route file, it does not belong there.
 - Route files import components via the `@/components/<area>/<Name>` alias (configured in `tsconfig.json` paths).
 - Group components by area (`landing/`, `debug/`, `booking/`, `admin/`...), not by type. Avoid a flat `src/components/` dump.
+- Components that wrap the shared `<Modal>` shell (`@/components/shared/Modal`) live next to it in `src/components/shared/`, not in feature folders — even if their content is feature-specific. Keeps the modal family discoverable in one place. Examples: `PropertyDetailModals.tsx` lives in `shared/` because it composes `<Modal>`, even though it shows admin-only data.
 - Static config (estate metadata, copy) lives in JSON at the repo root and is imported with relative paths.
 
 ## Database
@@ -51,7 +52,7 @@ db/
   fullseason.ts / seed_fullseason.ts  # bun script: ~year of populated demo data
 ```
 
-Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/dashboard.md`, `docs/stripe.md`, `docs/ics.md`, `docs/invitations.md`.
+Markdown documentation lives in `docs/`, not in `db/`. See `docs/rates.md`, `docs/refund.md`, `docs/schema.md`, `docs/availability.md`, `docs/stripe.md`, `docs/ics.md`, `docs/invitations.md`.
 
 Scripts:
 - `bun db:init`  — wipe + reapply schema + seed (use this 99% of the time during iteration)
@@ -71,7 +72,7 @@ Rules:
 
 ## Admin dashboard
 
-The `/admin` dashboard is curated — it answers **how much was made, who is owed, and what's waiting**. State-machine detail (cancelled / checked_in / checked_out distribution) lives on `/admin/bookings` where it's actionable. Before adding a tile or chart, read [`docs/dashboard.md`](./docs/dashboard.md) — it documents the philosophy, the 5 sections, and what was deliberately left out so the page stays scannable in 5 seconds.
+The `/admin` dashboard is the **upcoming-only estate view** — money still to be made, properties at a glance, the calendar opens on demand. Four `AdminSection` blocks: `Upcoming` (`EstateOverview`) → `Availability` (`GanttStrip`) → `Properties` (`PerPropertyFutureStrip`) → `Calendar` (only when a property is focused). State-machine detail across all bookings (cancelled / checked_out distribution, audit, etc.) lives on `/admin/bookings` where it's actionable. Read [`docs/availability.md`](./docs/availability.md) before adding a section — it defines the bucket contracts (held set, today rule, payment scope) that the page is built on.
 
 ## Stripe — TEST MODE ONLY
 

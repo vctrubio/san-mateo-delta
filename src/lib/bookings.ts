@@ -72,10 +72,15 @@ const BOOKING_SELECT = `
   bc.refund_amount_cents::int           AS refund_amount_cents,
   bc.policy_applied                     AS policy_applied,
   b.created_at::text                    AS created_at,
+  -- "Paid" = money actually collected. Pending cash promises and failed
+  -- Stripe sessions do not count toward what is paid — they live in
+  -- booking_payments but until they flip to succeeded the host does not
+  -- have the money. Sums match totalPaidForBooking in lib/payments.ts.
   COALESCE((
     SELECT SUM(bp.amount_cents)::int
     FROM booking_payments bp
     WHERE bp.booking_id = b.id
+      AND bp.status = 'succeeded'
   ), 0)                                 AS paid_cents,
   COALESCE((
     SELECT SUM(pr.amount_cents)::int
@@ -126,7 +131,10 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  const limit = args.limit ?? 25;
+  // Default limit is high so the admin bookings page can split into
+  // upcoming/history client-side without paging — there are typically a few
+  // hundred rows even after years of bookings, well within one query.
+  const limit = args.limit ?? 1000;
   const offset = args.offset ?? 0;
   params.push(limit);
   const limitParam = `$${++p}`;
@@ -134,6 +142,9 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
   const offsetParam = `$${++p}`;
 
   // COUNT(*) OVER () returns the unfiltered-by-LIMIT total alongside the page.
+  // Sort by check-in date ascending so the page splits naturally into
+  // upcoming (chronological) vs history (most recent past first; the page
+  // reverses the history slice client-side).
   const rows = await sql<BookingRow & { _total: number }>(
     `
     SELECT ${BOOKING_SELECT},
@@ -143,9 +154,7 @@ export async function listBookings(args: ListBookingsArgs = {}): Promise<Paginat
     LEFT JOIN users u           ON u.id = b.user_id
     LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
     ${whereClause}
-    ORDER BY
-      CASE b.status WHEN 'request' THEN 0 WHEN 'confirmed' THEN 1 WHEN 'checked_in' THEN 2 ELSE 3 END,
-      b.created_at DESC
+    ORDER BY b.date_check_in ASC, b.id ASC
     LIMIT ${limitParam} OFFSET ${offsetParam}
     `,
     params as never[],
@@ -170,6 +179,58 @@ export async function listBookingsForUser(userId: string): Promise<BookingRow[]>
     `,
     [userId],
   );
+}
+
+/** Per-user cap for `listLiveBookingsByUser`. The chip strip is a "what
+ *  needs attention now?" surface, not a history view — six rows is enough
+ *  to show the closest upcoming bookings and keeps the table cell from
+ *  blowing up if a user accumulates a long pending queue. */
+export const LIVE_BOOKINGS_PER_USER = 6;
+
+// Bulk variant of listBookingsForUser. Returns a Map keyed by user_id so
+// the /admin/users table can render each row's status chips inline without
+// firing N queries.
+//
+// Filters:
+//   - "live" only: status NOT IN ('cancelled', 'checked_out')
+//   - per-user LIMIT via ROW_NUMBER PARTITION (LIVE_BOOKINGS_PER_USER)
+//
+// Sorted by check-in date so each user's slice is the next N upcoming.
+export async function listLiveBookingsByUser(
+  userIds: string[],
+): Promise<Map<string, BookingRow[]>> {
+  const out = new Map<string, BookingRow[]>();
+  if (userIds.length === 0) return out;
+  const rows = await sql<BookingRow>(
+    `
+    WITH ranked AS (
+      SELECT
+        b.id,
+        ROW_NUMBER() OVER (
+          PARTITION BY b.user_id
+          ORDER BY b.date_check_in ASC, b.id ASC
+        ) AS rn
+      FROM bookings b
+      WHERE b.user_id = ANY($1::bigint[])
+        AND b.status NOT IN ('cancelled', 'checked_out')
+    )
+    SELECT ${BOOKING_SELECT}
+    FROM bookings b
+    JOIN ranked r               ON r.id = b.id AND r.rn <= $2::int
+    JOIN properties p           ON p.id = b.property_id
+    LEFT JOIN users u           ON u.id = b.user_id
+    LEFT JOIN booking_cancellations bc ON bc.booking_id = b.id
+    ORDER BY b.date_check_in ASC, b.id ASC
+    `,
+    [userIds, LIVE_BOOKINGS_PER_USER],
+  );
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    const list = out.get(r.user_id) ?? [];
+    list.push(r);
+    out.set(r.user_id, list);
+  }
+  return out;
 }
 
 export async function listBookingsForProperty(propertyId: string): Promise<BookingRow[]> {
@@ -217,45 +278,15 @@ export async function listBookingEvents(bookingId: string): Promise<BookingEvent
   );
 }
 
-export async function listRecentBookingEvents(limit = 10) {
-  return sql<{
-    id: string;
-    booking_id: string;
-    event_type: string;
-    payload: Record<string, unknown>;
-    created_at: string;
-    property_slug: string;
-    user_name: string | null;
-  }>(
-    `
-    SELECT
-      e.id::text          AS id,
-      e.booking_id::text  AS booking_id,
-      e.event_type        AS event_type,
-      e.payload           AS payload,
-      e.created_at::text  AS created_at,
-      p.slug              AS property_slug,
-      u.name              AS user_name
-    FROM booking_events e
-    JOIN bookings b    ON b.id = e.booking_id
-    JOIN properties p  ON p.id = b.property_id
-    LEFT JOIN users u  ON u.id = b.user_id
-    ORDER BY e.created_at DESC, e.id DESC
-    LIMIT $1
-    `,
-    [limit],
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Pricing — one row in `properties.rates` JSONB carries the night rate for
 // each calendar month. computeQuote picks `rates[<check-in month>]` and
 // multiplies by nights. Cleaning fee comes from the same row. See docs/rates.md.
 //
 // No min-nights, no active/public flag, no separate rate rows. If admin
-// wants a one-off custom price for friends, they use /admin/invite which
-// snapshots a different price onto the booking — properties.rates is never
-// edited per-booking.
+// wants a one-off custom price for friends, they go through the calendar's
+// SelectionActionModal (createAdminBooking) which snapshots a different
+// price onto the booking — properties.rates is never edited per-booking.
 
 export type Quote = {
   /** Convenience copy of the month's rate from properties.rates. */

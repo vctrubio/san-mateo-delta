@@ -55,7 +55,7 @@ export default function FilterChips({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mr-1">
+      <span className="text-xs font-mono uppercase tracking-widest text-slate-400 mr-1">
         {label}
       </span>
       {options.map((opt) => {
@@ -67,7 +67,7 @@ export default function FilterChips({
             onClick={() => toggle(opt.value)}
             disabled={isPending}
             className={[
-              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-widest transition-colors',
+              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono uppercase tracking-widest transition-colors',
               active
                 ? opt.activeClass ?? 'bg-slate-900 text-white ring-1 ring-slate-900'
                 : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:ring-slate-300',

@@ -15,12 +15,12 @@ export default function PaymentActionButtons({
   size?: 'sm' | 'md';
 }) {
   if (status === 'cancelled') {
-    return <span className="text-[10px] font-mono text-slate-300 uppercase">no payments on cancelled</span>;
+    return <span className="text-xs font-mono text-slate-300 uppercase">no payments on cancelled</span>;
   }
   if (paidCents >= agreedCents) {
-    return <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest">fully paid</span>;
+    return <span className="text-xs font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest">fully paid</span>;
   }
-  const padding = size === 'sm' ? 'px-3 py-1.5 text-[11px]' : 'px-4 py-2.5 text-[12px]';
+  const padding = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-xs';
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {paidCents === 0 && (

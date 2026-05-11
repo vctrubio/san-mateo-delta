@@ -6,6 +6,7 @@ import {
   Wifi, Tv, AirVent, TreePine, PawPrint, ParkingCircle, WashingMachine, Sparkles,
   type LucideIcon,
 } from 'lucide-react';
+import { eur } from '@/lib/format';
 import { getPropertyBySlug, type RatesByMonth } from '@/lib/properties';
 import { getCalendarItems, windowFor } from '@/lib/calendar';
 import { MONTHS, MONTH_NAMES, type Month } from '@db/enums';
@@ -26,14 +27,6 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
 
 function displayName(slug: string) {
   return slug.charAt(0).toUpperCase() + slug.slice(1);
-}
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 }
 
 function formatMonths(months: number[]): string {

@@ -70,7 +70,9 @@ export async function createBlock(formData: FormData): Promise<CreateBlockResult
 
     // Lock any held bookings for this property whose dates overlap [start, end).
     // FOR UPDATE prevents a concurrent confirm from sneaking a held booking in
-    // between our check and our insert.
+    // between our check and our insert. Note: `FOR UPDATE OF b` only — Postgres
+    // refuses to lock the nullable side of a LEFT JOIN, and admin ghost
+    // bookings (user_id NULL) make `users u` nullable here.
     const conflicts = await client.query<{
       id: string;
       status: BookingStatus;
@@ -91,7 +93,7 @@ export async function createBlock(formData: FormData): Promise<CreateBlockResult
          AND b.date_check_in  <  $3::date
          AND b.date_check_out >  $2::date
        ORDER BY b.date_check_in ASC
-       FOR UPDATE
+       FOR UPDATE OF b
       `,
       [resolvedId, start, end, [...BLOCKING_BOOKING_STATUSES]],
     );

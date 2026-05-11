@@ -12,7 +12,7 @@ export default function PropertyEditForm({ property }: { property: Property }) {
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Description</span>
+        <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">Description</span>
         <textarea
           name="description"
           defaultValue={property.description}
@@ -23,7 +23,7 @@ export default function PropertyEditForm({ property }: { property: Property }) {
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+        <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">
           Features (one per line · per-property highlights, not estate-wide amenities)
         </span>
         <textarea
@@ -43,11 +43,11 @@ export default function PropertyEditForm({ property }: { property: Property }) {
 
       <button
         type="submit"
-        className="px-5 py-2.5 rounded-lg bg-slate-900 text-white text-[12px] font-mono uppercase tracking-widest hover:bg-ocean transition-colors"
+        className="px-5 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-mono uppercase tracking-widest hover:bg-ocean transition-colors"
       >
         Save changes
       </button>
-      <p className="text-[11px] text-slate-400">
+      <p className="text-xs text-slate-400">
         Changes apply to <span className="font-bold">new bookings only</span>. Existing bookings keep their snapshotted prices.
       </p>
     </form>
@@ -71,7 +71,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{label}</span>
+      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">{label}</span>
       <input
         name={name}
         type={type}

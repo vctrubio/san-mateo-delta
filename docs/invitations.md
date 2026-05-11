@@ -1,8 +1,10 @@
 # Invitations
 
-Admin-issued bookings priced manually for friends &amp; family. Lives at
-`/admin/invite`. Schema is `bookings` (with `status='invite'`) joined 1:1 with
-`booking_invitations`.
+Admin-issued bookings priced manually for friends &amp; family. Created from
+the admin calendar (drag a date range → `SelectionActionModal` → "Create
+booking" → "Hold for invitee"). The list lives embedded in `/admin/users`
+under the **Invitations** section. Schema is `bookings` (with
+`status='invite'`) joined 1:1 with `booking_invitations`.
 
 ## Why it's not just "a regular booking with a custom price"
 
@@ -15,8 +17,8 @@ admin types two numbers (property fee + cleaning fee), and those go straight
 onto the booking as the snapshot. To keep the favor visible — both for the
 host (was this a 30% discount? a free week?) and for the audit trail — we
 store what `computeQuote` *would* have returned in the `booking.invited`
-audit event payload. The `/admin/invite` table reads that back so each row
-shows custom-vs-default at a glance.
+audit event payload. The Invitations table on `/admin/users` reads that
+back so each row shows custom-vs-default at a glance.
 
 The booking's `agreed_property_cents` and `agreed_cleaning_cents` columns
 take both values cleanly — there's no schema branch for "regular" vs
@@ -28,24 +30,27 @@ any special handling.
 
 ## Two paths: hold vs confirm-now
 
-The form has a "On submit" toggle:
+The `SelectionActionModal` booking view has a Status picker:
 
-- **Hold for invitee to accept** (default) — booking starts as `invite`,
+- **Hold for invitee to accept** (`invite`) — booking starts as `invite`,
   invitation as `invited`. Standard "send and wait" flow. Dates aren't
   locked yet (the EXCLUDE constraint on `bookings` only fires for held
   statuses), so two pending invitations could overlap; whichever the
   invitee accepts first wins.
-- **Confirm now** — admin already trusts the invitee (friends, family,
-  themselves). Booking goes straight to `confirmed`, invitation is filed
-  as `accepted` with `accepted_user_id` = the upserted user and
-  `responded_at` = now. **Dates lock immediately** via the EXCLUDE
-  constraint. No accept-link round-trip.
+- **Confirm now** (`confirmed`) — admin already trusts the invitee (friends,
+  family, themselves). Booking goes straight to `confirmed`, no
+  `booking_invitations` row is created. **Dates lock immediately** via the
+  EXCLUDE constraint.
+
+Both paths flow through the same action: `createAdminBooking`. When
+`status='invite'`, it also inserts the `booking_invitations` row inside
+the same tx.
 
 ```
-admin types form          createInvitation(confirm_now)
+admin completes range     createAdminBooking(status='invite')
         │                         │
         ▼                         ▼
-  /admin/invite/new        ─ tx ─────────────────────────────────
+  SelectionActionModal     ─ tx ─────────────────────────────────
                            │  upsert user (by email)             │
                            │  FOR UPDATE overlap check on        │
                            │    held bookings                    │
@@ -82,26 +87,25 @@ admin types form          createInvitation(confirm_now)
 ## Action recipes
 
 ### Create an invitation
-1. Open `/admin/invite/new`.
-2. Pick property → calendar swaps to that property's items (admin mode shows
-   held bookings + blocks).
-3. Click two days. Form recomputes the default quote via
-   `previewInviteQuote` (a thin wrapper around `computeQuote` —
-   the rate engine is now just a JSONB lookup).
-4. Type the invitee's email. If it matches an existing user, the name field
+1. Open `/admin` (the calendar view) and click a property to focus it.
+2. Drag a date range on the calendar. `SelectionActionModal` auto-opens.
+3. Pick **Create booking**.
+4. The form runs `previewQuote` to show the default quote alongside the
+   custom-fee inputs. Diff strip turns green for a discount, amber for a
+   premium.
+5. Type the invitee's email. If it matches an existing user, the name field
    auto-fills via `<datalist>` autocomplete.
-5. Override property fee + cleaning fee. Diff strip turns green for a
-   discount, amber for a premium.
-6. Toggle **On submit**: leave on "Hold for invitee" for the standard
-   send-and-wait flow, or flip to "Confirm now" if the invitee has already
-   verbally agreed (the booking goes straight to `confirmed`; dates lock).
-7. Submit — `createInvitation` runs in a tx with `FOR UPDATE` overlap check
-   (because Postgres' exclusion constraint only fires on held statuses).
+6. Override property fee + cleaning fee.
+7. Pick **Hold for invite** under Status (or **Confirm now** for direct
+   confirmation — see "Two paths" above).
+8. Submit — `createAdminBooking` runs in a tx with `FOR UPDATE` overlap
+   check (because Postgres' exclusion constraint only fires on held
+   statuses) and inserts the `booking_invitations` row when status='invite'.
 
 ### Revoke a pending invitation
-On `/admin/invite`, click **Revoke** on a row with status `invited`. Flips
-the booking to `cancelled` and the invitation to `declined`, both in one tx.
-Logs a `booking.invitation_revoked` event.
+On `/admin/users` → Invitations section, click **Revoke** on a row with
+status `invited`. Flips the booking to `cancelled` and the invitation to
+`declined`, both in one tx. Logs a `booking.invitation_revoked` event.
 
 ### Accept an invitation (TBD)
 Not yet built. The endpoint should:
@@ -122,17 +126,17 @@ Not yet built. The endpoint should:
 - **Cross-status overlap protection.** The `bookings` table's exclusion
   constraint (`no_overlap_when_held`) only excludes `confirmed`/
   `checked_in`/`checked_out`. Creating an invitation that overlaps a held
-  booking would NOT trip the constraint, so `createInvitation` re-checks
+  booking would NOT trip the constraint, so `createAdminBooking` re-checks
   with `FOR UPDATE` inside the tx.
 - **Email uniqueness.** Multiple invitations may be sent to the same email
   (different bookings). The unique index on `users.email` upserts a single
   user record they all attach to. The unique index on
   `booking_invitations.booking_id` enforces 1 invitation per booking row.
-- **Default-fee audit.** `createInvitation` best-efforts `computeQuote`
+- **Default-fee audit.** `createAdminBooking` best-efforts `computeQuote`
   alongside the insert and snapshots both default totals into the
-  `booking.invited` event. This is the only way the table can show the diff
-  later — the rate engine is non-deterministic over time as rates evolve,
-  so we can't recompute it post-hoc.
+  `booking.admin_created` event. This is the only way the table can show
+  the diff later — the rate engine is non-deterministic over time as rates
+  evolve, so we can't recompute it post-hoc.
 
 ## Reference
 
@@ -140,9 +144,8 @@ Not yet built. The endpoint should:
 | ------------------------------------------------------------- | --------------------------------------------------- |
 | `db/schema.sql` (booking_invitations)                         | Table + invitation_status enum                      |
 | `src/lib/invitations.ts`                                      | listInvitations, getInvitationById, invitationStats |
-| `src/actions/invitations.ts`                                  | createInvitation, revokeInvitation, previewInviteQuote |
-| `src/components/admin/invite/InviteForm.tsx`                  | Client form with live diff vs default               |
-| `src/components/admin/invite/InvitationsTable.tsx`            | List rendering with diff pill + revoke              |
-| `src/app/admin/invite/page.tsx`                               | List + filters + stats strip                        |
-| `src/app/admin/invite/new/page.tsx`                           | Form server-shell                                   |
+| `src/actions/invitations.ts`                                  | revokeInvitation                                    |
+| `src/actions/bookings.ts` (createAdminBooking)                | Insert booking + booking_invitations row in one tx  |
+| `src/components/shared/SelectionActionModal.tsx`              | Calendar entry point — Status picker, custom fees   |
+| `src/app/admin/users/page.tsx` (Invitations section)          | List rendering with diff pill + revoke              |
 | `src/components/debug/DebugInvitationsPanel.tsx`              | Live narrative on /debug                            |

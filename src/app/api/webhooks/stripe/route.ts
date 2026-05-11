@@ -147,7 +147,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   revalidatePath('/admin');
-  revalidatePath('/admin/payments');
+  revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${payment.booking_id}`);
 }
 
@@ -171,7 +171,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     [payment.booking_id, JSON.stringify({ payment_id: payment.id, stripe_session_id: session.id })],
   );
 
-  revalidatePath('/admin/payments');
+  revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${payment.booking_id}`);
 }
 
@@ -204,7 +204,7 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
     ],
   );
 
-  revalidatePath('/admin/payments');
+  revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${payment.booking_id}`);
 }
 
@@ -255,6 +255,6 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     );
   }
 
-  revalidatePath('/admin/payments');
+  revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${payment.booking_id}`);
 }

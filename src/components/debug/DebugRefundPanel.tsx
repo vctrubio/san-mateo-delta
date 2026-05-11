@@ -2,14 +2,7 @@ import Link from 'next/link';
 import { Calculator, FileText, AlertTriangle } from 'lucide-react';
 import { sql } from '@db/client';
 import { DEFAULT_REFUND_POLICY, computeRefund } from '@/lib/refund';
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
+import { eur } from '@/lib/format';
 
 type CancellationRow = {
   booking_id: string;

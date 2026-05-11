@@ -3,10 +3,11 @@ import {
 } from 'lucide-react';
 import { sql } from '@db/client';
 import { fmtDateTime } from '@/lib/dates';
+import { eur } from '@/lib/format';
 
 // ============================================================================
 // DebugStripe — narrate the Stripe integration with live data. Mirrors the
-// philosophy of DebugAdminPanel: tell the story (what changed, what fires what)
+// philosophy of the other debug panels: tell the story (what changed, what fires what)
 // next to the actual numbers from the DB so it stays honest as the system
 // evolves. Read it after every Stripe-related change.
 // ============================================================================
@@ -135,9 +136,9 @@ function Story() {
           All handlers idempotent — Stripe retries on 5xx.
         </li>
         <li>
-          <strong>Admin:</strong> <code className="font-mono">/admin/payments</code> grew Method + Status columns + filters; booking detail
-          got <em>Mark cash received</em> and <em>Refund via Stripe</em> buttons. Dashboard added a 6th tile —{' '}
-          <em>Pending cash</em>.
+          <strong>Admin:</strong> booking detail page (<code className="font-mono">/admin/bookings/[id]</code>) shows the full payment history with
+          Method + Status chips and per-row <em>Mark cash received</em> / <em>Refund via Stripe</em> actions.
+          Dashboard added a 6th tile — <em>Pending cash</em>.
         </li>
       </ol>
     </div>
@@ -450,7 +451,7 @@ function Footer() {
         <li><code className="font-mono">bun dev</code> — terminal 1.</li>
         <li><code className="font-mono">stripe listen --forward-to localhost:3000/api/webhooks/stripe</code> — terminal 2. Paste the <code className="font-mono">whsec_…</code> into <code className="font-mono">.env.local</code>.</li>
         <li><code className="font-mono">bun db:smoke-stripe</code> — generates a real Checkout URL against an existing booking.</li>
-        <li>Open the URL, pay with <code className="font-mono">4242 4242 4242 4242</code>. Watch the row in <code className="font-mono">/admin/payments</code> flip pending → succeeded.</li>
+        <li>Open the URL, pay with <code className="font-mono">4242 4242 4242 4242</code>. Watch the row in the booking detail&apos;s Payments card flip pending → succeeded.</li>
         <li>From booking detail, click <em>Refund full</em>. Watch the refund land in <code className="font-mono">payment_refunds</code> via the <code className="font-mono">charge.refunded</code> webhook.</li>
       </ol>
     </div>
@@ -460,10 +461,6 @@ function Footer() {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function eur(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 function compactJson(value: Record<string, unknown>): string {
   const entries = Object.entries(value);
