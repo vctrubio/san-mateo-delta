@@ -272,6 +272,11 @@ calendar marks unavailable — is `{confirmed, checked_in, checked_out}`. This
 is mirrored in TS as `BLOCKING_BOOKING_STATUSES` in
 [`src/lib/colors.ts`](../src/lib/colors.ts).
 
+**Date guard on `confirmed → checked_in`:** `transitionStatus` rejects this
+transition unless `date_check_in === today`. See
+[`docs/admin-notifications.md`](./admin-notifications.md) for the rationale
+(keeps the `checked_in_unpaid` notification meaningful).
+
 ### `invitation_status`
 
 Lifecycle of `booking_invitations`. `invited → accepted | declined`.

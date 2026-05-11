@@ -6,6 +6,7 @@ import { pool } from '@db/client';
 import type { BookingStatus, CancelledBy, PaymentType } from '@db/enums';
 import { computeQuote, type Quote } from '@/lib/bookings';
 import { computeRefund } from '@/lib/refund';
+import { todayYmd } from '@/lib/dates';
 
 type RequestBookingResult =
   | { ok: true; userId: string; bookingId: string }
@@ -466,8 +467,9 @@ export async function transitionStatus(formData: FormData): Promise<void> {
     throw new Error('Use cancelBooking action to cancel.');
   }
 
-  const cur = await pool.query<{ status: BookingStatus; user_id: string | null }>(
-    `SELECT status::text AS status, user_id::text AS user_id FROM bookings WHERE id = $1`,
+  const cur = await pool.query<{ status: BookingStatus; user_id: string | null; date_check_in: string }>(
+    `SELECT status::text AS status, user_id::text AS user_id, date_check_in::text AS date_check_in
+       FROM bookings WHERE id = $1`,
     [bookingId],
   );
   const current = cur.rows[0];
@@ -475,6 +477,18 @@ export async function transitionStatus(formData: FormData): Promise<void> {
   const allowed = TRANSITIONS[current.status];
   if (!allowed.includes(to)) {
     throw new Error(`Cannot transition ${current.status} → ${to}.`);
+  }
+
+  // Hard rule from docs/admin-notifications.md: check-in only on the
+  // booked date. Without this, admins can backdate-check-in stale bookings
+  // and flood the `checked_in_unpaid` notification. If admin needs to
+  // check a guest in early/late, they adjust date_check_in first
+  // (UI for that is a follow-up — see docs/bugs.md).
+  if (to === 'checked_in' && current.date_check_in !== todayYmd()) {
+    throw new Error(
+      `Cannot check in: booking is for ${current.date_check_in}, today is ${todayYmd()}. ` +
+      `Adjust the check-in date first, or cancel the booking.`,
+    );
   }
 
   const now = new Date().toISOString();

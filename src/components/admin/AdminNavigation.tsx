@@ -10,6 +10,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import AdminActions from './AdminActions';
+import type { AdminAlert } from '@/lib/adminAlerts';
+import type { BookingChipSource } from '@/lib/bookingAdapters';
 
 // ============================================================================
 // Admin shell navigation. Replaces the old left sidebar.
@@ -45,7 +47,13 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
-export default function AdminNavigation() {
+export default function AdminNavigation({
+  alerts,
+  allBookings,
+}: {
+  alerts: AdminAlert[];
+  allBookings: BookingChipSource[];
+}) {
   const pathname = usePathname() ?? '/admin';
 
   return (
@@ -58,7 +66,7 @@ export default function AdminNavigation() {
             <Pills pathname={pathname} hideLabelsBelowLg />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <AdminActions />
+            <AdminActions alerts={alerts} allBookings={allBookings} />
           </div>
         </div>
 
@@ -67,7 +75,7 @@ export default function AdminNavigation() {
           <div className="flex items-center justify-between mb-3">
             <Brand />
             <div className="flex items-center gap-2 shrink-0">
-              <AdminActions />
+              <AdminActions alerts={alerts} allBookings={allBookings} />
             </div>
           </div>
           <div className="overflow-x-auto -mx-4 px-4 pb-1">

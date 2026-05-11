@@ -106,19 +106,6 @@ change. Already drifted once (`BookingsExplorer` splits confirmed into
 own SQL — pricier in DB cycles but kills the drift risk. `BookingsExplorer`
 can layer its property × bucket cross-tab on top of `aggregateBookings`.
 
-### `bookingAlerts` has no consumers yet
-
-Defined in `src/lib/bookingState.ts` with `check_in_today`, `overdue_*`,
-`unpaid_imminent` — surfaced in `BookingsAggregate.alerts` but nothing reads
-it. Speculative API.
-
-**Why it matters:** dead code on day one. Either wire it (e.g. dot indicator
-on `UserBookingChips` for alert-bearing bookings) or accept the placeholder.
-
-**Where to look:** `src/lib/bookingState.ts:bookingAlerts` — pick one
-consumer (e.g. badge in `UserBookingChips`) and ship before the next
-feature lands or it'll drift from reality.
-
 ### Cleanup payment column hidden, paid_cents may include cleaning
 
 `paid_cents` on `BookingRow` sums all succeeded payments on the booking —
@@ -136,6 +123,21 @@ Probably correct, but undocumented.
 ---
 
 ## 🟢 Deliberate follow-ups
+
+### No UI to adjust `date_check_in` after booking creation
+
+`transitionStatus` now enforces `confirmed → checked_in` only when
+`date_check_in === today` (per `docs/admin-notifications.md`). If a guest
+arrives a day late or early, admin needs to shift the booking's
+`date_check_in` before checking them in — but there's no UI for that yet.
+
+**Why it matters:** the `overdue_checkin` notification points admin at a
+booking they can't currently resolve cleanly (other than cancel + re-create).
+
+**Where to look:** add an "adjust dates" action on the booking detail
+page (`/admin/bookings/[id]`). Server action mutates `date_check_in` /
+`date_check_out` with the same exclusion-constraint guard
+`createAdminBooking` already uses.
 
 ### Live mode for Stripe is gated
 

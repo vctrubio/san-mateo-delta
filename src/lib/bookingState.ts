@@ -1,7 +1,6 @@
 import type { BookingStatus } from '@db/enums';
 import type { BookingRow } from './bookings';
 import { BLOCKING_BOOKING_STATUSES } from './colors';
-import { addDaysYmd } from './dates';
 
 // ============================================================================
 // Per-booking derived state — the canonical answer to "what bucket is this
@@ -62,43 +61,38 @@ export function paymentState(
 
 // ─── 3. Alerts ─────────────────────────────────────────────────────────────
 //
-// Per-booking attention flags. The list is small on purpose — only states
-// that warrant a UI nudge belong here. Add a kind when you wire it to a
-// surface (badge, notification, sort key) — don't add speculative ones.
+// Per-booking attention flags — the four conditions in
+// `docs/admin-notifications.md`. Each kind is a tuple of state × (date OR
+// payment), nothing more. Add a kind only by editing the doc first; the
+// doc is the contract and the code conforms to it.
 //
-// Imminent window for `unpaid_imminent` is 7 days; tune in one place.
-
-export const UNPAID_IMMINENT_DAYS = 7;
+// Returns at most one kind per booking — the conditions are mutually
+// exclusive on the status enum (a booking can't be both `confirmed` and
+// `checked_in`).
 
 export type BookingAlertKind =
-  | 'check_in_today'      // confirmed   & check_in  === today
-  | 'check_out_today'     // checked_in  & check_out === today
-  | 'overdue_checkin'     // confirmed   & check_in  <   today (didn't progress)
-  | 'overdue_checkout'    // checked_in  & check_out <   today
-  | 'unpaid_imminent';    // held & owes > 0 & check_in within UNPAID_IMMINENT_DAYS
+  | 'check_in_today'        // status='confirmed'   & date_check_in === today
+  | 'overdue_checkin'       // status='confirmed'   & date_check_in <   today
+  | 'checked_in_unpaid'     // status='checked_in'  & paid_cents < agreed_total
+  | 'request_awaiting';     // status='request'
 
-export function bookingAlerts(b: BookingRow, today: string): BookingAlertKind[] {
-  const out: BookingAlertKind[] = [];
+/** Minimal subset of a booking row needed to derive alert kinds. Lets
+ *  callers with a narrower shape (server SELECT projections, mock data)
+ *  use this without lugging the full BookingRow around. */
+export type AlertableBooking = Pick<BookingRow,
+  'status' | 'date_check_in' | 'paid_cents' | 'agreed_total_cents'
+>;
 
+export function bookingAlerts(b: AlertableBooking, today: string): BookingAlertKind[] {
+  if (b.status === 'request') return ['request_awaiting'];
   if (b.status === 'confirmed') {
-    if (b.date_check_in === today)   out.push('check_in_today');
-    else if (b.date_check_in < today) out.push('overdue_checkin');
+    if (b.date_check_in === today) return ['check_in_today'];
+    if (b.date_check_in <   today) return ['overdue_checkin'];
   }
-  if (b.status === 'checked_in') {
-    if (b.date_check_out === today)   out.push('check_out_today');
-    else if (b.date_check_out < today) out.push('overdue_checkout');
+  if (b.status === 'checked_in' && b.paid_cents < b.agreed_total_cents) {
+    return ['checked_in_unpaid'];
   }
-
-  // Money nudge: any held booking that still owes and is about to start.
-  if (
-    (b.status === 'confirmed' || b.status === 'checked_in') &&
-    b.paid_cents < b.agreed_total_cents
-  ) {
-    const limit = addDaysYmd(today, UNPAID_IMMINENT_DAYS);
-    if (b.date_check_in <= limit) out.push('unpaid_imminent');
-  }
-
-  return out;
+  return [];
 }
 
 // ─── Combined per-booking state ────────────────────────────────────────────
