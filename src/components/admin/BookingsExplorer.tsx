@@ -16,6 +16,7 @@ import {
 import type { BookingRow } from '@/lib/bookings';
 import { bookingRowToCalendarBooking } from '@/lib/bookingAdapters';
 import { eur } from '@/lib/format';
+import { formatGuests } from '@/lib/guests';
 
 // ============================================================================
 // BookingsExplorer — the /admin/bookings shell. Server fetches every booking
@@ -57,14 +58,6 @@ function ymdToday(): string {
 function isUpcoming(b: BookingRow, today: string): boolean {
   if (b.status === 'cancelled' || b.status === 'checked_out') return false;
   return b.date_check_out >= today;
-}
-
-function partyLabel(g: BookingRow['guests']): string {
-  const parts: string[] = [`${g.adults}A`];
-  if (g.children) parts.push(`${g.children}C`);
-  if (g.infants)  parts.push(`${g.infants}I`);
-  if (g.pets)     parts.push(`${g.pets}🐾`);
-  return parts.join(' · ');
 }
 
 // ─── Spotlight math-table row shape ────────────────────────────────────────
@@ -1234,7 +1227,7 @@ const BOOKING_COLUMNS: AdminTableColumn<BookingRow>[] = [
           {b.user_name ?? <span className="italic text-slate-400">no user</span>}
         </span>
         <span className="text-xs text-slate-400 font-mono tabular-nums shrink-0">
-          {partyLabel(b.guests)}
+          {formatGuests(b.guests)}
         </span>
       </div>
     ),

@@ -24,6 +24,7 @@ import {
   computeStayProgress,
 } from '@/lib/dates';
 import { eur, fmtTime } from '@/lib/format';
+import { formatGuests } from '@/lib/guests';
 
 export const dynamic = 'force-dynamic';
 
@@ -214,7 +215,7 @@ export default async function AdminBookingDetailPage({
           <p className="text-xs text-slate-500 tabular-nums mt-2">
             {booking.property_title}
             <span className="text-slate-300 mx-1.5">·</span>
-            {partyLabel(booking.guests, booking.property_max_guests)}
+            {formatGuests(booking.guests)} · sleeps {booking.property_max_guests}
             <span className="text-slate-300 mx-1.5">·</span>
             {booking.property_bedrooms} bed
             <span className="text-slate-300 mx-1.5">·</span>
@@ -328,16 +329,6 @@ export default async function AdminBookingDetailPage({
 }
 
 // ─── Tiny chips + helpers ──────────────────────────────────────────────────
-
-function partyLabel(g: BookingDetailGuests, max: number): string {
-  const parts: string[] = [`${g.adults}A`];
-  if (g.children) parts.push(`${g.children}C`);
-  if (g.infants)  parts.push(`${g.infants}I`);
-  if (g.pets)     parts.push(`${g.pets}🐾`);
-  return `${parts.join(' · ')} · sleeps ${max}`;
-}
-
-type BookingDetailGuests = { adults: number; children: number; infants: number; pets: number };
 
 function nightsLabel(checkIn: string, checkOut: string): string {
   const a = new Date(checkIn).getTime();

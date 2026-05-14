@@ -3,16 +3,7 @@
 import { motion } from 'framer-motion';
 import { Plane, Ship, MapPin, Mail } from 'lucide-react';
 import fincaData from '../../../finca.json';
-
-type Host = {
-  name: string;
-  role: string;
-  quote: string;
-  image: string;
-  haloClass: string;
-};
-
-const hosts: Host[] = fincaData.hosts;
+import { HostsSpotlight } from './HostsSpotlight';
 
 function AboutBackgroundText() {
   return (
@@ -113,50 +104,6 @@ function TravelGrid() {
       </div>
 
       <ContactCard />
-    </motion.div>
-  );
-}
-
-function HostCard({ host }: { host: Host }) {
-  return (
-    <div className="flex flex-col items-center text-center group">
-      <div className="relative mb-6">
-        <div className={`absolute inset-0 ${host.haloClass} rounded-full scale-110 group-hover:scale-125 transition-transform duration-700 opacity-50`} />
-        <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl">
-          <img src={host.image} alt={host.name} className="object-cover w-full h-full" />
-        </div>
-      </div>
-      <div className="space-y-3">
-        <div>
-          <h4 className="text-2xl font-bold text-slate-900 tracking-tight">{host.name}</h4>
-          <span className="text-xs font-mono text-ocean uppercase tracking-widest">{host.role}</span>
-        </div>
-        <p className="text-slate-500 text-sm italic leading-relaxed max-w-[240px]">&quot;{host.quote}&quot;</p>
-      </div>
-    </div>
-  );
-}
-
-function HostsSpotlight() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.4 }}
-      viewport={{ once: true }}
-      className="mt-8 space-y-12"
-    >
-      <div className="flex items-center gap-4">
-        <div className="h-px grow bg-slate-100" />
-        <span className="text-[10px] font-mono text-slate-300 uppercase tracking-[0.4em]">The Souls of {fincaData.name}</span>
-        <div className="h-px grow bg-slate-100" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-        {hosts.map((host) => (
-          <HostCard key={host.name} host={host} />
-        ))}
-      </div>
     </motion.div>
   );
 }

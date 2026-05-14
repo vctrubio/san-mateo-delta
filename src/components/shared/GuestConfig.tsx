@@ -1,6 +1,7 @@
 'use client';
 
 import { Minus, Plus } from 'lucide-react';
+import { totalGuests, type GuestCounts } from '@/lib/guests';
 
 // ============================================================================
 // GuestConfig — the single, reusable guest-count picker. Mirrors the shape of
@@ -12,28 +13,11 @@ import { Minus, Plus } from 'lucide-react';
 //   · invitation new-booking flow
 //   · anywhere else
 //
-// `totalGuests` (adults + children + infants — pets are tracked separately) is
-// the canonical "how many people" helper. Import it instead of recomputing.
+// The pure utilities (`GuestCounts`, `DEFAULT_GUESTS`, `totalGuests`,
+// `formatGuests`) live in `src/lib/guests.ts` so server components can use
+// them — this file is `'use client'` and its exports can't be invoked
+// across the RSC boundary.
 // ============================================================================
-
-export type GuestCounts = {
-  adults: number;
-  children: number;
-  infants: number;
-  pets: number;
-};
-
-export const DEFAULT_GUESTS: GuestCounts = {
-  adults: 2,
-  children: 0,
-  infants: 0,
-  pets: 0,
-};
-
-/** Sum of human guests. Pets are excluded — they have their own column on the booking. */
-export function totalGuests(g: GuestCounts): number {
-  return g.adults + g.children + g.infants;
-}
 
 type Row = { key: keyof GuestCounts; label: string; sub: string; min: number };
 

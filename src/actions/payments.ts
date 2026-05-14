@@ -6,7 +6,7 @@ import type { PaymentType } from '@db/enums';
 import { totalPaidForBooking } from '@/lib/payments';
 import { stripe } from '@/lib/stripe/server';
 
-const DEPOSIT_PCT = 0.30;
+const DEPOSIT_PCT = 0.50;
 
 function str(form: FormData, key: string): string | null {
   const v = form.get(key);
@@ -172,59 +172,6 @@ export async function registerCashPayment(
   } finally {
     client.release();
   }
-}
-
-// ---------------------------------------------------------------------------
-// markCashReceived — admin clicks "Mark received" on a pending cash payment.
-// Flips status pending → succeeded and updates paid_at to now. The original
-// row was inserted at booking-request time as the "owed cash" promise.
-// ---------------------------------------------------------------------------
-
-export async function markCashReceived(formData: FormData): Promise<void> {
-  const paymentId = str(formData, 'payment_id');
-  if (!paymentId) throw new Error('payment_id required');
-
-  const result = await pool.query<{
-    booking_id: string;
-    user_id: string | null;
-    method: string;
-    status: string;
-  }>(
-    `SELECT bp.booking_id::text                AS booking_id,
-            b.user_id::text                    AS user_id,
-            bp.method::text                    AS method,
-            bp.status::text                    AS status
-       FROM booking_payments bp
-       JOIN bookings b ON b.id = bp.booking_id
-      WHERE bp.id = $1`,
-    [paymentId],
-  );
-  const p = result.rows[0];
-  if (!p) throw new Error(`Payment ${paymentId} not found.`);
-  if (p.method !== 'cash') throw new Error('Only cash payments can be marked received here.');
-  if (p.status !== 'pending') throw new Error(`Payment is already ${p.status}.`);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query(
-      `UPDATE booking_payments SET status = 'succeeded', paid_at = now() WHERE id = $1`,
-      [paymentId],
-    );
-    await client.query(
-      `INSERT INTO booking_events (booking_id, event_type, payload)
-       VALUES ($1, 'payment.cash_received', $2::jsonb)`,
-      [p.booking_id, JSON.stringify({ payment_id: paymentId })],
-    );
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
-  }
-
-  revalidateForBookingPayment(p.booking_id, p.user_id);
 }
 
 // ---------------------------------------------------------------------------

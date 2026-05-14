@@ -1,23 +1,45 @@
 import Link from 'next/link';
+import Image from 'next/image';
+import {
+  ArrowLeft,
+  Calendar,
+  CalendarCheck,
+  CalendarRange,
+  MapPin,
+  Moon,
+  MoveRight,
+  Sparkles,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
-import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
-import CancelBookingForm from '@/components/admin/CancelBookingForm';
-import { fmtDateRange } from '@/lib/dates';
+import { fmtDate, fmtDateRange, nightsBetween, relativeStayLabel } from '@/lib/dates';
+import { eur } from '@/lib/format';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
+import { paymentState } from '@/lib/bookingState';
+import { formatGuests } from '@/lib/guests';
 import type { BookingRow } from '@/lib/bookings';
 import type { User } from '@/lib/users';
-import { eur } from '@/lib/format';
 
-const GROUPS: Array<{
-  key: 'pending' | 'upcoming' | 'past' | 'cancelled';
-  label: string;
-  filter: (b: BookingRow) => boolean;
-}> = [
-  { key: 'pending',   label: 'Pending host approval', filter: (b) => b.status === 'request' || b.status === 'invite' },
-  { key: 'upcoming',  label: 'Confirmed & in progress', filter: (b) => b.status === 'confirmed' || b.status === 'checked_in' },
-  { key: 'past',      label: 'Past stays',  filter: (b) => b.status === 'checked_out' },
-  { key: 'cancelled', label: 'Cancelled',   filter: (b) => b.status === 'cancelled' },
-];
+// ============================================================================
+// UserDashboard — guest-side portfolio. Read-only: shows everything the
+// guest cares about (next stay, history, money, refunds) but doesn't expose
+// cancellation. Cancellations route through the admin so the host stays in
+// the loop (the demo `/admin` covers this).
+//
+// Layout:
+//   1. Hero        — gradient + greeting + email + lifetime stats
+//   2. Next stay   — prominent card highlighting the soonest upcoming stay
+//   3. Bookings    — four grouped sections (pending / upcoming / past /
+//                    cancelled), each a list of rich BookingCard tiles
+//   4. CTA         — "Want another stay?" → /finca
+//
+// A BookingCard carries: property photo, name, relative-stay label, status
+// badge, date range + nights, guest counts (4A · 1C), paid / agreed money
+// breakdown, refund line if cancelled, and a "View property" link to
+// /finca/[slug]. No action buttons — this surface is for the guest's
+// situational awareness, not for mutations.
+// ============================================================================
 
 export default function UserDashboard({
   user,
@@ -26,108 +48,370 @@ export default function UserDashboard({
   user: User;
   bookings: BookingRow[];
 }) {
+  // Lifetime aggregates.
+  const totalBookings = bookings.length;
+  const lifetimeSpend = bookings.reduce((s, b) => s + b.paid_cents, 0);
+  const nightsLifetime = bookings
+    .filter((b) => b.status === 'checked_out' || b.status === 'checked_in')
+    .reduce((s, b) => s + nightsBetween(b.date_check_in, b.date_check_out), 0);
+
+  // Soonest upcoming stay — confirmed or checked_in, earliest check-in. The
+  // hero card renders this booking on its own; the "More upcoming" section
+  // below shows the OTHER confirmed/checked-in bookings so nothing is shown
+  // twice.
+  const upcomingAll = bookings
+    .filter((b) => b.status === 'confirmed' || b.status === 'checked_in')
+    .sort((a, b) => a.date_check_in.localeCompare(b.date_check_in));
+  const nextStay = upcomingAll[0];
+  const moreUpcoming = upcomingAll.slice(1);
+
+  // Group lists — `upcoming` skips the nextStay since the hero owns it.
+  const groups: Array<{ key: string; label: string; items: BookingRow[] }> = [
+    { key: 'pending',   label: 'Pending host approval', items: bookings.filter((b) => b.status === 'request' || b.status === 'invite') },
+    { key: 'upcoming',  label: 'More upcoming',         items: moreUpcoming },
+    { key: 'past',      label: 'Past stays',            items: bookings.filter((b) => b.status === 'checked_out') },
+    { key: 'cancelled', label: 'Cancelled',             items: bookings.filter((b) => b.status === 'cancelled') },
+  ];
+
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-4xl mx-auto">
-        <Link href="/user" className="text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-ocean">
-          ← all users
-        </Link>
+    <main className="min-h-screen bg-slate-50 pb-20">
+      <Hero
+        user={user}
+        totalBookings={totalBookings}
+        lifetimeSpend={lifetimeSpend}
+        nightsLifetime={nightsLifetime}
+      />
 
-        <div className="mt-3 mb-10">
-          <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Hi, {user.name.split(' ')[0]}.</h1>
-          <p className="text-sm text-slate-500 mt-1 font-mono">{user.email}</p>
-        </div>
+      <div className="max-w-4xl mx-auto px-6 -mt-20 relative z-10 space-y-10">
+        {nextStay && <NextStayCard booking={nextStay} />}
 
-        <div className="mb-8 rounded-2xl bg-sand p-5 border border-amber-200">
-          <h3 className="text-[10px] font-mono uppercase tracking-widest text-amber-700 mb-2">Want another stay?</h3>
-          <Link
-            href="/finca"
-            className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 hover:text-ocean"
-          >
-            Browse the four properties at Finca San Mateo →
-          </Link>
-        </div>
-
-        {GROUPS.map(({ key, label, filter }) => {
-          const items = bookings.filter(filter);
-          if (items.length === 0) return null;
-          return (
-            <section key={key} className="mb-8">
-              <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">
-                {label} · {items.length}
-              </h2>
-              <ul className="space-y-2">
-                {items.map((b) => (
-                  <li key={b.id} className="rounded-2xl bg-white border border-slate-100 p-5">
-                    <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-                      <div>
-                        <div className="flex items-center gap-3 mb-1 flex-wrap">
-                          <span className="font-bold text-slate-900">
-                            {PROPERTY_LABELS[b.property_slug as PropertySlug] ?? b.property_slug}
-                          </span>
-                          <StatusBadge status={b.status} />
-                        </div>
-                        <div className="text-[12px] text-slate-500">
-                          {fmtDateRange(b.date_check_in, b.date_check_out)} · {b.guests.adults}A {b.guests.children}C
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono tabular-nums text-lg font-bold text-slate-900">
-                          {eur(b.agreed_total_cents)}
-                        </div>
-                        <div className="text-[11px] font-mono text-slate-400">
-                          paid {eur(b.paid_cents)}
-                          {b.paid_cents < b.agreed_total_cents && (
-                            <span className="text-amber-700"> · outstanding {eur(b.agreed_total_cents - b.paid_cents)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {(b.status === 'confirmed' || b.status === 'checked_in') && (
-                      <div className="pt-3 border-t border-slate-50">
-                        <PaymentActionButtons
-                          bookingId={b.id}
-                          agreedCents={b.agreed_total_cents}
-                          paidCents={b.paid_cents}
-                          status={b.status}
-                          size="sm"
-                        />
-                      </div>
-                    )}
-
-                    {b.status === 'request' && (
-                      <div className="pt-3 border-t border-slate-50 text-[11px] text-slate-400 italic">
-                        Waiting for the host to confirm. You&apos;ll be able to pay once it&apos;s approved.
-                      </div>
-                    )}
-
-                    {(b.status === 'request' || b.status === 'invite' || b.status === 'confirmed') && (
-                      <div className="pt-3 mt-3 border-t border-slate-50">
-                        <CancelBookingForm bookingId={b.id} status={b.status} cancelledBy="guest" />
-                      </div>
-                    )}
-
-                    {b.status === 'cancelled' && b.refund_amount_cents != null && (
-                      <div className="pt-3 mt-3 border-t border-slate-50 text-[12px] text-rose-700">
-                        Cancelled by <span className="font-bold">{b.cancelled_by}</span>. Refund owed:{' '}
-                        <span className="font-bold">{eur(b.refund_amount_cents)}</span>
-                        {' · '}refunded so far: {eur(b.refunded_cents)} · policy: {b.policy_applied}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-
-        {bookings.length === 0 && (
-          <div className="rounded-2xl bg-white border border-slate-100 p-8 text-center text-slate-400 text-sm">
-            No bookings yet. <Link href="/finca" className="text-ocean hover:underline">Browse properties</Link> to start one.
-          </div>
+        {bookings.length === 0 ? (
+          <EmptyState />
+        ) : (
+          groups.map(({ key, label, items }) => {
+            if (items.length === 0) return null;
+            return (
+              <section key={key}>
+                <h2 className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400 mb-3 flex items-baseline gap-2">
+                  {label}
+                  <span className="text-slate-300 tracking-widest">· {items.length}</span>
+                </h2>
+                <ul className="space-y-3">
+                  {items.map((b) => (
+                    <li key={b.id}>
+                      <BookingCard booking={b} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })
         )}
+
+        <BrowseAnotherCard />
       </div>
     </main>
+  );
+}
+
+// ─── Hero ──────────────────────────────────────────────────────────────────
+
+function Hero({
+  user,
+  totalBookings,
+  lifetimeSpend,
+  nightsLifetime,
+}: {
+  user: User;
+  totalBookings: number;
+  lifetimeSpend: number;
+  nightsLifetime: number;
+}) {
+  return (
+    <header className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-ocean text-white pb-28 pt-12 px-6 overflow-hidden">
+      {/* Soft accents */}
+      <div className="absolute -top-32 -right-24 w-72 h-72 rounded-full bg-sky-400/20 blur-3xl" />
+      <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-sand/10 blur-3xl" />
+
+      <div className="max-w-4xl mx-auto relative">
+        <Link
+          href="/user"
+          className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-white/60 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-3 h-3" />
+          All users · demo
+        </Link>
+
+        <h1 className="mt-4 text-4xl md:text-5xl font-bold tracking-tighter">
+          Hi, {user.name.split(' ')[0]}.
+        </h1>
+        <p className="mt-1 text-sm font-mono text-white/60">{user.email}</p>
+
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Bookings"        value={String(totalBookings)} />
+          <Stat label="Lifetime spend"  value={eur(lifetimeSpend)} />
+          <Stat label="Nights stayed"   value={String(nightsLifetime)} />
+          <Stat label="Member since"    value={fmtDate(user.created_at)} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/10 backdrop-blur-md ring-1 ring-white/15 p-3">
+      <div className="text-[9px] font-mono uppercase tracking-[0.3em] text-white/60">{label}</div>
+      <div className="text-base md:text-lg font-bold tabular-nums tracking-tight mt-1 truncate">{value}</div>
+    </div>
+  );
+}
+
+// ─── Next stay highlight ───────────────────────────────────────────────────
+
+function NextStayCard({ booking }: { booking: BookingRow }) {
+  const nights = nightsBetween(booking.date_check_in, booking.date_check_out);
+  const propLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
+  const pay = paymentState(booking);
+  const owed = booking.agreed_total_cents - booking.paid_cents;
+
+  return (
+    <article className="rounded-3xl bg-white border border-slate-200 shadow-[0_4px_24px_-12px_rgba(15,23,42,0.15)] overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr]">
+        <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[260px] bg-slate-100">
+          <Image
+            src={`/images/${booking.property_slug}.png`}
+            alt={propLabel}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 280px"
+          />
+          <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md ring-1 ring-white/40 text-[10px] font-mono uppercase tracking-widest text-slate-700">
+            <Sparkles className="w-3 h-3 text-ocean" />
+            Next stay
+          </div>
+        </div>
+
+        <div className="p-6 md:p-7 flex flex-col gap-4">
+          <div>
+            <div className="text-xs font-mono text-ocean uppercase tracking-[0.4em]">
+              {relativeStayLabel(booking.date_check_in, booking.date_check_out)}
+            </div>
+            <div className="flex items-baseline gap-3 flex-wrap mt-1">
+              <h2 className="text-3xl font-bold text-slate-900 uppercase tracking-tighter">{propLabel}</h2>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                {booking.property_title}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <StatusBadge status={booking.status} />
+            <PaymentChip kind={pay} owed={owed} />
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm">
+            <Field icon={CalendarRange} label="Dates"   value={fmtDateRange(booking.date_check_in, booking.date_check_out)} />
+            <Field icon={Moon}          label="Nights"  value={String(nights)} />
+            <Field icon={Users}         label="Guests"  value={formatGuests(booking.guests)} />
+            <Field icon={Wallet}        label="Total"   value={`${eur(booking.paid_cents)} / ${eur(booking.agreed_total_cents)}`} />
+          </dl>
+
+          <Link
+            href={`/finca/${booking.property_slug}`}
+            className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-mono uppercase tracking-[0.2em] font-semibold hover:bg-ocean hover:shadow-lg hover:shadow-ocean/30 transition-all"
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            View property
+            <MoveRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ─── Booking card (used in grouped lists) ──────────────────────────────────
+
+function BookingCard({ booking }: { booking: BookingRow }) {
+  const nights = nightsBetween(booking.date_check_in, booking.date_check_out);
+  const propLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
+  const pay = paymentState(booking);
+  const owed = booking.agreed_total_cents - booking.paid_cents;
+  const refunded = booking.refunded_cents ?? 0;
+
+  return (
+    <article className="rounded-2xl bg-white border border-slate-200 overflow-hidden hover:border-ocean/40 hover:shadow-lg hover:shadow-ocean/5 transition-all">
+      <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr]">
+        {/* Photo */}
+        <div className="relative aspect-[4/3] sm:aspect-auto sm:min-h-[200px] bg-slate-100">
+          <Image
+            src={`/images/${booking.property_slug}.png`}
+            alt={propLabel}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, 180px"
+          />
+        </div>
+
+        {/* Body */}
+        <div className="p-5 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">{propLabel}</h3>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                  {booking.property_title}
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-ocean uppercase tracking-widest mt-1">
+                {relativeStayLabel(booking.date_check_in, booking.date_check_out)}
+              </p>
+            </div>
+            <StatusBadge status={booking.status} />
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+            <Field icon={CalendarRange} label="Dates"  value={`${fmtDateRange(booking.date_check_in, booking.date_check_out)} · ${nights}n`} compact />
+            <Field icon={Users}         label="Guests" value={formatGuests(booking.guests)} compact />
+            <Field icon={Wallet}        label="Paid"   value={`${eur(booking.paid_cents)} / ${eur(booking.agreed_total_cents)}`} compact />
+            {booking.status === 'cancelled'
+              ? <Field icon={Wallet} label="Refund" value={booking.refund_amount_cents != null ? eur(booking.refund_amount_cents) : '—'} compact />
+              : owed > 0
+                ? <Field icon={Wallet} label="Outstanding" value={eur(owed)} compact highlight="amber" />
+                : <Field icon={Wallet} label="Status" value="Settled" compact />}
+          </dl>
+
+          {/* Footer row: payment chip + actions */}
+          <div className="flex items-center justify-between gap-3 mt-auto pt-3 border-t border-slate-100 flex-wrap">
+            <PaymentChip kind={pay} owed={owed} />
+            <Link
+              href={`/finca/${booking.property_slug}`}
+              className="inline-flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest text-ocean hover:gap-2 transition-all"
+            >
+              View property
+              <MoveRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {/* Cancellation breakdown */}
+          {booking.status === 'cancelled' && (
+            <div className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 text-[11px] text-rose-700 leading-relaxed">
+              Cancelled by <span className="font-semibold">{booking.cancelled_by ?? 'host'}</span>
+              {booking.cancellation_reason && <> · {booking.cancellation_reason}</>}
+              {booking.policy_applied && <> · policy {booking.policy_applied}</>}
+              {refunded > 0 && <> · refunded {eur(refunded)}</>}
+            </div>
+          )}
+
+          {/* Pending — host hasn't approved yet */}
+          {booking.status === 'request' && (
+            <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[11px] text-amber-800">
+              <CalendarCheck className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
+              Waiting for the host to confirm — you&apos;ll be notified.
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ─── Shared bits ───────────────────────────────────────────────────────────
+
+function Field({
+  icon: Icon,
+  label,
+  value,
+  compact = false,
+  highlight,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  compact?: boolean;
+  highlight?: 'amber';
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <Icon className="w-3 h-3 text-slate-400 shrink-0" />
+        <span className="text-[9px] font-mono uppercase tracking-widest text-slate-400">{label}</span>
+      </div>
+      <div className={`mt-0.5 font-semibold truncate ${compact ? 'text-[13px]' : 'text-sm'} ${highlight === 'amber' ? 'text-amber-700' : 'text-slate-900'} tabular-nums`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PaymentChip({ kind, owed }: { kind: ReturnType<typeof paymentState>; owed: number }) {
+  if (kind === 'paid') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-[10px] font-mono uppercase tracking-widest">
+        Fully paid
+      </span>
+    );
+  }
+  if (kind === 'partial') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-[10px] font-mono uppercase tracking-widest">
+        Partial · {eur(owed)} owed
+      </span>
+    );
+  }
+  if (kind === 'unpaid') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-[10px] font-mono uppercase tracking-widest">
+        Unpaid · {eur(owed)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 ring-1 ring-slate-200 text-[10px] font-mono uppercase tracking-widest">
+      n/a
+    </span>
+  );
+}
+
+// ─── Empty + CTA ───────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <section className="rounded-3xl bg-white border border-slate-200 p-10 text-center">
+      <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+      <h3 className="text-lg font-bold text-slate-900 mb-1">No bookings yet</h3>
+      <p className="text-sm text-slate-500 mb-5">
+        Pick one of the four properties at Finca San Mateo and reserve your stay.
+      </p>
+      <Link
+        href="/finca"
+        className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-mono uppercase tracking-[0.2em] hover:bg-ocean hover:shadow-lg hover:shadow-ocean/30 transition-all"
+      >
+        Browse the collection
+        <MoveRight className="w-3.5 h-3.5" />
+      </Link>
+    </section>
+  );
+}
+
+function BrowseAnotherCard() {
+  return (
+    <section className="rounded-3xl bg-gradient-to-br from-sand/40 via-sand/20 to-white border border-amber-200 p-6 md:p-8 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-amber-700">Plan another stay</p>
+        <h3 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight mt-1">
+          Four homes, one estate, Tarifa.
+        </h3>
+        <p className="text-sm text-slate-600 mt-1">Pick your dates and the right space for the rhythm.</p>
+      </div>
+      <Link
+        href="/finca"
+        className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-mono uppercase tracking-[0.2em] hover:bg-ocean hover:shadow-lg hover:shadow-ocean/30 transition-all shrink-0"
+      >
+        Browse properties
+        <MoveRight className="w-3.5 h-3.5" />
+      </Link>
+    </section>
   );
 }

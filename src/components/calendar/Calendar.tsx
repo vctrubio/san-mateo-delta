@@ -21,7 +21,7 @@ import {
 //   Default 2 months. Held items (confirmed/checked_in/checked_out) and blocks
 //   are unselectable; everything else (request, invite, cancelled) is invisible
 //   to the guest. Two-click range selection. When a valid range is set, fires
-//   `onSelectRange(start, end)` so the parent (BookNowForm) can drive its
+//   `onSelectRange(start, end)` so the parent (PropertyView / admin shells) can drive its
 //   hidden inputs + re-quote.
 //
 // ADMIN (admin = true)
@@ -51,7 +51,7 @@ export type CalendarProps = {
   /** First month to render. Defaults to start of current month. */
   startMonth?: Date;
   /** Initial number of months. Defaults to 2 (public) or 4 (admin). */
-  monthsDefault?: 2 | 4 | 8 | 12;
+  monthsDefault?: 1 | 2 | 4 | 8 | 12;
   /** Pre-fetched items overlapping the rendered window. */
   items: CalendarItem[];
   /** Admin mode toggle. Defaults to false (public). */
@@ -99,7 +99,7 @@ export default function Calendar({
     );
   }, [items, showCancellation]);
 
-  const [months, setMonths] = useState<2 | 4 | 8 | 12>(initialMonths);
+  const [months, setMonths] = useState<1 | 2 | 4 | 8 | 12>(initialMonths);
   const [currentMonth, setCurrentMonth] = useState<Date>(
     startOfMonth(startMonth ?? new Date()),
   );

@@ -12,7 +12,6 @@ import {
   Loader2,
   Search,
   ExternalLink,
-  Coins,
   Undo2,
 } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -31,7 +30,6 @@ import {
 } from '@/actions/bookings';
 import {
   registerCashPayment,
-  markCashReceived,
   refundStripePayment,
 } from '@/actions/payments';
 import type { BookingStatus } from '@db/enums';
@@ -43,7 +41,7 @@ import type { BookingStatus } from '@db/enums';
 //
 //   Transitions       — Confirm / Check-in / Check-out tiles + Cancel-with-reason
 //   RegisterCashPayment — None / Pay remaining / Custom (morph) tiles + submit
-//   PaymentRowAction   — per-payment "Mark received" or "Refund full"
+//   PaymentRowAction   — per-payment "Refund full" (Stripe only)
 //   AssignUserPicker   — search+pick UI for ghost bookings (user_id IS NULL)
 //
 // All four use the modalKit primitives so they read as the same family as
@@ -420,19 +418,6 @@ export function PaymentRowAction({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function markReceived() {
-    setError(null);
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set('payment_id', paymentId);
-      try {
-        await markCashReceived(fd);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed');
-      }
-    });
-  }
-
   function refundFull() {
     if (!confirm(`Refund the full ${eur(amountCents - refundedCents)} via Stripe?`)) return;
     setError(null);
@@ -445,23 +430,6 @@ export function PaymentRowAction({
         setError(err instanceof Error ? err.message : 'Refund failed');
       }
     });
-  }
-
-  if (method === 'cash' && status === 'pending') {
-    return (
-      <div className="flex items-center justify-end gap-2">
-        {error && <span className="text-xs text-rose-700">{error}</span>}
-        <button
-          type="button"
-          onClick={markReceived}
-          disabled={isPending}
-          className="px-2.5 py-1 text-xs font-mono uppercase tracking-widest rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center gap-1.5"
-        >
-          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Coins className="w-3 h-3" />}
-          Mark received
-        </button>
-      </div>
-    );
   }
 
   if (method === 'stripe' && status === 'succeeded' && amountCents > refundedCents) {

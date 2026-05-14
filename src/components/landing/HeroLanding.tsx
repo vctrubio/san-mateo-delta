@@ -1,4 +1,4 @@
-import fincaData from '../../../finca.json';
+import { Title } from './Title';
 
 function Wireframe() {
   return (
@@ -51,33 +51,11 @@ function Wireframe() {
   );
 }
 
-function Title() {
-  return (
-    <div className="relative z-10 inline-flex flex-col items-center group">
-      <h1 className="text-6xl md:text-9xl font-bold tracking-tighter text-slate-900 leading-[0.8] uppercase">
-        {fincaData.name}
-      </h1>
-
-      <div className="w-full flex items-center justify-between gap-4 my-4 md:my-6">
-        <div className="h-px bg-slate-200 grow" />
-        <span className="text-[10px] md:text-xs font-mono tracking-[1em] text-slate-400 uppercase pl-[1em]">
-          FINCA
-        </span>
-        <div className="h-px bg-slate-200 grow" />
-      </div>
-
-      <h2 className="text-6xl md:text-9xl font-bold tracking-[0.28em] text-slate-900 leading-[0.8] uppercase ml-[0.28em]">
-        {fincaData.subtitle}
-      </h2>
-    </div>
-  );
-}
-
 export default function HeroLanding() {
   return (
     <section className="h-screen flex flex-col items-center justify-center text-center px-4 bg-background relative overflow-hidden">
       <Wireframe />
-      <Title />
+      <Title size="hero" />
     </section>
   );
 }

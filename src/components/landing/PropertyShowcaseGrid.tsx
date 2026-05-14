@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Users, X, Check, BedDouble, Bath, Maximize, MoveRight } from 'lucide-react';
+import { Users, X, Check, BedDouble, Bath, Maximize, MoveRight, Calendar } from 'lucide-react';
 import type { Property } from '@/lib/properties';
 import Modal from '@/components/shared/Modal';
 
@@ -140,13 +140,26 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
             )}
           </div>
 
-          <Link
-            href={`/finca/${property.slug}`}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white hover:bg-ocean hover:shadow-xl hover:shadow-ocean/20 transition-all duration-300 font-bold uppercase tracking-[0.2em] text-xs"
-          >
-            <span>View full property</span>
-            <MoveRight className="w-3.5 h-3.5" />
-          </Link>
+          {/* Two-CTA footer: Book Now is the primary action (ocean fill —
+              admin's notification bell lights up the moment it's tapped),
+              View full property is the "tell me more" fallback. Stacked on
+              mobile, side-by-side from sm up. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Link
+              href={`/finca/${property.slug}#book`}
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-ocean text-white hover:shadow-xl hover:shadow-ocean/30 transition-all duration-300 font-bold uppercase tracking-[0.2em] text-xs"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Book now</span>
+            </Link>
+            <Link
+              href={`/finca/${property.slug}`}
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-100 text-slate-900 hover:bg-slate-200 transition-all duration-300 font-bold uppercase tracking-[0.2em] text-xs"
+            >
+              <span>View full property</span>
+              <MoveRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </motion.div>
     </Modal>

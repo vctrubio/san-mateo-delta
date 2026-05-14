@@ -1,5 +1,4 @@
 import { AlertTriangle } from 'lucide-react';
-import BookNowForm from '@/components/finca/BookNowForm';
 import UserSignUpForm from '@/components/shared/UserSignUpForm';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
@@ -88,7 +87,7 @@ export default function FormsPreviewPage() {
           <Section
             title="Calendar · public mode (2 months)"
             file="src/components/calendar/Calendar.tsx"
-            usedOn="/finca/[slug] (inside BookNowForm)"
+            usedOn="/finca/[slug] (inside PropertyView)"
             note="Two-click date range selection. Held bookings + property blocks render as unavailable (hatched / colored). Cancelled / request / invite bookings are invisible to the public. Selection drives the parent form's hidden date inputs."
           >
             <Calendar monthsDefault={2} items={MOCK_CALENDAR_ITEMS} />
@@ -101,15 +100,6 @@ export default function FormsPreviewPage() {
             note="Every booking colored by status. Click an empty range to auto-open SelectionActionModal (chooser → block dates OR create new booking). Click a booking to open BookingActionModal — same modal kit, with inline status actions and a register-cash-payment section when there's an outstanding balance. Click a block to remove it."
           >
             <Calendar admin slug={MOCK_PROPERTY.slug} monthsDefault={4} items={MOCK_CALENDAR_ITEMS} />
-          </Section>
-
-          <Section
-            title="BookNowForm"
-            file="src/components/finca/BookNowForm.tsx"
-            usedOn="/finca/[slug]"
-            note="Guest-facing booking request. Embeds the public calendar (replaces the old date inputs), shows a live quote on selection, then collects guest info. Submits requestBooking → upserts user + creates booking → redirects to /user/[id]."
-          >
-            <BookNowForm slug={MOCK_PROPERTY.slug} maxGuests={MOCK_PROPERTY.max_guests} items={MOCK_CALENDAR_ITEMS} />
           </Section>
 
           <Section

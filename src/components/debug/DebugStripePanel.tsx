@@ -121,9 +121,10 @@ function Story() {
           on <code className="font-mono">payment_refunds</code>. CHECK constraint forces stripe rows to carry a session id.
         </li>
         <li>
-          <strong>Guest UX:</strong> <code className="font-mono">BookNowForm</code> now has a 3-option radio —{' '}
-          <em>pay deposit (30%)</em>, <em>pay full</em>, or <em>cash on arrival</em>. Stripe choices redirect to a hosted Checkout page;
-          cash inserts a pending row and shows on <code className="font-mono">/admin</code> as <em>owed</em>.
+          <strong>Guest UX:</strong> <code className="font-mono">PropertyView</code>&apos;s inline booking flow on
+          <code className="font-mono">/finca/[slug]</code> is card-only — submit creates the booking
+          (<code className="font-mono">status=request</code>) and redirects to Stripe Checkout for the 50% deposit.
+          Cash is admin-only — recorded from <code className="font-mono">/admin/bookings/[id]</code> after the guest pays in person.
         </li>
         <li>
           <strong>Server actions:</strong> <code className="font-mono">createCheckoutSession(bookingId, kind)</code> creates a
@@ -339,25 +340,20 @@ UPDATE booking_payments
        stripe_charge_id=ch_…`}
         </FlowCard>
 
-        <FlowCard title="Cash on arrival" icon={<Banknote className="w-3 h-3" />} accent="amber">
-{`guest picks "cash on arrival"
+        <FlowCard title="Cash · admin-recorded" icon={<Banknote className="w-3 h-3" />} accent="amber">
+{`guest pays in person
    ↓
-requestBooking()        ← booking row created (status='request')
-                        ← booking_payments INSERT
-                          (method='cash', status='pending',
-                           amount=full agreed total)
+admin opens /admin/bookings/[id]
    ↓
-host sees on /admin
-"Pending cash" tile lights up
+recordPayment() / registerCashPayment()
    ↓
-guest arrives
-   ↓
-host clicks "Mark received"
-markCashReceived()
-   ↓
-UPDATE booking_payments
-   SET status='succeeded',
-       paid_at=now()`}
+booking_payments INSERT
+  (method='cash', status='succeeded',
+   amount=cash received)
+
+No "pending cash" state —
+admin only logs cash that
+has already changed hands.`}
         </FlowCard>
 
         <FlowCard title="Stripe refund" icon={<RefreshCw className="w-3 h-3" />} accent="rose">
@@ -415,11 +411,11 @@ function Files() {
     ['src/lib/stripe/server.ts', 'pinned Stripe SDK singleton (server-only)'],
     ['src/lib/stripe/client.ts', 'loadStripe() loader for Elements (unused yet)'],
     ['src/actions/checkout.ts', 'createCheckoutSession server action'],
-    ['src/actions/payments.ts', '+ markCashReceived, refundStripePayment'],
+    ['src/actions/payments.ts', 'recordPayment, registerCashPayment, refundStripePayment'],
     ['src/app/api/webhooks/stripe/route.ts', 'webhook handler (4 events, idempotent)'],
     ['src/app/checkout/success/page.tsx', 'post-Stripe success page (auto-refresh on pending)'],
     ['src/app/checkout/cancel/page.tsx', 'post-Stripe cancel page'],
-    ['src/components/finca/BookNowForm.tsx', 'payment method radio + Stripe redirect orchestration'],
+    ['src/components/finca/PropertyView.tsx', 'inline booking flow (PricingCard → calendar → guests → submit) + Stripe redirect'],
     ['src/components/admin/PaymentsTable.tsx', 'Method/Status badges + Stripe Dashboard link'],
     ['db/seed_fullseason.ts', '60/40 stripe/cash mix with realistic ids'],
     ['docs/stripe.md', 'env vars, webhooks, test cards, idempotency'],

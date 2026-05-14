@@ -53,7 +53,8 @@ function revalidateForBooking(bookingId: string, userId: string | null) {
 }
 
 // ---------------------------------------------------------------------------
-// requestBooking — entry point from /finca/[slug] BookNowForm.
+// requestBooking — entry point from /finca/[slug] PropertyView's inline
+// booking flow (sidebar PricingCard "Book your stay" → calendar + form).
 // Snapshots the price components onto the booking row so future fee edits
 // don't alter past totals (see memory/snapshots_principle.md).
 // ---------------------------------------------------------------------------
@@ -151,24 +152,11 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
       ],
     );
 
-    // Cash on arrival: record an upfront pending payment so the booking
-    // detail page shows the outstanding cash before check-in. Stripe intents
-    // create their own pending row inside createCheckoutSession after this
-    // transaction commits — we don't insert anything here for them.
-    const payment_intent = str(formData, 'payment_intent') ?? 'cash_on_arrival';
-    if (payment_intent === 'cash_on_arrival') {
-      const totalCents = quote.agreed_property_cents + quote.agreed_cleaning_cents;
-      await client.query(
-        `INSERT INTO booking_payments (booking_id, type, amount_cents, method, status, paid_at)
-         VALUES ($1, 'reservation', $2, 'cash', 'pending', now())`,
-        [bookingId, totalCents],
-      );
-      await client.query(
-        `INSERT INTO booking_events (booking_id, event_type, payload)
-         VALUES ($1, 'payment.cash_pending', $2::jsonb)`,
-        [bookingId, JSON.stringify({ amount_cents: totalCents, due: 'on arrival' })],
-      );
-    }
+    // Payments are inserted by Stripe (`createCheckoutSession` adds the
+    // pending Stripe row right after this commits, the webhook flips it to
+    // succeeded) or by admin recording cash from the booking detail page.
+    // Guests never pay cash through this form — the public path is
+    // card-only. So no payment row gets inserted here.
 
     await client.query('COMMIT');
 
@@ -412,7 +400,7 @@ export async function createAdminBooking(formData: FormData): Promise<CreateAdmi
 }
 
 // ---------------------------------------------------------------------------
-// previewQuote — UI-only helper for the BookNowForm calendar. Same algorithm
+// previewQuote — UI-only helper for the public booking calendar. Same algorithm
 // as requestBooking's pricing path (computeQuote), just exposed without
 // inserting anything. Returned as a discriminated union so the client can
 // render either the price summary or the error.

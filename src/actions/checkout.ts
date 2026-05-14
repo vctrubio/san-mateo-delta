@@ -9,7 +9,11 @@ import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
 import finca from '../../finca.json';
 
-const DEPOSIT_PCT = 0.30;
+// Deposit charged on booking. Remaining balance is due 14 days before
+// arrival — that scheduled charge isn't wired yet; for now the host
+// either collects the balance manually or the guest pays it through
+// /user/[id]'s "Pay outstanding" CTA (planned).
+const DEPOSIT_PCT = 0.50;
 
 /**
  * Stripe Checkout kind. Maps onto the existing payment_type enum:

@@ -15,22 +15,25 @@ lifecycles but write to the same table.
                     │  request    │
                     └──────┬──────┘
                            │
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-  cash on arrival    stripe deposit       stripe full
-   (method=cash,     (method=stripe,     (method=stripe,
-    pending)          pending → ...)      pending → ...)
-        │                  │                  │
-        ▼                  ▼                  ▼
-   admin clicks    Stripe webhook       Stripe webhook
-   "Mark received"  fires success        fires success
-        │                  │                  │
-        ▼                  ▼                  ▼
-   status=succeeded  status=succeeded    status=succeeded
+        ┌──────────────────┴──────────────────┐
+        ▼                                     ▼
+  stripe deposit                       stripe full
+   (method=stripe,                    (method=stripe,
+    pending → ...)                     pending → ...)
+        │                                     │
+        ▼                                     ▼
+   Stripe webhook                      Stripe webhook
+   fires success                       fires success
+        │                                     │
+        ▼                                     ▼
+   status=succeeded                    status=succeeded
 ```
 
-Cash-on-arrival rows are inserted at booking-request time so the
-`Pending cash` tile on `/admin` shows the host what's owed.
+Guests always pay by card through Stripe Checkout. Cash is admin-only —
+recorded directly as `method=cash, status=succeeded` from the booking
+detail page after the guest pays in person (via `recordPayment` /
+`registerCashPayment`). There is no `cash + pending` state — cash isn't
+"owed via the system", it's owed via the rental agreement.
 
 Stripe rows are inserted by `createCheckoutSession` *after* a Stripe
 Checkout Session is created, with the `cs_…` id, and stay `pending`
@@ -138,7 +141,7 @@ Full list: https://docs.stripe.com/testing#cards
 | `payment_intent.payment_failed` | webhook handler                                | Flips status to failed                            |
 | `charge.refunded`          | webhook handler                                     | Inserts payment_refunds row                       |
 | Admin refund button        | `src/actions/payments.ts#refundStripePayment`       | Calls Stripe refund API; webhook does the DB work |
-| Mark cash received         | `src/actions/payments.ts#markCashReceived`          | Flips pending cash → succeeded                    |
+| Admin cash payment         | `src/actions/payments.ts#recordPayment` / `registerCashPayment` | Inserts `method=cash, status=succeeded` directly  |
 
 ## Idempotency
 
