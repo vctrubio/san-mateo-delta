@@ -4,7 +4,6 @@ import { sql } from '@db/client';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
 import finca from '@config/finca.json';
-import socials from '@config/socials.json';
 import { eur } from '@/lib/format';
 
 // Success page is rendered after Stripe redirects back. The webhook does the
@@ -170,9 +169,9 @@ export default async function SuccessPage(props: { searchParams: Promise<{ sessi
         <div className="rounded-2xl bg-white border border-slate-200 p-5">
           <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-3">Need anything?</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
-            <ContactRow icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={socials.email} href={`mailto:${socials.email}`} />
-            <ContactRow icon={<Phone className="w-3.5 h-3.5" />} label="Phone" value={socials.phone} href={`tel:${socials.phone.replace(/\s+/g, '')}`} />
-            <ContactRow icon={<Globe2 className="w-3.5 h-3.5" />} label="Website" value="fincasanmateo.com" href={socials.website} />
+            <ContactRow icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={finca.contact.email} href={`mailto:${finca.contact.email}`} />
+            <ContactRow icon={<Phone className="w-3.5 h-3.5" />} label="Phone" value={finca.contact.phone} href={`tel:${finca.contact.phone.replace(/\s+/g, '')}`} />
+            <ContactRow icon={<Globe2 className="w-3.5 h-3.5" />} label="Website" value="fincasanmateo.com" href={finca.contact.website} />
           </div>
           <p className="mt-4 pt-4 border-t border-slate-100 text-[11px] text-slate-500 leading-relaxed">
             Hosted by <strong>{finca.hosts[0]?.name}</strong> ({finca.hosts[0]?.role}). On-site help from{' '}

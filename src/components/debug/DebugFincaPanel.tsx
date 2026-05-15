@@ -13,7 +13,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import fincaData from '@config/finca.json';
-import socials from '@config/socials.json';
 
 // Visual mapping only — labels come from finca.json. Adding "BBQ" to the JSON
 // renders fine without touching this map; map a new key here if you want a
@@ -68,11 +67,11 @@ function EstateMeta() {
         <div className="space-y-1.5 text-[12px]">
           <div className="flex items-center gap-2">
             <Mail className="w-3.5 h-3.5 text-ocean" />
-            <span className="text-slate-700 font-mono">{socials.email}</span>
+            <span className="text-slate-700 font-mono">{fincaData.contact.email}</span>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-3.5 h-3.5 text-ocean" />
-            <span className="text-slate-700 font-mono">{socials.phone}</span>
+            <span className="text-slate-700 font-mono">{fincaData.contact.phone}</span>
           </div>
         </div>
       </div>

@@ -14,12 +14,17 @@
     "Private Parking",
     "Washer"
   ],
+  "contact": {
+    "phone": "+34 629 768 693",
+    "email": "drubioyuste@gmail.com",
+    "website": "https://fincasanmateo.com"
+  },
   "location": {
     "city": "Tarifa",
     "region": "Cádiz",
     "country": "Spain",
     "timezone": "Europe/Madrid",
-    "description": "As the windy capital of the world, Tarifa isn't just a location—it's an energy. A sanctuary where the elements dictate the pace of life."
+    "description": "As the windy capital of the world, Tarifa isn't just another holiday destination. It's a sanctuary where the elements dictate the rythm to life."
   },
   "hosts": [
     {

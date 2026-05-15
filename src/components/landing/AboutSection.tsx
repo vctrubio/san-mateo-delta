@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { Plane, Ship, MapPin, Mail } from 'lucide-react';
 import fincaData from '@config/finca.json';
-import socials from '@config/socials.json';
 import travel from '@config/travel.json';
 import { HostsSpotlight } from './HostsSpotlight';
 
@@ -60,7 +59,7 @@ function ContactCard() {
           </div>
           <div className="flex items-center gap-3">
             <Mail className="w-4 h-4 text-ocean" />
-            <span className="text-sm">{socials.email}</span>
+            <span className="text-sm">{fincaData.contact.email}</span>
           </div>
         </div>
       </div>

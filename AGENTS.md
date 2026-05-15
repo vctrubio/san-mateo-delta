@@ -18,8 +18,8 @@ src/
     debug/                 # DebugColorPanel
   lib/                     # utilities, clients, shared logic (when needed)
 config/                    # static configuration, imported via the @config/* alias
-  finca.json               # estate identity: name, subtitle, est, check-in/out times, amenities, location, hosts
-  socials.json             # contact channels + external links (phone, email, website, airbnb, facebook, instagram, whatsapp)
+  finca.json               # estate identity: name, subtitle, est, check-in/out times, amenities, contact (phone/email/website), location, hosts
+  socials.json             # Footer-only — list of social/share entries with embedded SVG icons (airbnb, facebook, share)
   travel.json              # how guests reach the finca (airports, ferry crossings)
   payments.json            # 4 named payment-policy presets + default_key — wired into src/lib/payment.ts
 public/images/             # property + host images
@@ -47,8 +47,8 @@ Everything that is *static, non-code, shipped at build time* lives in `config/` 
 
 | File | Holds | Imported by |
 |---|---|---|
-| `config/finca.json` | Estate identity — name, subtitle, est, check-in/out times, description, amenities, location, hosts. | Landing/Title/HostsSpotlight, /finca, /finca/[slug], SelectionActionModal, checkout/success, ICS route, DebugFincaPanel. |
-| `config/socials.json` | Contact channels + every external link the estate publishes — phone, email, website, airbnb, facebook, instagram, whatsapp. | Footer, AboutSection, checkout/success, ICS route, DebugFincaPanel, actions/checkout. |
+| `config/finca.json` | Estate identity — name, subtitle, est, check-in/out times, description, amenities, **contact (phone / email / website)**, location, hosts. | Landing/Title/HostsSpotlight, AboutSection, /finca, /finca/[slug], SelectionActionModal, checkout/success, ICS route, DebugFincaPanel, actions/checkout. |
+| `config/socials.json` | **Footer-only.** A `links` array; each entry is either `kind: "link"` (anchor → external URL) or `kind: "action"` (button → behaviour, e.g. `share`). Every entry carries its own SVG icon (`viewBox` + `path`) so the Footer never hardcodes a brand mark. | Footer. |
 | `config/travel.json` | How guests get here — airports + strait/ferry info. Pure travel logistics, no estate identity. | AboutSection, PropertyView. |
 | `config/payments.json` | The 4 named payment-policy presets + `default_key`. Pure data — the labels, descriptions, deposit_pct, balance_days_before, method. | `src/lib/payment.ts` only — every other consumer goes through `PAYMENT_PRESETS` / `FALLBACK_POLICY_KEY` exported from there. |
 
