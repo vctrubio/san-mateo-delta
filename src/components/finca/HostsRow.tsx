@@ -1,15 +1,15 @@
 import Image from 'next/image';
 import fincaData from '@config/finca.json';
 
-// HostsRow — two host cards side-by-side, no header. Reads
-// `config/finca.json#hosts`. Server component.
+// HostsRow — host cards stacked, no header. Reads `config/finca.json#hosts`.
+// Server component.
 //
-// Rendered as the closing strip on every /finca* page so David + Tano
-// always frame the bottom of the surface — same approach as the amenity
-// ribbon above it.
+// Lives in the narrow 1/3 column of FincaLayout's closing strip, alongside
+// the wider FincaLocation card. Single-column always — the parent grid
+// gives it the right width; stacking keeps the host cards readable.
 export function HostsRow() {
   return (
-    <ul className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-5">
+    <ul className="grid grid-cols-1 gap-5">
       {fincaData.hosts.map((h) => (
         <li
           key={h.name}

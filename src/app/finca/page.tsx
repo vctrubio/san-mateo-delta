@@ -24,16 +24,12 @@ export const metadata: Metadata = {
 // ============================================================================
 // /finca — public collection page.
 //
-// Composes the shared finca scaffold:
 //   1. FincaLead       — estate-level lead (heading + description)
 //   2. Property cards  — the booking lead
-//   3. AmenityRibbon   — estate-wide amenities, persistent
-//   4. HostsRow        — David + Tano, persistent
 //
-// The layout (`/finca/layout.tsx`) owns the banner + the "Punta Paloma"
-// eyebrow above. /finca/[slug] composes the same scaffold but swaps the
-// FincaLead copy for the property's name + description, and inserts
-// PropertyView between the lead and the AmenityRibbon.
+// Everything below the property list (Location, Hosts, Footer) is owned
+// by `/finca/layout.tsx` and persists across navigation between /finca
+// and /finca/[slug].
 // ============================================================================
 
 export default async function FincaIndexPage() {

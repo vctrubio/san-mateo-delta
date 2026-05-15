@@ -2,8 +2,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Title } from '@/components/landing/Title';
 import { FincaEyebrow } from '@/components/finca/FincaEyebrow';
-import { AmenityRibbon } from '@/components/finca/AmenityRibbon';
+import { FincaLocation } from '@/components/finca/FincaLocation';
 import { HostsRow } from '@/components/finca/HostsRow';
+import Footer from '@/components/landing/Footer';
 import finca from '@config/finca.json';
 
 // ============================================================================
@@ -11,17 +12,15 @@ import finca from '@config/finca.json';
 //
 //   [Banner]                       — FincaBanner photo + clickable Title
 //   [FincaEyebrow]                 — Punta Paloma line + back-to-/finca link
-//                                    (the back link only renders on slug pages,
-//                                    via usePathname inside the client widget)
-//   {children}                     — the per-route content (FincaLead +
-//                                    middle body — list or PropertyView)
-//   [AmenityRibbon]                — estate-wide amenities, every page
-//   [HostsRow]                     — David + Tano, every page
+//   {children}                     — the per-route content
+//   [Location 2/3 | Hosts 1/3]     — closing strip, two-column on lg+
+//   [Footer]                       — the same one used on the homepage
 //
-// AmenityRibbon and HostsRow live HERE (not in the pages) because they're
-// route-agnostic and should never re-render between /finca and
-// /finca/[slug] navigations — the React tree stays mounted across the
-// transition.
+// The estate-wide amenities don't render here anymore — they live in the
+// per-property PropertyStickers (characteristics) on each slug surface,
+// which means the bottom of the page doesn't repeat what's already up
+// top. Footer (from `@/components/landing/Footer`) ships the social
+// links + wind ticker, keeping the same closing voice as the homepage.
 // ============================================================================
 
 export default function FincaLayout({ children }: { children: React.ReactNode }) {
@@ -31,9 +30,19 @@ export default function FincaLayout({ children }: { children: React.ReactNode })
       <div className="max-w-5xl mx-auto px-6 pt-10 pb-16">
         <FincaEyebrow />
         {children}
-        <AmenityRibbon />
-        <HostsRow />
+
+        {/* Closing strip — Location (wider, left) + Hosts (stacked, right).
+            `h-full` on FincaLocation lets it match the combined hosts
+            height. On narrow widths the grid collapses to single column
+            and Location lands on top. */}
+        <section className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <FincaLocation />
+          </div>
+          <HostsRow />
+        </section>
       </div>
+      <Footer />
     </div>
   );
 }

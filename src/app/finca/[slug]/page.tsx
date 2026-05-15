@@ -1,11 +1,17 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { listProperties } from '@/lib/properties';
+import { getCalendarItems, windowFor } from '@/lib/calendar';
+import { getActivePaymentPolicy } from '@/lib/systemSettings';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, propertyImageUrl } from '@/lib/site';
 import { FincaLead, accentedTitle } from '@/components/finca/FincaLead';
 import { PropertyNavigationGallery } from '@/components/finca/PropertyNavigationGallery';
 import { PropertyStickers } from '@/components/finca/PropertyStickers';
+import { PropertyPhotosWireframe } from '@/components/finca/PropertyPhotosWireframe';
+import { PropertySectionTabs } from '@/components/finca/PropertySectionTabs';
+import { PropertyPrices } from '@/components/finca/PropertyPrices';
+import Calendar from '@/components/calendar/Calendar';
 import fincaData from '@config/finca.json';
 
 export const dynamic = 'force-dynamic';
@@ -43,13 +49,22 @@ export async function generateMetadata(
   };
 }
 
-// /finca/[slug] — server thin shell. Fetches the property list and renders
-// the lead + stickers + the navigation gallery. Booking flow, calendar,
-// pricing, availability windows, etc. previously lived here via PropertyView;
-// the page is being rebuilt from scratch — see `plan/` for the next pass.
+// /finca/[slug] — server thin shell.
 //
-// No loading.tsx — Next's default behaviour (no fallback) is preferred here;
-// a skeleton flash on every URL switch felt worse than a momentary stall.
+// Fetches: properties (for the navigation gallery), the public calendar
+// window for this slug (6 months forward), and the estate-wide active
+// payment policy (for the Prices tab). All three run in parallel.
+//
+// The slug page composes:
+//   FincaLead (title + stickers + description)
+//   PropertyNavigationGallery (hero photo + sibling switcher)
+//   PropertySectionTabs (client switcher) wrapping three RSC children:
+//     - property      → PropertyPhotosWireframe (Cloudinary stub)
+//     - availability  → public Calendar with held bookings + blocks
+//     - prices        → PropertyPrices (rate table + cleaning + policy)
+//
+// No loading.tsx — the skeleton flash on every URL switch felt worse than
+// a momentary stall.
 export default async function PropertyDetailsPage({
   params,
 }: {
@@ -60,15 +75,27 @@ export default async function PropertyDetailsPage({
   const selected = properties.find((p) => p.slug === slug);
   if (!selected) notFound();
 
+  const { from, to } = windowFor(new Date(), 6);
+  const [items, activePolicy] = await Promise.all([
+    getCalendarItems({ propertyId: selected.id, from, to, mode: 'public' }),
+    getActivePaymentPolicy(),
+  ]);
+
   return (
     <>
       <FincaLead
         heading={accentedTitle(selected.title)}
         description={selected.description}
-        meta={<PropertyStickers property={selected} size="md" />}
+        meta={<PropertyStickers property={selected} size="md" kind="both" />}
       />
 
       <PropertyNavigationGallery properties={properties} currentSlug={slug} />
+
+      <PropertySectionTabs
+        property={<PropertyPhotosWireframe property={selected} />}
+        availability={<Calendar items={items} slug={selected.slug} />}
+        prices={<PropertyPrices property={selected} activePolicy={activePolicy.policy} />}
+      />
     </>
   );
 }
