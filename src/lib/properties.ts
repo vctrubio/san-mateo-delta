@@ -25,6 +25,9 @@ export type Property = {
   queen_beds: number;
   single_beds: number;
   sofa_beds: number;
+  /** Listing visibility. False = hidden from public routes (admin still
+   *  sees + can book). Defaults to true in the schema. */
+  public: boolean;
   /** Default cleaning fee for new bookings on this property. Goes to Tano. */
   cleaning_fee_cents: number;
   /**
@@ -289,12 +292,23 @@ const PROPERTY_SELECT = `
   m2_interior, m2_terrace,
   max_guests,
   king_beds, queen_beds, single_beds, sofa_beds,
+  public,
   cleaning_fee_cents::int AS cleaning_fee_cents,
   rates
 `;
 
-export async function listProperties(): Promise<Property[]> {
-  return sql<Property>(`SELECT ${PROPERTY_SELECT} FROM properties ORDER BY id`);
+/**
+ * List properties.
+ *
+ * @param args.publicOnly  When true, filter to `public = true`. Use on
+ *   every customer-facing surface (`/finca`, `/finca/[slug]`,
+ *   PropertyShowcase). Admin call sites pass nothing → see everything.
+ */
+export async function listProperties(args: { publicOnly?: boolean } = {}): Promise<Property[]> {
+  const where = args.publicOnly ? `WHERE public = true` : '';
+  return sql<Property>(
+    `SELECT ${PROPERTY_SELECT} FROM properties ${where} ORDER BY id`,
+  );
 }
 
 export async function getPropertyBySlug(slug: string): Promise<PropertyDetails | null> {

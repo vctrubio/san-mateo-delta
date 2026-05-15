@@ -46,6 +46,23 @@ export default function PropertyEditForm({ property }: { property: Property }) {
         <Field label="Sofa beds"   name="sofa_beds"   type="number" min={0} defaultValue={property.sofa_beds} required />
       </div>
 
+      {/* Listing visibility toggle. Unchecked = hidden from /finca,
+          /finca/[slug], and PropertyShowcase. Admin can still book it. */}
+      <label className="inline-flex items-center gap-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          name="public"
+          defaultChecked={property.public}
+          className="w-4 h-4 rounded border-slate-300 accent-ocean"
+        />
+        <span className="text-sm text-slate-700">
+          Public listing
+          <span className="ml-2 text-xs font-mono text-slate-400 uppercase tracking-widest">
+            visible on /finca
+          </span>
+        </span>
+      </label>
+
       <button
         type="submit"
         className="px-5 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-mono uppercase tracking-widest hover:bg-ocean transition-colors"

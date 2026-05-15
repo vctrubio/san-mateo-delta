@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 // ============================================================================
 
 export default async function FincaIndexPage() {
-  const properties = await listProperties();
+  const properties = await listProperties({ publicOnly: true });
 
   return (
     <>

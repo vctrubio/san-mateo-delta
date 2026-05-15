@@ -99,6 +99,10 @@ CREATE TABLE properties (
   queen_beds         INT         NOT NULL DEFAULT 0 CHECK (queen_beds  >= 0),
   single_beds        INT         NOT NULL DEFAULT 0 CHECK (single_beds >= 0),
   sofa_beds          INT         NOT NULL DEFAULT 0 CHECK (sofa_beds   >= 0),
+  -- Listing visibility flag. When false the property is hidden from
+  -- /finca, /finca/[slug], and PropertyShowcase on the homepage — but
+  -- stays bookable from /admin (admin always sees the full set).
+  public             BOOLEAN     NOT NULL DEFAULT true,
   -- Default cleaning fee for new bookings; goes to Tano (the cleaner). Snapshotted
   -- onto bookings.agreed_cleaning_cents at request time so changes here never
   -- alter past bookings. See docs/refund.md and the snapshots principle.

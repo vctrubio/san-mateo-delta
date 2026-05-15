@@ -32,6 +32,7 @@ const MOCK_PROPERTY: Property = {
   queen_beds: 0,
   single_beds: 4,
   sofa_beds: 0,
+  public: true,
   cleaning_fee_cents: 12000,
   rates: {
     1: 35000, 2: 35000, 3: 35000, 4: 35000, 5: 35000,

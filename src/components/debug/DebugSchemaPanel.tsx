@@ -67,6 +67,7 @@ const TABLES: Table[] = [
       { name: 'queen_beds', type: 'INT' },
       { name: 'single_beds', type: 'INT' },
       { name: 'sofa_beds', type: 'INT' },
+      { name: 'public', type: 'BOOLEAN', note: 'false = hidden from public /finca routes' },
       { name: 'cleaning_fee_cents', type: 'BIGINT', note: 'default for new bookings — goes to Tano' },
       { name: 'rates', type: 'JSONB', note: '€ cents per night by month, keys "1"-"12"; CHECK enforces all 12. See docs/rates.md.' },
     ],

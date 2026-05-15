@@ -1,85 +1,67 @@
 import type { Property } from '@/lib/properties';
+import { listFolder } from '@/lib/cloudinary';
+import { PropertyPhotosSpread, type PhotoSection } from './PropertyPhotosSpread';
 
 // ============================================================================
-// PropertyPhotosWireframe — editorial photo spread for /finca/[slug].
+// PropertyPhotosWireframe — server component. Derives candidate sections
+// from the property's DB columns, fetches every candidate's Cloudinary
+// folder in parallel, drops empty sections, and hands the filled set to
+// the client `<PropertyPhotosSection>` for rendering.
 //
-// No tabs, no chips, no active-state machinery. Every category renders as
-// its own section in a single vertical scroll, separated by the same
-// "── label ──" divider used by `<Title>` for the FINCA stamp. Scrolling
-// IS the navigation — there's nothing extra to read, no chrome competing
-// with the imagery.
+// The split is required because `<CldImage>` (from next-cloudinary) calls
+// React hooks internally — it can only render inside a Client Component.
+// Keeping the fetch here means `listFolder()` (server-only Cloudinary
+// admin API) runs at request time and we don't pay a client-bundle cost
+// for the SDK.
 //
-// Server component (no state needed). Once Cloudinary lands, each tile
-// becomes a `<CldImage>` pointing at `san-mateo/finca/{slug}/{category}/{n}`
-// (see `docs/cloudinary.md`). Section order = display order — change
-// `deriveSections` to reshape the spread.
-//
-// Category derivation reads from the property's `bedrooms` / `bathrooms`
-// / `m2_terrace`, so adding a bedroom in the admin auto-grows the spread
-// and the expected Cloudinary folder set.
+// Section rules — see `docs/cloudinary.md`:
+//   - interior / exterior          → always candidates
+//   - bedroom/{1..bedrooms}        → candidates for each numbered room
+//   - bathroom/{1..bathrooms}      → same
+//   - terrace                      → candidate only when m2_terrace > 0
+//   - any candidate with 0 photos in Cloudinary is dropped (so studios
+//     like Cala or odd shapes like Estrecho work without per-property
+//     flags).
 // ============================================================================
 
-type PhotoSection = {
+type Candidate = {
   /** Cloudinary path segment under `san-mateo/finca/{slug}/`. */
   id: string;
-  /** Section eyebrow label. */
+  /** Eyebrow label rendered inside the divider. */
   label: string;
-  /** Placeholder count. Will become the real listing length post-Cloudinary. */
-  count: number;
 };
 
-function deriveSections(property: Property): PhotoSection[] {
-  const out: PhotoSection[] = [
-    { id: 'interior', label: 'Interior', count: 4 },
-    { id: 'exterior', label: 'Exterior', count: 4 },
+function deriveSections(property: Property): Candidate[] {
+  const out: Candidate[] = [
+    { id: 'interior', label: 'Interior' },
+    { id: 'exterior', label: 'Exterior' },
   ];
   for (let i = 1; i <= property.bedrooms; i++) {
-    out.push({ id: `bedroom/${i}`, label: `Bedroom ${i}`, count: 4 });
+    out.push({ id: `bedroom/${i}`, label: `Bedroom ${i}` });
   }
   for (let i = 1; i <= property.bathrooms; i++) {
-    out.push({ id: `bathroom/${i}`, label: `Bathroom ${i}`, count: 3 });
+    out.push({ id: `bathroom/${i}`, label: `Bathroom ${i}` });
   }
   if (property.m2_terrace > 0) {
-    out.push({ id: 'terrace', label: 'Terrace', count: 4 });
+    out.push({ id: 'terrace', label: 'Terrace' });
   }
   return out;
 }
 
-export function PropertyPhotosWireframe({ property }: { property: Property }) {
-  const sections = deriveSections(property);
+export async function PropertyPhotosWireframe({ property }: { property: Property }) {
+  const candidates = deriveSections(property);
+  const prefix = `san-mateo/finca/${property.slug}`;
 
-  return (
-    <div className="space-y-12">
-      {sections.map((s) => (
-        <PhotoSectionView key={s.id} section={s} />
-      ))}
-    </div>
+  const fetched = await Promise.all(
+    candidates.map(async (c) => ({
+      id: c.id,
+      label: c.label,
+      photos: await listFolder(`${prefix}/${c.id}`),
+    })),
   );
-}
+  const sections: PhotoSection[] = fetched.filter((s) => s.photos.length > 0);
 
-function PhotoSectionView({ section }: { section: PhotoSection }) {
-  return (
-    <section>
-      {/* FINCA-style divider: thin line · eyebrow · thin line.
-          Same composition Title.tsx uses for the "── FINCA ──" stamp; the
-          brand voice carries here so the spread reads as one piece with
-          the rest of the page. */}
-      <div className="flex items-center gap-4 mb-5">
-        <div className="h-px bg-slate-200 grow" />
-        <span className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400 whitespace-nowrap">
-          {section.label}
-        </span>
-        <div className="h-px bg-slate-200 grow" />
-      </div>
+  if (sections.length === 0) return null;
 
-      <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {Array.from({ length: section.count }).map((_, i) => (
-          <li
-            key={`${section.id}-${i}`}
-            className="aspect-[4/3] rounded-2xl bg-slate-100 border border-slate-200"
-          />
-        ))}
-      </ul>
-    </section>
-  );
+  return <PropertyPhotosSpread sections={sections} />;
 }

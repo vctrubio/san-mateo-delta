@@ -20,7 +20,7 @@ export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
   const { slug } = await params;
-  const properties = await listProperties();
+  const properties = await listProperties({ publicOnly: true });
   const property = properties.find((p) => p.slug === slug);
   if (!property) return {};
 
@@ -71,7 +71,7 @@ export default async function PropertyDetailsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const properties = await listProperties();
+  const properties = await listProperties({ publicOnly: true });
   const selected = properties.find((p) => p.slug === slug);
   if (!selected) notFound();
 

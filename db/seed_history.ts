@@ -76,16 +76,17 @@ type PropertySeed = {
   queen_beds: number;
   single_beds: number;
   sofa_beds: number;
+  public: boolean;
   low_cents: number;
   high_cents: number;
   cleaning_cents: number;
 };
 
 const PROPERTIES: PropertySeed[] = [
-  { slug: 'levante',  title: 'The Villa',     description: 'There is a large open plan salon with dining area and fully fitted kitchen with all major appliances. The master bedroom contains a double bed and is ensuite. There are two other guest bedrooms which share a bathroom. A nice sunny terrace surrounds the house with open views to the countryside. There is a jacuzzi at the side of the terrace.', features: ['Fully Equipped Kitchen', 'Master Suite', 'Jacuzzi', 'Wrap-around terrace'], bedrooms: 3, bathrooms: 2, m2_interior: 130, m2_terrace: 50, max_guests: 6, king_beds: 1, queen_beds: 0, single_beds: 4, sofa_beds: 0, low_cents: 35000, high_cents: 48000, cleaning_cents: 12000 },
-  { slug: 'estrecho', title: 'The Residence', description: 'The bungalow consists in 1 suite bedroom including bed of 180cm, a small bathroom and an exterior kitchen with BBQ.',                                                                                                                                                                                                                                  features: ['Suite bedroom', 'Exterior kitchen', 'BBQ'],                                bedrooms: 1, bathrooms: 1, m2_interior:  30, m2_terrace: 10, max_guests: 2, king_beds: 1, queen_beds: 0, single_beds: 0, sofa_beds: 0, low_cents: 24000, high_cents: 33000, cleaning_cents: 9000 },
-  { slug: 'marea',    title: 'The Retreat',   description: "Newly renovated bungalow, it enjoys 1 suite bedroom including queen's sized bed, bathroom with a separate living room with kitchen.",                                                                                                                                                                                                                features: ['Newly renovated', 'Queen suite', 'Living room with kitchen'],             bedrooms: 1, bathrooms: 1, m2_interior:  50, m2_terrace: 10, max_guests: 4, king_beds: 0, queen_beds: 1, single_beds: 0, sofa_beds: 2, low_cents: 16000, high_cents: 22000, cleaning_cents: 6000 },
-  { slug: 'cala',     title: 'The Bungalow',  description: 'The bungalow enjoys 1 suite bedroom including bed of 180cm, bathroom and a living room space with a sofa and TV. It has an exterior garden, with fully equipped necessities.',                                                                                                                                                                       features: ['Suite bedroom', 'Exterior garden', 'TV lounge'],                          bedrooms: 1, bathrooms: 1, m2_interior:  35, m2_terrace: 10, max_guests: 2, king_beds: 1, queen_beds: 0, single_beds: 0, sofa_beds: 1, low_cents: 14000, high_cents: 19000, cleaning_cents: 5000 },
+  { slug: 'levante',  title: 'The Villa',     description: 'There is a large open plan salon with dining area and fully fitted kitchen with all major appliances. The master bedroom contains a double bed and is ensuite. There are two other guest bedrooms which share a bathroom. A nice sunny terrace surrounds the house with open views to the countryside. There is a jacuzzi at the side of the terrace.', features: ['Fully Equipped Kitchen', 'Master Suite', 'Jacuzzi', 'Wrap-around terrace'], bedrooms: 3, bathrooms: 2, m2_interior: 130, m2_terrace: 50, max_guests: 6, king_beds: 1, queen_beds: 0, single_beds: 4, sofa_beds: 0, public: true, low_cents: 35000, high_cents: 48000, cleaning_cents: 12000 },
+  { slug: 'estrecho', title: 'The Residence', description: 'The bungalow consists in 1 suite bedroom including bed of 180cm, a small bathroom and an exterior kitchen with BBQ.',                                                                                                                                                                                                                                  features: ['Suite bedroom', 'Exterior kitchen', 'BBQ'],                                bedrooms: 1, bathrooms: 1, m2_interior:  30, m2_terrace: 10, max_guests: 2, king_beds: 1, queen_beds: 0, single_beds: 0, sofa_beds: 0, public: true, low_cents: 24000, high_cents: 33000, cleaning_cents: 9000 },
+  { slug: 'marea',    title: 'The Retreat',   description: "Newly renovated bungalow, it enjoys 1 suite bedroom including queen's sized bed, bathroom with a separate living room with kitchen.",                                                                                                                                                                                                                features: ['Newly renovated', 'Queen suite', 'Living room with kitchen'],             bedrooms: 1, bathrooms: 1, m2_interior:  50, m2_terrace: 10, max_guests: 4, king_beds: 0, queen_beds: 1, single_beds: 0, sofa_beds: 2, public: true, low_cents: 16000, high_cents: 22000, cleaning_cents: 6000 },
+  { slug: 'cala',     title: 'The Bungalow',  description: 'The bungalow enjoys 1 suite bedroom including bed of 180cm, bathroom and a living room space with a sofa and TV. It has an exterior garden, with fully equipped necessities.',                                                                                                                                                                       features: ['Suite bedroom', 'Exterior garden', 'TV lounge'],                          bedrooms: 1, bathrooms: 1, m2_interior:  35, m2_terrace: 10, max_guests: 2, king_beds: 1, queen_beds: 0, single_beds: 0, sofa_beds: 1, public: true, low_cents: 14000, high_cents: 19000, cleaning_cents: 5000 },
 ];
 
 const GUESTS: ReadonlyArray<{ name: string; email: string; nationality: string }> = [
@@ -311,6 +312,7 @@ async function seedProperties(): Promise<Record<string, { id: string; seed: Prop
          m2_interior, m2_terrace,
          max_guests,
          king_beds, queen_beds, single_beds, sofa_beds,
+         public,
          cleaning_fee_cents, rates
        ) VALUES (
          $1, $2, $3, $4::jsonb,
@@ -318,7 +320,8 @@ async function seedProperties(): Promise<Record<string, { id: string; seed: Prop
          $7, $8,
          $9,
          $10, $11, $12, $13,
-         $14, $15::jsonb
+         $14,
+         $15, $16::jsonb
        )
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
@@ -333,6 +336,7 @@ async function seedProperties(): Promise<Record<string, { id: string; seed: Prop
              queen_beds = EXCLUDED.queen_beds,
              single_beds = EXCLUDED.single_beds,
              sofa_beds = EXCLUDED.sofa_beds,
+             public = EXCLUDED.public,
              cleaning_fee_cents = EXCLUDED.cleaning_fee_cents,
              rates = EXCLUDED.rates
        RETURNING id::text`,
@@ -342,6 +346,7 @@ async function seedProperties(): Promise<Record<string, { id: string; seed: Prop
         p.m2_interior, p.m2_terrace,
         p.max_guests,
         p.king_beds, p.queen_beds, p.single_beds, p.sofa_beds,
+        p.public,
         p.cleaning_cents, JSON.stringify(rates),
       ],
     );

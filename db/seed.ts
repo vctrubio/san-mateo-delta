@@ -22,6 +22,8 @@ type PropertySeed = {
   queen_beds: number;
   single_beds: number;
   sofa_beds: number;
+  /** Listing visibility — false = hidden from /finca + /finca/[slug]. */
+  public: boolean;
   low_cents: number;   // Low Season night rate (EUR cents)
   high_cents: number;  // High Season night rate (EUR cents)
   cleaning_cents: number;
@@ -33,7 +35,7 @@ const PROPERTIES: PropertySeed[] = [
     title: 'The Villa',
     description:
       'There is a large open plan salon with dining area and fully fitted kitchen with all major appliances. The master bedroom contains a double bed and is ensuite. There are two other guest bedrooms which share a bathroom. A nice sunny terrace surrounds the house with open views to the countryside. There is a jacuzzi at the side of the terrace.',
-    features: ['Fully Equipped Kitchen', 'Master Suite', 'Jacuzzi', 'Wrap-around terrace'],
+    features: ['Master Suite', 'Jacuzzi', 'Wrap-around terrace'],
     bedrooms: 3,
     bathrooms: 2,
     m2_interior: 130,
@@ -43,6 +45,7 @@ const PROPERTIES: PropertySeed[] = [
     queen_beds: 0,
     single_beds: 4,
     sofa_beds: 0,
+    public: true,
     low_cents:  35000,
     high_cents: 48000,
     cleaning_cents: 12000,
@@ -52,7 +55,7 @@ const PROPERTIES: PropertySeed[] = [
     title: 'The Retreat',
     description:
       "Newly renovated bungalow, it enjoys 1 suite bedroom including queen's sized bed, bathroom with a separate living room with kitchen.",
-    features: ['Newly renovated', 'Queen suite', 'Living room with kitchen'],
+    features: ['Queen suite', 'Living room with kitchen'],
     bedrooms: 1,
     bathrooms: 1,
     m2_interior: 50,
@@ -62,6 +65,7 @@ const PROPERTIES: PropertySeed[] = [
     queen_beds: 1,
     single_beds: 0,
     sofa_beds: 2,
+    public: true,
     low_cents:  16000,
     high_cents: 22000,
     cleaning_cents: 9000,
@@ -71,7 +75,7 @@ const PROPERTIES: PropertySeed[] = [
     title: 'The Bungalow',
     description:
       'The bungalow enjoys 1 suite bedroom including bed of 180cm, bathroom and a living room space with a sofa and TV. It has an exterior garden, with fully equipped necessities.',
-    features: ['Suite bedroom', 'Exterior garden', 'TV lounge'],
+    features: ['Exterior garden', 'TV lounge'],
     bedrooms: 1,
     bathrooms: 1,
     m2_interior: 35,
@@ -81,6 +85,7 @@ const PROPERTIES: PropertySeed[] = [
     queen_beds: 0,
     single_beds: 0,
     sofa_beds: 1,
+    public: true,
     low_cents:  14000,
     high_cents: 19000,
     cleaning_cents: 9000,
@@ -90,7 +95,7 @@ const PROPERTIES: PropertySeed[] = [
     title: 'The Residence',
     description:
       'The bungalow consists in 1 suite bedroom including bed of 180cm, a small bathroom and an exterior kitchen with BBQ.',
-    features: ['Suite bedroom', 'Exterior kitchen', 'BBQ'],
+    features: ['Outdoor Kitchen'],
     bedrooms: 1,
     bathrooms: 1,
     m2_interior: 30,
@@ -100,8 +105,29 @@ const PROPERTIES: PropertySeed[] = [
     queen_beds: 0,
     single_beds: 0,
     sofa_beds: 0,
+    public: true,
     low_cents:  24000,
     high_cents: 33000,
+    cleaning_cents: 9000,
+  },
+  {
+    slug: 'duplex',
+    title: 'The Getaway',
+    description:
+      'A two-floor getaway tucked into the finca. One suite bedroom with a king-size bed upstairs, and a lounge below with a sofa bed for an extra guest. Private bathroom, finca views.',
+    features: ['Suite bedroom', 'TV lounge'],
+    bedrooms: 1,
+    bathrooms: 1,
+    m2_interior: 40,
+    m2_terrace: 10,
+    max_guests: 2,
+    king_beds: 1,
+    queen_beds: 0,
+    single_beds: 0,
+    sofa_beds: 1,
+    public: false,
+    low_cents:  15000,
+    high_cents: 20000,
     cleaning_cents: 9000,
   },
 ];
@@ -214,6 +240,7 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
          m2_interior, m2_terrace,
          max_guests,
          king_beds, queen_beds, single_beds, sofa_beds,
+         public,
          cleaning_fee_cents, rates
        )
        VALUES (
@@ -222,7 +249,8 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
          $7, $8,
          $9,
          $10, $11, $12, $13,
-         $14, $15::jsonb
+         $14,
+         $15, $16::jsonb
        )
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
@@ -237,6 +265,7 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
              queen_beds = EXCLUDED.queen_beds,
              single_beds = EXCLUDED.single_beds,
              sofa_beds = EXCLUDED.sofa_beds,
+             public = EXCLUDED.public,
              cleaning_fee_cents = EXCLUDED.cleaning_fee_cents,
              rates = EXCLUDED.rates
        RETURNING id`,
@@ -246,6 +275,7 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
         p.m2_interior, p.m2_terrace,
         p.max_guests,
         p.king_beds, p.queen_beds, p.single_beds, p.sofa_beds,
+        p.public,
         p.cleaning_cents, JSON.stringify(rates),
       ],
     );

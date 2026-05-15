@@ -48,6 +48,10 @@ export async function updateProperty(formData: FormData): Promise<void> {
   const queen_beds = int(formData, 'queen_beds');
   const single_beds = int(formData, 'single_beds');
   const sofa_beds = int(formData, 'sofa_beds');
+  // Checkbox: HTML serialises an unchecked box as missing, so absence
+  // means "private". Treat any string value as "public" (HTML sends "on"
+  // or "true" depending on form encoding).
+  const isPublic = formData.get('public') !== null;
   const cleaning_fee_eur = int(formData, 'cleaning_fee_eur');
   const features = featuresFromForm(formData);
 
@@ -71,13 +75,15 @@ export async function updateProperty(formData: FormData): Promise<void> {
          bedrooms = $4, bathrooms = $5,
          m2_interior = $6, m2_terrace = $7, max_guests = $8,
          king_beds = $9, queen_beds = $10, single_beds = $11, sofa_beds = $12,
-         cleaning_fee_cents = $13
-     WHERE slug = $14`,
+         public = $13,
+         cleaning_fee_cents = $14
+     WHERE slug = $15`,
     [
       title, description, JSON.stringify(features),
       bedrooms, bathrooms,
       m2_interior, m2_terrace, max_guests,
       king_beds, queen_beds, single_beds, sofa_beds,
+      isPublic,
       cleaning_fee_eur * 100,
       slug,
     ],
