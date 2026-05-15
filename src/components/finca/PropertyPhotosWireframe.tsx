@@ -30,7 +30,7 @@ type PhotoSection = {
 
 function deriveSections(property: Property): PhotoSection[] {
   const out: PhotoSection[] = [
-    { id: 'home',     label: 'Home',     count: 4 },
+    { id: 'interior', label: 'Interior', count: 4 },
     { id: 'exterior', label: 'Exterior', count: 4 },
   ];
   for (let i = 1; i <= property.bedrooms; i++) {

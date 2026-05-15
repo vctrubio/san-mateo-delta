@@ -67,7 +67,8 @@ export function PropertyPrices({
   const lowRange = seasonRange(property.rates, lowMonths);
 
   return (
-    <div className="max-w-2xl">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl">
+      {/* Left — rate rows. Bordered top + bottom, divided between rows. */}
       <ul className="divide-y divide-slate-200 border-y border-slate-200">
         <PriceRow
           label="Low season"
@@ -86,14 +87,17 @@ export function PropertyPrices({
         />
       </ul>
 
-      <div className="mt-8">
-        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-400 mb-2">
+      {/* Right — deposit policy. Borderless so it reads lighter than the
+          rate column on its left; the eyebrow is the only structural
+          cue, the rest is plain prose. */}
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-400 mb-3">
           Deposit policy
         </p>
         <p className="text-slate-700 leading-relaxed">
           {describePolicy(activePolicy)}
         </p>
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-3 text-xs text-slate-400 leading-relaxed">
           Estate-wide setting; the exact terms are snapshotted onto your
           booking the moment it's confirmed and never change after.
         </p>

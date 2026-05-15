@@ -8,13 +8,46 @@ nothing fans out into hardcoded URL lists.
 
 ## Folder convention
 
+Five category names are recognised per property. The wireframe builds a
+*candidate list* from the property's DB columns; the renderer then
+queries Cloudinary and **drops every candidate whose folder is missing
+or empty**. The folder names inside Cloudinary must match the
+`Folder path` column exactly — anything else won't be picked up.
+
+| Category    | When it's a candidate     | Folder path                                  |
+|-------------|---------------------------|----------------------------------------------|
+| `interior`  | always                    | `san-mateo/finca/{slug}/interior/`           |
+| `exterior`  | always                    | `san-mateo/finca/{slug}/exterior/`           |
+| `bedroom/N` | for each N up to `bedrooms`   | `san-mateo/finca/{slug}/bedroom/{1..N}/` |
+| `bathroom/N`| for each N up to `bathrooms`  | `san-mateo/finca/{slug}/bathroom/{1..N}/`|
+| `terrace`   | only when `m2_terrace > 0`    | `san-mateo/finca/{slug}/terrace/`        |
+
+**Empty folders auto-hide — for every category.** This is how the
+spread handles properties that don't fit the "full house" mold without
+needing a special flag in the DB. Two concrete examples on this estate:
+
+- **Cala** is a studio. `bedrooms: 1, bathrooms: 1` in the DB (the
+  bookings layer cares about capacity), but it's photographed as one
+  open space. Upload to `interior/` and `terrace/`; leave
+  `bedroom/1/` and `bathroom/1/` unused; the spread renders just the
+  two sections that have content.
+
+- **Estrecho** has a separate bedroom + bathroom + an *exterior
+  kitchen* (no interior living space worth a dedicated section).
+  Upload to `bedroom/1/`, `bathroom/1/`, and `exterior/`; leave
+  `interior/` unused; the spread renders those three.
+
+Same rule covers any property that hasn't been fully shot yet: upload
+one folder, that section appears on next page load; add more folders
+over time, they materialise without a code change.
+
 Cloudinary root for this project is **`san-mateo/`**. Inside it:
 
 ```
 san-mateo/
   finca/
     levante/
-      home/          # 4 photos — overview / signature shots
+      interior/      # 4 photos — open plan, master suite, hallway shots
       exterior/      # 4 photos — facade, garden, driveway
       bedroom/
         1/           # 4 photos
@@ -25,7 +58,7 @@ san-mateo/
         2/           # 3 photos
       terrace/       # 4 photos
     estrecho/
-      home/
+      interior/
       exterior/
       bedroom/1/
       bathroom/1/
@@ -95,12 +128,55 @@ In the Cloudinary Media Library, create the root folder `san-mateo/`
 and the substructure above. You can also do this lazily — uploads
 auto-create their parent folder.
 
-### 5. Upload photos
+### 5. Upload photos — bulk, via the sync script
 
-Drag and drop into the relevant folder via the Cloudinary dashboard.
-Filenames don't matter. Tag with the property slug and the category
-(`levante`, `bedroom`) if you want flexible queries later — see
-*Tags vs folders* below.
+Drag-and-drop into the Cloudinary dashboard works for a few files, but
+for the bulk upload use the script:
+
+```
+bun run cloudinary:sync <local-source-dir>
+bun run cloudinary:sync <local-source-dir> --dry-run   # preview, no upload
+```
+
+Lay out the local source dir to mirror the desired Cloudinary tree
+(without the leading `san-mateo/` — the script adds it):
+
+```
+~/finca-photos/
+  finca/
+    levante/
+      interior/
+        IMG_0001.jpg
+        IMG_0002.jpg
+      exterior/
+        ...
+      bedroom/
+        1/
+        2/
+    estrecho/
+      ...
+  banners/
+    FincaBanner.jpg
+  about/
+    ...
+```
+
+Run from the repo root:
+
+```
+bun run cloudinary:sync ~/finca-photos --dry-run     # see what would land where
+bun run cloudinary:sync ~/finca-photos               # do it
+```
+
+The script is **idempotent** — re-running won't overwrite existing
+assets (`overwrite: false`). Add new photos to the local tree and
+re-run; only the new ones upload. Concurrency is capped at 5 to avoid
+rate-limit hits.
+
+Filenames are preserved (minus extension) as the Cloudinary
+`public_id`. Tag photos with the property slug and the category
+(`levante`, `bedroom`) via the dashboard later if you want flexible
+queries — see *Tags vs folders* below.
 
 ## How the app reads photos
 
@@ -187,7 +263,7 @@ consistent.
 Current state:
 
 ```
-public/images/{slug}.png      → san-mateo/finca/{slug}/home/1.jpg
+public/images/{slug}.png      → san-mateo/finca/{slug}/interior/1.jpg
 public/images/{david|tano}.png → san-mateo/hosts/{david|tano}.jpg
 public/finca/banners/*.jpg    → san-mateo/banners/*
 public/finca/about/*.jpg      → san-mateo/about/*
