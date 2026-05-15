@@ -17,7 +17,7 @@ const DEPOSIT_PCT = 0.50;
 
 /**
  * Stripe Checkout kind. Maps onto the existing payment_type enum:
- *   - 'deposit'     → 30% of agreed total, type='deposit'
+ *   - 'deposit'     → DEPOSIT_PCT of agreed total, type='deposit'
  *   - 'full'        → 100% of agreed total, type='reservation'
  *   - 'balance'     → outstanding (agreed total − sum of succeeded payments), type='balance'
  */
@@ -107,7 +107,8 @@ export async function createCheckoutSession(
   // Settings → Branding (one-time config, not via API). See docs/stripe.md.
   const estateName = `Finca ${finca.name}`;
   const propertyLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
-  const kindLabel = kind === 'deposit' ? 'Deposit (30%)' : kind === 'full' ? 'Full payment' : 'Balance';
+  const depositPctLabel = `${Math.round(DEPOSIT_PCT * 100)}%`;
+  const kindLabel = kind === 'deposit' ? `Deposit (${depositPctLabel})` : kind === 'full' ? 'Full payment' : 'Balance';
   const productName = `${estateName} · ${propertyLabel}`;
   const description = `${kindLabel} · ${fmtDateRange(booking.check_in, booking.check_out)}`;
 

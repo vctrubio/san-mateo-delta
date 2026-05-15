@@ -125,6 +125,18 @@ export default function PropertyView({
     setStarted(false);
   }, [selectedSlug]);
 
+  // Land with `#book` hash (homepage "Book now" CTA) → auto-open the flow
+  // and scroll the calendar into view. Without this the user clicks Book
+  // and arrives at a page where the booking form is still collapsed.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash !== '#book') return;
+    setStarted(true);
+    requestAnimationFrame(() => {
+      document.getElementById('book')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
   const datesReady = !!range && !!quote && !quoteError && !isQuoting;
   const guestsValid = totalGuests(guests) >= 1 && totalGuests(guests) <= selected.max_guests;
   const identityValid =
@@ -217,10 +229,12 @@ export default function PropertyView({
             ) : (
               <motion.div
                 key="calendar"
+                id="book"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
+                style={{ scrollMarginTop: '5rem' }}
               >
                 {/* Calendar carries its own card chrome (header + footer)
                     so we render it bare — no outer wrapper. */}

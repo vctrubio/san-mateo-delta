@@ -129,6 +129,18 @@ CREATE TABLE bookings (
   agreed_cleaning_cents  BIGINT      NOT NULL DEFAULT 0 CHECK (agreed_cleaning_cents >= 0),
   status                 booking_status NOT NULL DEFAULT 'request',
   guests                 JSONB       NOT NULL DEFAULT '{"adults":2,"children":0,"infants":0,"pets":0}'::jsonb,
+  -- Payment policy SNAPSHOT — frozen at booking creation. Resolves
+  -- the estate-wide system_settings.active_payment_policy_key (or any
+  -- admin override) against the check-in date via the resolver in
+  -- src/lib/payment.ts and stores the effective policy here. Future
+  -- /admin/settings changes do NOT reach back into this row. See
+  -- docs/payment.md.
+  payment_policy         JSONB       NOT NULL CHECK (
+                            jsonb_typeof(payment_policy) = 'object'
+                            AND (payment_policy->>'deposit_pct')::int BETWEEN 0 AND 100
+                            AND (payment_policy->>'balance_days_before')::int >= 0
+                            AND (payment_policy->>'method') IN ('stripe','cash')
+                         ),
   time_check_in          TIMESTAMPTZ,
   time_check_out         TIMESTAMPTZ,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),

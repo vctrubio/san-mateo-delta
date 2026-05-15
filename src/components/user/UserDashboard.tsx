@@ -5,6 +5,7 @@ import {
   Calendar,
   CalendarCheck,
   CalendarRange,
+  CheckCircle2,
   MapPin,
   Moon,
   MoveRight,
@@ -13,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import StatusBadge from '@/components/admin/StatusBadge';
+import BookingActions from '@/components/user/BookingActions';
 import { fmtDate, fmtDateRange, nightsBetween, relativeStayLabel } from '@/lib/dates';
 import { eur } from '@/lib/format';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
@@ -44,10 +46,18 @@ import type { User } from '@/lib/users';
 export default function UserDashboard({
   user,
   bookings,
+  justBookedId,
 }: {
   user: User;
   bookings: BookingRow[];
+  justBookedId?: string;
 }) {
+  // Arrive from /checkout/success with ?just_booked=<id> — show a one-time
+  // banner above the dashboard so the guest sees a clear "request submitted"
+  // moment instead of just landing in a list.
+  const justBooked = justBookedId
+    ? bookings.find((b) => b.id === justBookedId)
+    : undefined;
   // Lifetime aggregates.
   const totalBookings = bookings.length;
   const lifetimeSpend = bookings.reduce((s, b) => s + b.paid_cents, 0);
@@ -83,6 +93,7 @@ export default function UserDashboard({
       />
 
       <div className="max-w-4xl mx-auto px-6 -mt-20 relative z-10 space-y-10">
+        {justBooked && <JustBookedBanner booking={justBooked} />}
         {nextStay && <NextStayCard booking={nextStay} />}
 
         {bookings.length === 0 ? (
@@ -135,7 +146,7 @@ function Hero({
 
       <div className="max-w-4xl mx-auto relative">
         <Link
-          href="/user"
+          href="/user?demo=1"
           className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] text-white/60 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
@@ -164,6 +175,42 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-[9px] font-mono uppercase tracking-[0.3em] text-white/60">{label}</div>
       <div className="text-base md:text-lg font-bold tabular-nums tracking-tight mt-1 truncate">{value}</div>
     </div>
+  );
+}
+
+// ─── Just-booked confirmation banner ──────────────────────────────────────
+//
+// Shown when the dashboard is opened from /checkout/success with the
+// ?just_booked=<id> query param. Echoes the booking back to the guest so
+// they see explicit confirmation ("request received") rather than landing
+// in a generic list view. The banner is purely informational — it doesn't
+// link anywhere; the booking itself appears in NextStayCard or the
+// pending-host-approval group below.
+
+function JustBookedBanner({ booking }: { booking: BookingRow }) {
+  const propLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
+  const isConfirmed = booking.status === 'confirmed' || booking.status === 'checked_in';
+  return (
+    <section className="rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50 border border-emerald-200 p-5 md:p-6 shadow-[0_4px_24px_-12px_rgba(16,185,129,0.25)]">
+      <div className="flex items-start gap-4">
+        <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700">
+          <CheckCircle2 className="w-5 h-5" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-emerald-700 mb-1">
+            {isConfirmed ? 'Booking confirmed' : 'Request received'}
+          </p>
+          <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
+            {propLabel} · {fmtDateRange(booking.date_check_in, booking.date_check_out)}
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed mt-1">
+            {isConfirmed
+              ? 'Your stay is locked in. Add the dates to your calendar and we’ll see you in Tarifa.'
+              : 'Your host typically replies within 24 hours. Deposit has been received; the rest is due 14 days before arrival.'}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -216,6 +263,8 @@ function NextStayCard({ booking }: { booking: BookingRow }) {
             <Field icon={Users}         label="Guests"  value={formatGuests(booking.guests)} />
             <Field icon={Wallet}        label="Total"   value={`${eur(booking.paid_cents)} / ${eur(booking.agreed_total_cents)}`} />
           </dl>
+
+          <BookingActions booking={booking} />
 
           <Link
             href={`/finca/${booking.property_slug}`}
@@ -293,6 +342,8 @@ function BookingCard({ booking }: { booking: BookingRow }) {
               <MoveRight className="w-3 h-3" />
             </Link>
           </div>
+
+          <BookingActions booking={booking} />
 
           {/* Cancellation breakdown */}
           {booking.status === 'cancelled' && (

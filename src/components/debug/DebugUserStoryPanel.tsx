@@ -93,11 +93,16 @@ function Flow() {
 }
 
 const SHIPPED = [
-  'Two-CTA property modal on / (Book now + View full property)',
+  'Two-CTA property modal on / (Book now + View full property) — dismisses before navigation',
   'Persistent /finca banner with shared <Title> from the homepage hero (cream surface + back pill)',
   '/finca/[slug] rebuilt: hero photo + 4-property carousel · characteristics · about · what\'s included · sidebar PricingCard + LocationCard · hosts (souls of San Mateo)',
   'Inline booking flow (no modal): click "Book your stay" → calendar replaces features, guests + identity slide in below, sidebar flips to detailed Receipt with season + 50%/14-day split',
+  '#book hash auto-opens the booking flow and scrolls the calendar into view — homepage "Book now" CTA works end-to-end',
   '50% deposit on booking via Stripe Checkout; balance scheduled 14 days before arrival (manual today, scheduled charge planned)',
+  'Confirmation moment on /user/[id] — fresh bookings land with a "Request received / Booking confirmed" banner via ?just_booked= from /checkout/success',
+  'Guest BookingActions on every dashboard row: "Pay €X balance" (Stripe Checkout, kind=balance) + Cancel dialog that previews the refund tier from computeRefund before submitting',
+  'Hero CTA on / ("See the homes ↓") smooth-scrolls to the property collection',
+  '/user privacy gate: list of demo accounts only shown with ?demo=1; default view is the sign-up surface',
 ];
 
 function Shipped() {
@@ -121,18 +126,13 @@ function Shipped() {
 type PlanItem = { title: string; body: string };
 
 const STORY_ITEMS: PlanItem[] = [
-  { title: 'Hero CTA on /',                 body: 'A "See the homes ↓" pill under the giant brand mark. The hero is decorative today — no verb for a first-time visitor.' },
-  { title: 'Confirmation moment',           body: 'On /user/[id] first paint after submit, show "Request sent — Levante, Mar 5→12. The host responds within 24h."' },
-  { title: 'Modal dismiss-on-click',        body: 'Property modal stays mounted while the page transitions. Call setSelected(null) before Link navigation.' },
-  { title: '/user privacy',                 body: '"Sign in as anyone" listing emails + spend is fine for demo, uncomfortable for a real walkthrough. Gate behind ?demo=1.' },
-  { title: 'Auth → /user resolves',         body: 'Today /user/[id] is reachable by URL-typing. Once auth lands, /user resolves to the logged-in user automatically.' },
+  { title: 'Real auth',                     body: 'Today /user/[id] is URL-typeable and /user is sign-up only. Once auth lands, /user resolves to the logged-in user. PropertyView has `// FUTURE — auth gate` comments marking the spot.' },
+  { title: 'Upcoming-booking banner',       body: 'On /finca/[slug], when the logged-in user has an upcoming booking for this property, show it so they don\'t re-book the same dates. Depends on auth.' },
 ];
 
 const PAYMENT_ITEMS: PlanItem[] = [
-  { title: 'Pay outstanding from /user/[id]',  body: 'Guests on cash-on-arrival should be able to switch to Stripe later. Reuses createCheckoutSession.' },
-  { title: 'Paid / owed breakdown',            body: 'paymentState(b) already returns paid/partial/unpaid/not_applicable. Surface it as a chip in the user dashboard rows.' },
-  { title: 'Cancellation UX with refund preview', body: 'computeRefund returns the tier math. Guest-side dialog showing the refund before they confirm.' },
-  { title: 'Refund visibility',                body: 'When admin issues a refund, the guest dashboard surfaces "€350 refunded on Apr 12".' },
+  { title: 'Scheduled balance charge',         body: 'Stripe should charge the remaining 50% automatically 14 days before check-in. Today the "Pay balance" button on the user dashboard is the manual path. Needs a cron / scheduled PI.' },
+  { title: 'Stripe refund on guest cancel',    body: 'cancelBooking writes booking_cancellations.refund_amount_cents but doesn\'t actually fire the refund through Stripe — the host issues it from admin. Should be automatic on guest-side cancel.' },
   { title: 'Stripe webhook audit',             body: 'Confirm pending → succeeded flip is reliable for hosted checkout, abandoned sessions get cleaned up.' },
 ];
 

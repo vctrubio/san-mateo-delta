@@ -89,33 +89,41 @@ and admin clicks **Confirm** to move the booking to `confirmed`.
    compact single-month previews if needed (currently the booking flow
    uses 2 months).
 
-## Plan of action — booking story polish
+7. **Booking handoff polish.** `#book` hash on `/finca/[slug]` now
+   auto-opens the booking flow and scrolls the calendar into view (the
+   homepage "Book now" CTA actually works again). The property modal
+   on `/` dismisses before navigation so there's no flash. After paying
+   the deposit, `/checkout/success` redirects to
+   `/user/[id]?just_booked=<id>` and the dashboard surfaces a
+   confirmation banner echoing the booking back to the guest.
 
-| #  | Item | Why it matters |
-|----|------|----------------|
-| 1  | **Hero CTA on `/`.** A "See the homes ↓" or "Book a stay" pill under the giant `FINCA SAN MATEO` title. | Orientation — the giant wireframe is beautiful but doesn't tell guests what they can do. |
-| 2  | **Confirmation moment on `/user/[id]`.** After submitting, the guest lands on the dashboard but there's no "Request sent — Levante, Mar 5→12. The host will respond within 24h." beat. | Trust — the guest just trusted a form with their personal info and gets dropped into a list view. |
-| 3  | **Modal dismiss before navigation.** Clicking "Book now" in the property modal navigates to `/finca/[slug]#book` but the modal stays mounted for a tick — visible flash. Call `setSelected(null)` before the link fires. | Polish — small fix, noticeable. |
-| 4  | **`/user` privacy.** "Sign in as anyone" + a public list of every user with their email and lifetime spend is fine for demo but uncomfortable for a real walkthrough. Gate behind `?demo=1` or only show after explicit consent. | Trust — demo flag, but easy to miss. |
-| 5  | **Auth → `/user` resolves to the logged-in user.** Today `/user/[id]` is reachable by URL-typing. When auth is wired, `/user` resolves automatically. PropertyView has `// FUTURE — auth gate` comment marking the spot. | Privacy + UX — the URL pattern is already correct; just needs auth. |
-| 6  | **Upcoming-booking banner on `/finca/[slug]`.** When the logged-in user has an upcoming booking on this property, show it ("Your stay: May 19 → 26, 5 nights · view details") so they don't re-book the same dates. Stub: `<UserUpcomingForProperty propertySlug={...} />`. | Awareness — comment marks the spot in PropertyView. |
+8. **Guest payment + cancellation.** `BookingActions` on each dashboard
+   row gives the guest a "Pay €X balance" button (manual fallback for
+   the scheduled balance charge — reuses `createCheckoutSession(id, 'balance')`)
+   and a Cancel dialog that previews the refund tier from
+   `computeRefund` before submitting. Cancellations go through the
+   existing `cancelBooking` action with `cancelled_by='guest'`.
 
-## Plan of action — payment management
+9. **Polish.** Hero on `/` now has a "See the homes ↓" pill that
+   smooth-scrolls to the `#homes` section. `/user` defaults to a
+   sign-up surface; the public list of demo accounts is gated behind
+   `?demo=1` so casual visitors don't see other users' emails. `html`
+   gets `scroll-smooth` for anchor navigation.
 
-The booking-side flow works: guest pays 50% by card via Stripe, webhook
-flips pending → succeeded, dashboard reflects it. Cash is admin-recorded
-after the fact (no `cash + pending` state). What's missing is the
-guest-side surface for the balance, viewing what's collected, and
-cancelling cleanly.
+## Plan of action — what's left
 
-| # | Item | Where to look |
-|---|------|---------------|
-| A | **Scheduled balance charge.** Stripe charges the remaining 50% automatically 14 days before check-in. Today this is manual. Needs a cron / scheduled Stripe payment intent — flagged in `src/actions/checkout.ts` near `DEPOSIT_PCT`. | New: scheduled job + `payment_type='balance'` insert; webhook reconciliation. |
-| B | **Pay outstanding balance from `/user/[id]`** (manual fallback). Reuses `createCheckoutSession(bookingId, 'balance')` which already exists. | `src/components/user/UserDashboard.tsx` + guest-facing pay button. Admin's `PaymentActionButtons` is cash-only and stays admin-only. |
-| C | **Paid / owed breakdown per booking** on the user dashboard. The vocabulary already exists — `paymentState(b)` returns `paid / partial / unpaid / not_applicable`. | `UserDashboard` row — add a payment chip alongside the status chip. |
-| D | **Cancellation UX with policy preview.** Guest clicks Cancel → sees the refund tier ("8+ days out: 75% refund of property fee"). `computeRefund` already returns the math. | `src/lib/refund.ts` + new `CancelBookingDialog` for the guest side. Admin variant exists. |
-| E | **Refund visibility.** When admin issues a refund, the guest dashboard surfaces "€350 refunded on Apr 12". | `booking_cancellations.refund_amount_cents` + `payment_refunds` already capture this; needs surfacing. |
-| F | **Stripe webhook audit.** Confirm the `pending → succeeded` flip is reliable, abandoned sessions get cleaned. | `docs/stripe.md` + `src/app/api/webhooks/stripe/route.ts`. |
+The guest can land, browse, book, pay deposit, get a confirmation,
+land on a dashboard with all their bookings, settle the balance, and
+cancel with a clear refund preview. End-to-end testable. What still
+needs to land for a real launch (not a walkthrough):
+
+| #  | Item | Why |
+|----|------|-----|
+| A  | **Scheduled balance charge.** Stripe charges the remaining 50% automatically 14 days before check-in. Today the "Pay balance" button is the manual path. | Needs a cron / scheduled Stripe payment intent — flagged near `DEPOSIT_PCT` in `src/actions/checkout.ts`. |
+| B  | **Real auth.** Today `/user/[id]` is reachable by URL-typing and `/user` is sign-up only. Once auth lands, `/user` resolves to the logged-in user, and PropertyView's `// FUTURE — auth gate` comments wire up to the real check. | Privacy + UX. The URL pattern is already correct. |
+| C  | **Upcoming-booking banner on `/finca/[slug]`.** When the logged-in user has an upcoming booking for this property, show it ("Your stay: May 19 → 26 · view details") so they don't re-book the same dates. Stub: `<UserUpcomingForProperty propertySlug={...} />`. Marker comment in PropertyView. | Awareness — depends on auth. |
+| D  | **Stripe refund on guest cancellation.** Today `cancelBooking` writes `booking_cancellations.refund_amount_cents` but doesn't fire the refund through Stripe — the host has to issue it from the admin side. | Money — webhook-driven refund + reconciliation. |
+| E  | **Stripe webhook audit.** Confirm the `pending → succeeded` flip is reliable for hosted checkout; abandoned sessions get cleaned up. | Trust — `docs/stripe.md` + `src/app/api/webhooks/stripe/route.ts`. |
 
 ## Plan of action — communications (deferred)
 
@@ -131,13 +139,19 @@ cancelling cleanly.
 - `src/app/finca/layout.tsx` — new persistent banner
 - `src/app/finca/page.tsx` — properties-first collection
 - `src/app/finca/[slug]/page.tsx` — server shell, fetches all 4 properties + items
-- `src/components/finca/PropertyView.tsx` — client view: hero + carousel + sections + inline booking flow + PricingCard / LocationCard
+- `src/app/user/page.tsx` — sign-up surface; user list gated behind `?demo=1`
+- `src/app/user/[id]/page.tsx` — reads `?just_booked` and threads it to the dashboard
+- `src/app/checkout/success/page.tsx` — dashboard link now carries `?just_booked`
+- `src/app/layout.tsx` — `scroll-smooth` for anchor navigation
+- `src/components/finca/PropertyView.tsx` — client view + `#book` hash listener
 - `src/components/finca/FincaBackPill.tsx` — context-aware back link
-- `src/components/landing/Title.tsx` — shared brand stamp
-- `src/components/landing/HostsSpotlight.tsx` — shared hosts block
-- `src/components/landing/HeroLanding.tsx` + `AboutSection.tsx` — switched to the shared components
-- `src/components/landing/PropertyShowcaseGrid.tsx` — two-CTA modal
-- `src/actions/checkout.ts` · `src/actions/payments.ts` — `DEPOSIT_PCT` raised to 50%
+- `src/components/landing/HeroLanding.tsx` — "See the homes ↓" CTA
+- `src/components/landing/PropertyShowcase.tsx` — `id="homes"` anchor target
+- `src/components/landing/PropertyShowcaseGrid.tsx` — modal dismiss-on-click
+- `src/components/landing/Title.tsx` · `HostsSpotlight.tsx` — shared primitives
+- `src/components/user/UserDashboard.tsx` — `JustBookedBanner` + `BookingActions`
+- `src/components/user/BookingActions.tsx` — Pay balance + Cancel dialog with refund preview
+- `src/actions/checkout.ts` · `src/actions/payments.ts` — `DEPOSIT_PCT` at 50%
 - `public/banner.jpg` — banner placeholder (Cloudinary swap later)
 
 **Removed** (no longer used):

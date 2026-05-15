@@ -5,7 +5,7 @@ export default async function PropertyShowcase() {
   const properties = await listProperties();
 
   return (
-    <section className="py-24 px-4 bg-white overflow-hidden">
+    <section id="homes" className="py-24 px-4 bg-white overflow-hidden scroll-mt-8">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex flex-col items-center mb-20 text-center">
           <span className="text-xs font-mono uppercase tracking-[0.3em] text-ocean mb-4">

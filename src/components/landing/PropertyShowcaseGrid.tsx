@@ -143,10 +143,13 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
           {/* Two-CTA footer: Book Now is the primary action (ocean fill —
               admin's notification bell lights up the moment it's tapped),
               View full property is the "tell me more" fallback. Stacked on
-              mobile, side-by-side from sm up. */}
+              mobile, side-by-side from sm up. onClick={onClose} fires
+              before the Link navigation so the modal collapses cleanly
+              instead of flashing as the page transitions. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Link
               href={`/finca/${property.slug}#book`}
+              onClick={onClose}
               className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-ocean text-white hover:shadow-xl hover:shadow-ocean/30 transition-all duration-300 font-bold uppercase tracking-[0.2em] text-xs"
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -154,6 +157,7 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
             </Link>
             <Link
               href={`/finca/${property.slug}`}
+              onClick={onClose}
               className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-100 text-slate-900 hover:bg-slate-200 transition-all duration-300 font-bold uppercase tracking-[0.2em] text-xs"
             >
               <span>View full property</span>

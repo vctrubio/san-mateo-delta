@@ -131,7 +131,7 @@ export default async function SuccessPage(props: { searchParams: Promise<{ sessi
           </a>
           {row.user_id ? (
             <Link
-              href={`/user/${row.user_id}`}
+              href={`/user/${row.user_id}?just_booked=${row.booking_id}`}
               className="rounded-2xl bg-slate-900 hover:bg-ocean text-white transition p-4 flex items-center gap-3"
             >
               <span className="shrink-0 grid place-items-center w-10 h-10 rounded-xl bg-white/10">
