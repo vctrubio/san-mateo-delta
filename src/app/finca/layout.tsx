@@ -31,15 +31,15 @@ export default function FincaLayout({ children }: { children: React.ReactNode })
         <FincaEyebrow />
         {children}
 
-        {/* Closing strip — Location (wider, left) + Hosts (stacked, right).
+        {/* Closing strip — Hosts (stacked, left) + Location (wider, right).
             `h-full` on FincaLocation lets it match the combined hosts
-            height. On narrow widths the grid collapses to single column
-            and Location lands on top. */}
-        <section className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-5">
+            height. On narrow widths the grid collapses to single column;
+            hosts land on top, then the location card. */}
+        <section className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <HostsRow />
           <div className="lg:col-span-2">
             <FincaLocation />
           </div>
-          <HostsRow />
         </section>
       </div>
       <Footer />

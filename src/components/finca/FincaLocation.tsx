@@ -14,18 +14,17 @@ import travel from '@config/travel.json';
 // Server component — no state, no client bundle.
 // ============================================================================
 
+
+const desc = "We are a laid-back beach town with a vibrant kitesurfing scene, and stunning views of the Strait of Gibraltar. Combining the perfect blend of natural beauty and outdoor adventure, we seek travelers looking for both relaxation and excitement."
 export function FincaLocation() {
   return (
     <article className="h-full rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-6 lg:p-8 flex flex-col gap-6">
       <header>
-        <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ocean inline-flex items-center gap-1.5">
-          <MapPin className="w-3 h-3" /> Where it is
+        <p className="text-[10px] font-mono  tracking-[0.4em] text-ocean inline-flex items-center gap-1.5">
+          <MapPin className="w-3 h-3" /> Tarifa, Spain
         </p>
-        <h3 className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">
-          {finca.location.city}, <span className="italic text-ocean">{finca.location.region}</span>
-        </h3>
-        <p className="mt-3 text-sm text-slate-500 italic leading-relaxed">
-          {finca.location.description}
+        <p className="mt-3 text-sm text-slate-400  leading-relaxed">
+          {desc}
         </p>
       </header>
 

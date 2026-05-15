@@ -44,7 +44,9 @@ type ActionEntry = {
 
 type SocialEntry = LinkEntry | ActionEntry;
 
-export default function Footer() {
+type Tone = 'transparent' | 'white';
+
+export default function Footer({ tone = 'transparent' }: { tone?: Tone } = {}) {
   // The links array is statically typed in TS, but resolveJsonModule infers
   // string-for-everything from the JSON. Cast once at the boundary so the
   // render code stays clean and the `kind` discriminant works.
@@ -97,8 +99,14 @@ export default function Footer() {
     }
   }, []);
 
+  // tone="white" — explicit white background (landing page).
+  // tone="transparent" — inherits whatever the parent surface uses; on
+  //   /finca/* the FincaLayout's slate-50 shell shows through so the
+  //   footer reads as one piece with the page.
+  const toneClass = tone === 'white' ? 'bg-white' : '';
+
   return (
-    <footer className="py-12 px-8 bg-white border-t border-slate-100">
+    <footer className={`py-12 px-8 border-t border-slate-100 ${toneClass}`.trim()}>
       <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8 md:gap-0">
         <div className="flex flex-col items-center md:items-start">
           <span className="text-xs font-bold text-slate-900 uppercase tracking-[0.3em]">{fincaData.name}</span>

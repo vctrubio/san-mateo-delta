@@ -17,7 +17,7 @@ export default function Home() {
       <HeroLanding />
       <PropertyShowcase />
       <AboutSection />
-      <Footer />
+      <Footer tone="white" />
     </main>
   );
 }
