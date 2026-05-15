@@ -2,10 +2,29 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Plane, Ship, MapPin, Mail } from 'lucide-react';
 import fincaData from '@config/finca.json';
 import travel from '@config/travel.json';
 import { HostsSpotlight } from './HostsSpotlight';
+
+// ============================================================================
+// FINCA_IMAGES — the five photos that make up the "San Mateo" strip.
+//   main = the big 2×2 hero on the left
+//   grid = the 2×2 right-side mosaic, in reading order (top-left, top-right,
+//          bottom-left, bottom-right) — change the order here, the layout
+//          follows.
+// All photos already live compressed in /public/finca/about/.
+// ============================================================================
+const FINCA_IMAGES = {
+  main: { src: '/finca/about/FincaPortal.jpg', alt: 'Finca San Mateo — the portal' },
+  grid: [
+    { src: '/finca/about/FincaPalm.jpg',     alt: 'Palm trees on the estate' },
+    { src: '/finca/about/FincaEntrance.jpg', alt: 'Finca San Mateo entrance' },
+    { src: '/finca/about/FincaBird.jpg',     alt: 'Bird over the estate' },
+    { src: '/finca/about/FincaPark.jpg',     alt: 'The park / gardens' },
+  ],
+} as const;
 
 function AboutBackgroundText() {
   return (
@@ -17,34 +36,91 @@ function AboutBackgroundText() {
 
 function SpiritSection() {
   return (
-    <div className="lg:col-span-6 flex flex-col justify-center">
-      <motion.div
-        initial={{ opacity: 0, x: -50 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-        viewport={{ once: true }}
-        className="max-w-xl"
-      >
-        <div className="flex items-center gap-3 mb-8">
-          <div className="h-px w-12 bg-ocean" />
-          <span className="text-xs font-mono uppercase tracking-[0.4em] text-ocean">The Spirit</span>
+    <motion.div
+      initial={{ opacity: 0, x: -50 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true }}
+      className="max-w-xl"
+    >
+      <div className="flex items-center gap-3 mb-8">
+        <div className="h-px w-12 bg-ocean" />
+        <span className="text-xs font-mono uppercase tracking-[0.4em] text-ocean">The Spirit</span>
+      </div>
+
+      <h2 className="text-5xl md:text-8xl font-bold text-slate-900 leading-[0.85] uppercase tracking-tighter mb-8">
+        Where the <span className="text-ocean italic">Wind</span> <br />
+        Meets the Soul
+      </h2>
+
+      <div className="flex items-start gap-8">
+        <div className="pt-4">
+          <h4 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">300+ Days of Wind</h4>
+          <p className="text-slate-500 leading-relaxed max-w-sm">
+            {fincaData.location.description}
+          </p>
         </div>
+      </div>
+    </motion.div>
+  );
+}
 
-        <h2 className="text-5xl md:text-8xl font-bold text-slate-900 leading-[0.85] uppercase tracking-tighter mb-12">
-          Where the <span className="text-ocean italic">Wind</span> <br />
-          Meets the Soul
-        </h2>
+// FincaSection — sibling to SpiritSection, sits directly below it in the
+// left column. Heading is the bare brand mark "San Mateo"; the photos do
+// the talking. Layout is a single 4-col × 2-row grid:
+//
+//   ┌──────────────┬───────┬───────┐
+//   │              │ Palm  │ Entr  │   row 1
+//   │   Portal     ├───────┼───────┤
+//   │   (2×2)      │ Bird  │ Park  │   row 2
+//   └──────────────┴───────┴───────┘
+//
+// On mobile (<md): Portal stacks full-width on top, the four grid photos
+// fall into a 2×2 below.
+function FincaSection() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -50 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      transition={{ duration: 1, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true }}
+    >
+      <div className="flex items-center gap-3 mb-8">
+        <div className="h-px w-12 bg-ocean" />
+        <span className="text-xs font-mono uppercase tracking-[0.4em] text-ocean">San Mateo</span>
+      </div>
 
-        <div className="flex items-start gap-8 mb-12">
-          <div className="pt-4">
-            <h4 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">300+ Days of Wind</h4>
-            <p className="text-slate-500 leading-relaxed max-w-sm">
-              {fincaData.location.description}
-            </p>
+
+      {/* Container is wide (aspect 2:1 on md+) so the 4-col × 2-row grid
+          renders each small cell as a square and the Portal as 2×2 squares
+          combined. Gap is tight so the strip reads as one composition. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 md:aspect-[2/1]">
+        <div className="relative col-span-2 md:row-span-2 aspect-[4/5] md:aspect-auto rounded-2xl overflow-hidden bg-slate-100 group">
+          <Image
+            src={FINCA_IMAGES.main.src}
+            alt={FINCA_IMAGES.main.alt}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 35vw, 460px"
+            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            priority={false}
+          />
+        </div>
+        {FINCA_IMAGES.grid.map(({ src, alt }) => (
+          <div
+            key={src}
+            className="relative aspect-square md:aspect-auto rounded-2xl overflow-hidden bg-slate-100 group"
+          >
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1280px) 17vw, 220px"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+            />
           </div>
-        </div>
-      </motion.div>
-    </div>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -120,7 +196,12 @@ function AboutContent() {
   return (
     <div className="max-w-[1400px] mx-auto relative z-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
-        <SpiritSection />
+        {/* Left column: Spirit + Finca stacked. Gap is generous so the two
+            sections read as separate gestures, not a single wall of copy. */}
+        <div className="lg:col-span-6 flex flex-col gap-12">
+          <SpiritSection />
+          <FincaSection />
+        </div>
 
         <div className="lg:col-span-6 lg:pl-12 flex flex-col gap-12">
           <TravelGrid />
