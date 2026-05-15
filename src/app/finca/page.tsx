@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -11,7 +12,20 @@ import {
 } from 'lucide-react';
 import { listProperties } from '@/lib/properties';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
+import { absoluteUrl, defaultOgImageUrl } from '@/lib/site';
 import fincaData from '@config/finca.json';
+
+export const metadata: Metadata = {
+  title: 'Properties',
+  description: `The four properties of Finca ${fincaData.name} — ${fincaData.subtitle}, ${fincaData.location.country}. Choose your sanctuary, 300 m from the beach.`,
+  alternates: { canonical: absoluteUrl('/finca') },
+  openGraph: {
+    title: `Properties · Finca ${fincaData.name}`,
+    description: `Browse the four properties of Finca ${fincaData.name} in ${fincaData.subtitle}.`,
+    url: absoluteUrl('/finca'),
+    images: [defaultOgImageUrl()],
+  },
+};
 
 // ============================================================================
 // /finca — public collection page. Banner lives in `src/app/finca/layout.tsx`,

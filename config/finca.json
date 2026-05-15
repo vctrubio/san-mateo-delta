@@ -24,6 +24,7 @@
     "region": "Cádiz",
     "country": "Spain",
     "timezone": "Europe/Madrid",
+    "coords": { "lat": 36.0143, "lon": -5.6044 },
     "description": "As the windy capital of the world, Tarifa isn't just another holiday destination. It's a sanctuary where the elements dictate the rythm to life."
   },
   "hosts": [

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { Plane, Ship, MapPin, Mail } from 'lucide-react';
 import fincaData from '@config/finca.json';
 import travel from '@config/travel.json';
@@ -63,9 +64,15 @@ function ContactCard() {
           </div>
         </div>
       </div>
-      <button className="px-8 py-4 bg-ocean text-white font-mono text-xs uppercase tracking-[0.2em] rounded-full hover:bg-white hover:text-slate-900 transition-all duration-300">
+      {/* "Book a visit" is the one verb on this section that needs to lead
+          somewhere actionable. /finca is the property collection — the next
+          honest step in the booking flow. */}
+      <Link
+        href="/finca"
+        className="px-8 py-4 bg-ocean text-white font-mono text-xs uppercase tracking-[0.2em] rounded-full hover:bg-white hover:text-slate-900 transition-all duration-300"
+      >
         Book a Visit
-      </button>
+      </Link>
     </div>
   );
 }

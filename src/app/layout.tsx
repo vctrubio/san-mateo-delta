@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { baseMetadata } from "@/lib/site";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -13,10 +14,10 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "San Mateo",
-  description: "Finca San Mateo, located in Tarifa.",
-};
+// Root metadata — sets metadataBase + title template + default OG card.
+// Per-route generateMetadata only needs to override `title` and any
+// per-route image; the rest cascades from here via Next's metadata merge.
+export const metadata: Metadata = baseMetadata();
 
 export default function RootLayout({
   children,

@@ -16,10 +16,10 @@ import socials from '@config/socials.json';
 // `runAction`. No SVG paths in this file; the icon `path` + `viewBox` ride
 // on the JSON entry so the brand mark stays next to the URL.
 //
-// The wind ticker below the location is a soft visual hook for the
-// kite/wind brand — values drift on a random walk every 4s. Candidate for a
-// real Tarifa wind API (Open-Meteo, Windy) down the line; see
-// docs/case-study.md.
+// The wind ticker below the location is live — `/api/wind` proxies
+// Open-Meteo for the Tarifa coordinates in `config/finca.json` with a
+// 15-minute server cache and a fallback when the upstream is down. The
+// Footer fetches on mount and again every 15 min while the page is open.
 // ============================================================================
 
 type IconSpec = { viewBox: string; path: string };
@@ -50,16 +50,34 @@ export default function Footer() {
   // render code stays clean and the `kind` discriminant works.
   const links = socials.links as SocialEntry[];
 
-  const [wind, setWind] = React.useState({ speed: 18, deg: 270 });
+  // The seed values are intentionally plausible (22 kn / W) — they show on
+  // first paint before /api/wind responds, so a casual visitor never sees a
+  // "loading…" state in the footer ticker.
+  const [wind, setWind] = React.useState({ speed: 22, deg: 270 });
 
   React.useEffect(() => {
-    const interval = setInterval(() => {
-      setWind((prev) => ({
-        speed: Math.max(10, Math.min(45, Number((prev.speed + (Math.random() - 0.5) * 2).toFixed(1)))),
-        deg: (prev.deg + Math.floor((Math.random() - 0.5) * 10)) % 360,
-      }));
-    }, 4000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch('/api/wind', { cache: 'no-store' });
+        if (!r.ok) return;
+        const data = (await r.json()) as { speed?: number; deg?: number };
+        if (cancelled) return;
+        if (typeof data.speed === 'number' && typeof data.deg === 'number') {
+          setWind({ speed: data.speed, deg: data.deg });
+        }
+      } catch {
+        /* leave the seed values in place; the route already has fallback */
+      }
+    };
+    load();
+    // Open-Meteo updates ~hourly; re-pulling every 15 min keeps the
+    // ticker honest without thrashing.
+    const interval = setInterval(load, 15 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const runAction = React.useCallback((action: string) => {
