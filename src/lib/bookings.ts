@@ -262,10 +262,10 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     `
     SELECT
       ${BOOKING_SELECT},
-      p.max_guests::int  AS property_max_guests,
-      p.bedrooms::int    AS property_bedrooms,
-      p.bathrooms::int   AS property_bathrooms,
-      p.m2::int          AS property_m2
+      p.max_guests::int                          AS property_max_guests,
+      p.bedrooms::int                            AS property_bedrooms,
+      p.bathrooms::int                           AS property_bathrooms,
+      (p.m2_interior + p.m2_terrace)::int        AS property_m2
     FROM bookings b
     JOIN properties p           ON p.id = b.property_id
     LEFT JOIN users u           ON u.id = b.user_id

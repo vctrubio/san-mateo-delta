@@ -41,29 +41,43 @@ export async function updateProperty(formData: FormData): Promise<void> {
   const description = str(formData, 'description');
   const bedrooms = int(formData, 'bedrooms');
   const bathrooms = int(formData, 'bathrooms');
-  const m2 = int(formData, 'm2');
+  const m2_interior = int(formData, 'm2_interior');
+  const m2_terrace = int(formData, 'm2_terrace');
   const max_guests = int(formData, 'max_guests');
+  const king_beds = int(formData, 'king_beds');
+  const queen_beds = int(formData, 'queen_beds');
+  const single_beds = int(formData, 'single_beds');
+  const sofa_beds = int(formData, 'sofa_beds');
   const cleaning_fee_eur = int(formData, 'cleaning_fee_eur');
   const features = featuresFromForm(formData);
 
   if (!slug)        throw new Error('slug missing');
   if (!title)       throw new Error('title required');
   if (!description) throw new Error('description required');
-  if (bedrooms == null || bedrooms < 0)   throw new Error('bedrooms must be ≥ 0');
-  if (bathrooms == null || bathrooms < 0) throw new Error('bathrooms must be ≥ 0');
-  if (m2 == null || m2 <= 0)              throw new Error('m² must be > 0');
-  if (max_guests == null || max_guests <= 0) throw new Error('max_guests must be > 0');
+  if (bedrooms == null || bedrooms < 0)         throw new Error('bedrooms must be ≥ 0');
+  if (bathrooms == null || bathrooms < 0)       throw new Error('bathrooms must be ≥ 0');
+  if (m2_interior == null || m2_interior <= 0)  throw new Error('m² interior must be > 0');
+  if (m2_terrace == null || m2_terrace < 0)     throw new Error('m² terrace must be ≥ 0');
+  if (max_guests == null || max_guests <= 0)    throw new Error('max_guests must be > 0');
+  if (king_beds   == null || king_beds   < 0)   throw new Error('king_beds must be ≥ 0');
+  if (queen_beds  == null || queen_beds  < 0)   throw new Error('queen_beds must be ≥ 0');
+  if (single_beds == null || single_beds < 0)   throw new Error('single_beds must be ≥ 0');
+  if (sofa_beds   == null || sofa_beds   < 0)   throw new Error('sofa_beds must be ≥ 0');
   if (cleaning_fee_eur == null || cleaning_fee_eur < 0) throw new Error('cleaning fee must be ≥ 0');
 
   await pool.query(
     `UPDATE properties
      SET title = $1, description = $2, features = $3::jsonb,
-         bedrooms = $4, bathrooms = $5, m2 = $6, max_guests = $7,
-         cleaning_fee_cents = $8
-     WHERE slug = $9`,
+         bedrooms = $4, bathrooms = $5,
+         m2_interior = $6, m2_terrace = $7, max_guests = $8,
+         king_beds = $9, queen_beds = $10, single_beds = $11, sofa_beds = $12,
+         cleaning_fee_cents = $13
+     WHERE slug = $14`,
     [
       title, description, JSON.stringify(features),
-      bedrooms, bathrooms, m2, max_guests,
+      bedrooms, bathrooms,
+      m2_interior, m2_terrace, max_guests,
+      king_beds, queen_beds, single_beds, sofa_beds,
       cleaning_fee_eur * 100,
       slug,
     ],

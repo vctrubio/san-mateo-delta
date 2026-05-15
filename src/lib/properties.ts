@@ -15,8 +15,16 @@ export type Property = {
   features: string[];
   bedrooms: number;
   bathrooms: number;
-  m2: number;
+  /** Indoor habitable area in m². */
+  m2_interior: number;
+  /** Terrace / exterior area in m². 0 if none. */
+  m2_terrace: number;
   max_guests: number;
+  /** Bed inventory. Total beds = sum of these four. */
+  king_beds: number;
+  queen_beds: number;
+  single_beds: number;
+  sofa_beds: number;
   /** Default cleaning fee for new bookings on this property. Goes to Tano. */
   cleaning_fee_cents: number;
   /**
@@ -277,7 +285,10 @@ export async function listPropertyStats(): Promise<PropertyStats[]> {
 
 const PROPERTY_SELECT = `
   id::text, slug, title, description, features,
-  bedrooms, bathrooms, m2, max_guests,
+  bedrooms, bathrooms,
+  m2_interior, m2_terrace,
+  max_guests,
+  king_beds, queen_beds, single_beds, sofa_beds,
   cleaning_fee_cents::int AS cleaning_fee_cents,
   rates
 `;

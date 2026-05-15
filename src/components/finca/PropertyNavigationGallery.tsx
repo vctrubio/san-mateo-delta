@@ -128,21 +128,3 @@ function Strip({
   );
 }
 
-// Skeleton — same dimensions as the live gallery so the layout doesn't
-// shift when navigation lands. Used by `src/app/finca/[slug]/loading.tsx`
-// during the route transition.
-export function PropertyNavigationGallerySkeleton() {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4">
-      <div className="relative h-[42vh] min-h-[280px] lg:h-auto lg:min-h-0 lg:aspect-auto rounded-3xl overflow-hidden bg-slate-200 animate-pulse" />
-      <div className="flex flex-row lg:flex-col gap-2 lg:gap-3 -mx-1 px-1">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="shrink-0 w-40 lg:w-full h-24 lg:h-[calc(((42vh-32px)/4))] lg:min-h-[88px] rounded-2xl bg-slate-200 animate-pulse"
-          />
-        ))}
-      </div>
-    </div>
-  );
-}

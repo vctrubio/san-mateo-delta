@@ -87,8 +87,18 @@ CREATE TABLE properties (
   features           JSONB       NOT NULL DEFAULT '[]'::jsonb,
   bedrooms           INT         NOT NULL CHECK (bedrooms >= 0),
   bathrooms          INT         NOT NULL CHECK (bathrooms >= 0),
-  m2                 INT         NOT NULL CHECK (m2 > 0),
+  -- Built-up surface, split between indoor habitable area and terrace.
+  -- The shared PropertyStats sticker row on /finca + /finca/[slug] +
+  -- PropertyShowcaseGrid renders them as two separate badges.
+  m2_interior        INT         NOT NULL CHECK (m2_interior > 0),
+  m2_terrace         INT         NOT NULL DEFAULT 0 CHECK (m2_terrace >= 0),
   max_guests         INT         NOT NULL CHECK (max_guests > 0),
+  -- Bed inventory per property. Total beds = king + queen + single + sofa.
+  -- Display order in PropertyStats follows the same order.
+  king_beds          INT         NOT NULL DEFAULT 0 CHECK (king_beds   >= 0),
+  queen_beds         INT         NOT NULL DEFAULT 0 CHECK (queen_beds  >= 0),
+  single_beds        INT         NOT NULL DEFAULT 0 CHECK (single_beds >= 0),
+  sofa_beds          INT         NOT NULL DEFAULT 0 CHECK (sofa_beds   >= 0),
   -- Default cleaning fee for new bookings; goes to Tano (the cleaner). Snapshotted
   -- onto bookings.agreed_cleaning_cents at request time so changes here never
   -- alter past bookings. See docs/refund.md and the snapshots principle.

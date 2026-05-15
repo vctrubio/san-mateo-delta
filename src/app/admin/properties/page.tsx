@@ -1,9 +1,10 @@
-import { BedDouble, Bath, Maximize, Users, Coins } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
 import { listProperties, listPropertyStats, type Property, type PropertyStats } from '@/lib/properties';
 import { PROPERTY_LABELS } from '@/lib/colors';
 import { eur } from '@/lib/format';
+import { PropertyStickers } from '@/components/finca/PropertyStickers';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,14 +32,7 @@ const COLUMNS: AdminTableColumn<Row>[] = [
     key: 'spec',
     header: 'Spec',
     width: 'minmax(0,1.4fr)',
-    render: (p) => (
-      <div className="flex flex-wrap gap-3 text-xs font-mono text-slate-600">
-        <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5 text-slate-400" /> {p.bedrooms}</span>
-        <span className="flex items-center gap-1"><Bath className="w-3.5 h-3.5 text-slate-400" /> {p.bathrooms}</span>
-        <span className="flex items-center gap-1"><Maximize className="w-3.5 h-3.5 text-slate-400" /> {p.m2}m²</span>
-        <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5 text-slate-400" /> max {p.max_guests}</span>
-      </div>
-    ),
+    render: (p) => <PropertyStickers property={p} size="sm" />,
   },
   {
     key: 'cleaning',

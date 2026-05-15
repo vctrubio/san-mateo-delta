@@ -35,10 +35,15 @@ export default function PropertyEditForm({ property }: { property: Property }) {
       </label>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Field label="Bedrooms" name="bedrooms" type="number" min={0} defaultValue={property.bedrooms} required />
-        <Field label="Bathrooms" name="bathrooms" type="number" min={0} defaultValue={property.bathrooms} required />
-        <Field label="m²" name="m2" type="number" min={1} defaultValue={property.m2} required />
-        <Field label="Max guests" name="max_guests" type="number" min={1} defaultValue={property.max_guests} required />
+        <Field label="Bedrooms"    name="bedrooms"    type="number" min={0} defaultValue={property.bedrooms} required />
+        <Field label="Bathrooms"   name="bathrooms"   type="number" min={0} defaultValue={property.bathrooms} required />
+        <Field label="Max guests"  name="max_guests"  type="number" min={1} defaultValue={property.max_guests} required />
+        <Field label="m² interior" name="m2_interior" type="number" min={1} defaultValue={property.m2_interior} required />
+        <Field label="m² terrace"  name="m2_terrace"  type="number" min={0} defaultValue={property.m2_terrace} required />
+        <Field label="King beds"   name="king_beds"   type="number" min={0} defaultValue={property.king_beds} required />
+        <Field label="Queen beds"  name="queen_beds"  type="number" min={0} defaultValue={property.queen_beds} required />
+        <Field label="Single beds" name="single_beds" type="number" min={0} defaultValue={property.single_beds} required />
+        <Field label="Sofa beds"   name="sofa_beds"   type="number" min={0} defaultValue={property.sofa_beds} required />
       </div>
 
       <button

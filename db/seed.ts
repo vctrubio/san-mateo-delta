@@ -15,8 +15,13 @@ type PropertySeed = {
   features: string[];
   bedrooms: number;
   bathrooms: number;
-  m2: number;
+  m2_interior: number;
+  m2_terrace: number;
   max_guests: number;
+  king_beds: number;
+  queen_beds: number;
+  single_beds: number;
+  sofa_beds: number;
   low_cents: number;   // Low Season night rate (EUR cents)
   high_cents: number;  // High Season night rate (EUR cents)
   cleaning_cents: number;
@@ -27,12 +32,17 @@ const PROPERTIES: PropertySeed[] = [
     slug: 'levante',
     title: 'The Villa',
     description:
-      'Our flagship villa. A masterpiece of coastal architecture featuring expansive living spaces and direct access to the estate gardens.',
-    features: ['Fully Equipped Kitchen', 'Master Suite'],
+      'There is a large open plan salon with dining area and fully fitted kitchen with all major appliances. The master bedroom contains a double bed and is ensuite. There are two other guest bedrooms which share a bathroom. A nice sunny terrace surrounds the house with open views to the countryside. There is a jacuzzi at the side of the terrace.',
+    features: ['Fully Equipped Kitchen', 'Master Suite', 'Jacuzzi', 'Wrap-around terrace'],
     bedrooms: 3,
     bathrooms: 2,
-    m2: 180,
+    m2_interior: 130,
+    m2_terrace: 50,
     max_guests: 6,
+    king_beds: 1,
+    queen_beds: 0,
+    single_beds: 4,
+    sofa_beds: 0,
     low_cents:  35000,
     high_cents: 48000,
     cleaning_cents: 12000,
@@ -41,12 +51,17 @@ const PROPERTIES: PropertySeed[] = [
     slug: 'marea',
     title: 'The Retreat',
     description:
-      'Soothing for a family with kids, consit of a bedroom and a living room with sofa beds.',
-    features: ['Minimalist Design', 'King Bed', 'Coffee Station', 'Sun Deck'],
+      "Newly renovated bungalow, it enjoys 1 suite bedroom including queen's sized bed, bathroom with a separate living room with kitchen.",
+    features: ['Newly renovated', 'Queen suite', 'Living room with kitchen'],
     bedrooms: 1,
     bathrooms: 1,
-    m2: 60,
+    m2_interior: 50,
+    m2_terrace: 10,
     max_guests: 4,
+    king_beds: 0,
+    queen_beds: 1,
+    single_beds: 0,
+    sofa_beds: 2,
     low_cents:  16000,
     high_cents: 22000,
     cleaning_cents: 9000,
@@ -55,26 +70,36 @@ const PROPERTIES: PropertySeed[] = [
     slug: 'cala',
     title: 'The Bungalow',
     description:
-      'Cosy and secluded. A charming bungalow perfect for solo travelers or a quiet getaway.',
-    features: ['Secluded Location', 'Garden Access', 'Compact Kitchen', 'Modern Bath'],
+      'The bungalow enjoys 1 suite bedroom including bed of 180cm, bathroom and a living room space with a sofa and TV. It has an exterior garden, with fully equipped necessities.',
+    features: ['Suite bedroom', 'Exterior garden', 'TV lounge'],
     bedrooms: 1,
     bathrooms: 1,
-    m2: 60,
-    max_guests: 4,
+    m2_interior: 35,
+    m2_terrace: 10,
+    max_guests: 2,
+    king_beds: 1,
+    queen_beds: 0,
+    single_beds: 0,
+    sofa_beds: 1,
     low_cents:  14000,
     high_cents: 19000,
     cleaning_cents: 9000,
   },
-    {
+  {
     slug: 'estrecho',
     title: 'The Residence',
     description:
-      'The smallest of the four, one bedroom with private terrace.',
-    features: ['Ocean Views', 'Outdoor Dining Area', 'Fireplace', '2 Bedrooms'],
-    bedrooms: 2,
+      'The bungalow consists in 1 suite bedroom including bed of 180cm, a small bathroom and an exterior kitchen with BBQ.',
+    features: ['Suite bedroom', 'Exterior kitchen', 'BBQ'],
+    bedrooms: 1,
     bathrooms: 1,
-    m2: 45,
+    m2_interior: 30,
+    m2_terrace: 10,
     max_guests: 2,
+    king_beds: 1,
+    queen_beds: 0,
+    single_beds: 0,
+    sofa_beds: 0,
     low_cents:  24000,
     high_cents: 33000,
     cleaning_cents: 9000,
@@ -185,23 +210,44 @@ async function seedProperties(): Promise<Record<string, SeededProperty>> {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO properties (
          slug, title, description, features,
-         bedrooms, bathrooms, m2, max_guests, cleaning_fee_cents, rates
+         bedrooms, bathrooms,
+         m2_interior, m2_terrace,
+         max_guests,
+         king_beds, queen_beds, single_beds, sofa_beds,
+         cleaning_fee_cents, rates
        )
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10::jsonb)
+       VALUES (
+         $1, $2, $3, $4::jsonb,
+         $5, $6,
+         $7, $8,
+         $9,
+         $10, $11, $12, $13,
+         $14, $15::jsonb
+       )
        ON CONFLICT (slug) DO UPDATE
          SET title = EXCLUDED.title,
              description = EXCLUDED.description,
              features = EXCLUDED.features,
              bedrooms = EXCLUDED.bedrooms,
              bathrooms = EXCLUDED.bathrooms,
-             m2 = EXCLUDED.m2,
+             m2_interior = EXCLUDED.m2_interior,
+             m2_terrace = EXCLUDED.m2_terrace,
              max_guests = EXCLUDED.max_guests,
+             king_beds = EXCLUDED.king_beds,
+             queen_beds = EXCLUDED.queen_beds,
+             single_beds = EXCLUDED.single_beds,
+             sofa_beds = EXCLUDED.sofa_beds,
              cleaning_fee_cents = EXCLUDED.cleaning_fee_cents,
              rates = EXCLUDED.rates
        RETURNING id`,
-      [p.slug, p.title, p.description, JSON.stringify(p.features),
-       p.bedrooms, p.bathrooms, p.m2, p.max_guests, p.cleaning_cents,
-       JSON.stringify(rates)],
+      [
+        p.slug, p.title, p.description, JSON.stringify(p.features),
+        p.bedrooms, p.bathrooms,
+        p.m2_interior, p.m2_terrace,
+        p.max_guests,
+        p.king_beds, p.queen_beds, p.single_beds, p.sofa_beds,
+        p.cleaning_cents, JSON.stringify(rates),
+      ],
     );
     const propertyId = rows[0].id;
     ids[p.slug] = { id: propertyId, cleaning_cents: p.cleaning_cents, seed: p };

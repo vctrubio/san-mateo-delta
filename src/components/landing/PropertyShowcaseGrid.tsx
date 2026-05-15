@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Users, X, Check, BedDouble, Bath, Maximize, MoveRight, Calendar } from 'lucide-react';
+import { Users, X, Check, MoveRight, Calendar } from 'lucide-react';
 import type { Property } from '@/lib/properties';
 import Modal from '@/components/shared/Modal';
+import { PropertyStickers } from '@/components/finca/PropertyStickers';
 
 const RATIO_BY_INDEX = [
   'col-span-2 md:col-span-4',
@@ -114,11 +115,8 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
               {property.description}
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <Stat icon={BedDouble} label="Bedrooms" value={property.bedrooms} />
-              <Stat icon={Bath}      label="Bathrooms" value={property.bathrooms} />
-              <Stat icon={Maximize}  label="Size"      value={`${property.m2} m²`} />
-              <Stat icon={Users}     label="Sleeps"    value={property.max_guests} />
+            <div className="mb-6">
+              <PropertyStickers property={property} size="md" />
             </div>
 
             {property.features.length > 0 && (
@@ -170,22 +168,3 @@ function PropertyModal({ property, onClose }: { property: Property; onClose: () 
   );
 }
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof BedDouble;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100/60">
-      <h4 className="text-[9px] font-mono text-slate-400 uppercase tracking-widest mb-1.5">{label}</h4>
-      <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-ocean shrink-0" />
-        <span className="font-bold text-slate-900 text-sm">{value}</span>
-      </div>
-    </div>
-  );
-}

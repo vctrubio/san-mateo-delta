@@ -5,6 +5,7 @@ import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, propertyImageUrl } from '@/lib/site';
 import { FincaLead, accentedTitle } from '@/components/finca/FincaLead';
 import { PropertyNavigationGallery } from '@/components/finca/PropertyNavigationGallery';
+import { PropertyStickers } from '@/components/finca/PropertyStickers';
 import fincaData from '@config/finca.json';
 
 export const dynamic = 'force-dynamic';
@@ -43,12 +44,12 @@ export async function generateMetadata(
 }
 
 // /finca/[slug] — server thin shell. Fetches the property list and renders
-// the lead + the navigation gallery. Booking flow, calendar, pricing,
-// availability windows, etc. previously lived here via PropertyView; the
-// page is being rebuilt from scratch — see `plan/` for the next pass.
+// the lead + stickers + the navigation gallery. Booking flow, calendar,
+// pricing, availability windows, etc. previously lived here via PropertyView;
+// the page is being rebuilt from scratch — see `plan/` for the next pass.
 //
-// `loading.tsx` next to this page renders a `<PropertyNavigationGallerySkeleton>`
-// so the route transition doesn't flash.
+// No loading.tsx — Next's default behaviour (no fallback) is preferred here;
+// a skeleton flash on every URL switch felt worse than a momentary stall.
 export default async function PropertyDetailsPage({
   params,
 }: {
@@ -64,6 +65,7 @@ export default async function PropertyDetailsPage({
       <FincaLead
         heading={accentedTitle(selected.title)}
         description={selected.description}
+        meta={<PropertyStickers property={selected} size="md" />}
       />
 
       <PropertyNavigationGallery properties={properties} currentSlug={slug} />

@@ -1,17 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  BedDouble,
-  Bath,
-  Maximize,
-  Users,
-  MoveRight,
-} from 'lucide-react';
+import { MoveRight } from 'lucide-react';
 import { listProperties } from '@/lib/properties';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, defaultOgImageUrl } from '@/lib/site';
 import { FincaLead } from '@/components/finca/FincaLead';
+import { PropertyStickers } from '@/components/finca/PropertyStickers';
 import fincaData from '@config/finca.json';
 
 export const metadata: Metadata = {
@@ -102,19 +97,8 @@ export default async function FincaIndexPage() {
                       </ul>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-slate-600 mb-4">
-                      <span className="inline-flex items-center gap-1">
-                        <BedDouble className="w-3.5 h-3.5 text-slate-400" /> {p.bedrooms} bed
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Bath className="w-3.5 h-3.5 text-slate-400" /> {p.bathrooms} bath
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Maximize className="w-3.5 h-3.5 text-slate-400" /> {p.m2} m²
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" /> sleeps {p.max_guests}
-                      </span>
+                    <div className="mb-4">
+                      <PropertyStickers property={p} size="sm" />
                     </div>
 
                     <span className="mt-auto inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-ocean group-hover:gap-2.5 transition-all">

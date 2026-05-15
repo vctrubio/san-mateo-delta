@@ -17,16 +17,26 @@ import type { ReactNode } from 'react';
 export function FincaLead({
   heading,
   description,
+  meta,
 }: {
   heading: ReactNode;
   description: ReactNode;
+  /**
+   * Optional content rendered to the right of the heading on md+ screens
+   * (wraps below it on mobile). The slug page uses this to surface the
+   * PropertyStickers row alongside the property title.
+   */
+  meta?: ReactNode;
 }) {
   return (
-    <div className="mb-8 max-w-2xl">
-      <h1 className="text-4xl md:text-6xl font-bold text-slate-900 tracking-tighter text-balance">
-        {heading}
-      </h1>
-      <p className="mt-6 text-slate-500 text-lg leading-relaxed">
+    <div className="mb-8">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-8 mb-6">
+        <h1 className="text-4xl md:text-6xl font-bold text-slate-900 tracking-tighter text-balance max-w-xl">
+          {heading}
+        </h1>
+        {meta && <div className="md:shrink-0 md:max-w-md md:pt-2">{meta}</div>}
+      </div>
+      <p className="text-slate-500 text-lg leading-relaxed max-w-2xl">
         {description}
       </p>
     </div>
