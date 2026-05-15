@@ -87,6 +87,7 @@ export default async function PropertyDetailsPage({
         heading={accentedTitle(selected.title)}
         description={selected.description}
         meta={<PropertyStickers property={selected} size="md" kind="both" />}
+        sticky
       />
 
       <PropertyNavigationGallery properties={properties} currentSlug={slug} />
