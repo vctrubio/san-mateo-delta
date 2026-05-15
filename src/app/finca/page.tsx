@@ -7,12 +7,11 @@ import {
   Maximize,
   Users,
   MoveRight,
-  Sparkles,
-  Quote,
 } from 'lucide-react';
 import { listProperties } from '@/lib/properties';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, defaultOgImageUrl } from '@/lib/site';
+import { iconByName } from '@/lib/amenityIcons';
 import fincaData from '@config/finca.json';
 
 export const metadata: Metadata = {
@@ -28,25 +27,35 @@ export const metadata: Metadata = {
 };
 
 // ============================================================================
-// /finca — public collection page. Banner lives in `src/app/finca/layout.tsx`,
-// so this page dives straight into the four property cards. Supplementary
-// info (estate amenities + hosts) sits below the cards as a two-column
-// "beyond the properties" strip — present but not competing with the lead.
+// /finca — public collection page.
+//
+//   1. Lead — eyebrow + h2 + paragraph. Mirrors PropertyShowcase's voice on
+//      the homepage; the paragraph names the estate-wide amenities so the
+//      guest understands what every home includes before scrolling.
+//   2. Property cards — the booking lead. Existing design unchanged.
+//   3. Amenity ribbon — a thin inline strip of icon + label pairs below
+//      the cards. Reinforces the lead without a header label.
+//   4. Hosts — David + Tano in a two-card row at the bottom. No header;
+//      faces and quotes carry the section.
 // ============================================================================
+
+type AmenityEntry = { name: string; icon: string };
+
+type Host = {
+  name: string;
+  role: string;
+  quote: string;
+  image: string;
+  haloClass: string;
+};
 
 export default async function FincaIndexPage() {
   const properties = await listProperties();
 
   return (
     <>
-      {/* Tight lead — eyebrow only. The banner above already says where you
-          are; this just frames the list. No big "The Collection" header,
-          no description chrome — properties carry the story. */}
-      <p className="text-[10px] font-mono text-ocean uppercase tracking-[0.4em] mb-6">
-        Choose your home · {properties.length}
-      </p>
+      <PageLead />
 
-      {/* Property cards — the lead. Untouched on purpose; you like these. */}
       <ul className="space-y-4">
         {properties.map((p) => {
           const label = PROPERTY_LABELS[p.slug as PropertySlug] ?? p.slug.toUpperCase();
@@ -119,82 +128,85 @@ export default async function FincaIndexPage() {
         })}
       </ul>
 
-      {/* ─── Beyond the properties ────────────────────────────────────────
-          Section after the lead. Two cards on desktop: estate amenities
-          (left) + hosts (right). Same `rounded-2xl bg-white border` shell
-          as the property cards so the page reads as one family. */}
-      <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <EstateAmenitiesCard amenities={fincaData.amenities} />
-        <HostsCard hosts={fincaData.hosts} />
-      </section>
+      <AmenityRibbon amenities={fincaData.amenities} />
+
+      <HostsRow hosts={fincaData.hosts} />
     </>
   );
 }
 
-// ─── Estate amenities ──────────────────────────────────────────────────────
+// ─── Lead ──────────────────────────────────────────────────────────────────
+// Mirrors PropertyShowcase on the homepage — small ocean eyebrow, big bold
+// h2, descriptive paragraph that names the estate-wide amenities so the
+// guest knows what's included before scrolling.
 
-function EstateAmenitiesCard({ amenities }: { amenities: string[] }) {
+function PageLead() {
   return (
-    <article className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-6">
-      <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400 mb-1 inline-flex items-center gap-1.5">
-        <Sparkles className="w-3 h-3" /> Included on every stay
+    <div className="mb-12 max-w-2xl">
+      <span className="text-xs font-mono uppercase tracking-[0.3em] text-ocean">
+        Punta Paloma · 300 m walk from the beach 
+      </span>
+      <h1 className="mt-4 text-4xl md:text-6xl font-bold text-slate-900 tracking-tighter text-balance">
+        Pick your corner of <span className="italic text-ocean">San Mateo</span>.
+      </h1>
+      <p className="mt-6 text-slate-500 text-lg leading-relaxed">
+        Each home has its own character, its own light. Every one comes with
+        Starlink, a private terrace, your own parking, and a welcome for
+        your dog.
       </p>
-      <h3 className="text-base font-bold text-slate-900 tracking-tight mb-4">
-        Estate-wide amenities
-      </h3>
-      <ul className="flex flex-wrap gap-2">
-        {amenities.map((a) => (
-          <li
-            key={a}
-            className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-xs font-mono text-slate-700"
-          >
-            {a}
-          </li>
-        ))}
-      </ul>
-    </article>
+    </div>
   );
 }
 
-// ─── Hosts ─────────────────────────────────────────────────────────────────
+// ─── Amenity ribbon ────────────────────────────────────────────────────────
+// Inline icon + label pairs, wrapping. No header; the lead paragraph above
+// already framed what these are. A thin top border separates the ribbon
+// from the property cards.
 
-type Host = {
-  name: string;
-  role: string;
-  quote: string;
-  image: string;
-  haloClass: string;
-};
-
-function HostsCard({ hosts }: { hosts: readonly Host[] }) {
+function AmenityRibbon({ amenities }: { amenities: readonly AmenityEntry[] }) {
   return (
-    <article className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-6">
-      <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-slate-400 mb-1 inline-flex items-center gap-1.5">
-        <Quote className="w-3 h-3" /> The people behind it
-      </p>
-      <h3 className="text-base font-bold text-slate-900 tracking-tight mb-4">
-        Your hosts
-      </h3>
-      <ul className="space-y-4">
-        {hosts.map((h) => (
-          <li key={h.name} className="flex items-start gap-3.5">
-            <div className={`relative w-12 h-12 rounded-full overflow-hidden shrink-0 ring-2 ring-white shadow-sm ${h.haloClass}`}>
-              <Image src={h.image} alt={h.name} fill className="object-cover" sizes="48px" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-bold text-slate-900">{h.name}</span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
-                  {h.role}
-                </span>
-              </div>
-              <p className="text-sm text-slate-600 italic leading-relaxed mt-1">
-                &ldquo;{h.quote}&rdquo;
-              </p>
-            </div>
+    <ul className="mt-12 pt-8 border-t border-slate-200 flex flex-wrap gap-x-7 gap-y-4">
+      {amenities.map(({ name, icon }) => {
+        const Icon = iconByName(icon);
+        return (
+          <li key={name} className="inline-flex items-center gap-2 text-sm text-slate-700">
+            <Icon className="w-4 h-4 text-ocean shrink-0" />
+            <span>{name}</span>
           </li>
-        ))}
-      </ul>
-    </article>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ─── Hosts row ─────────────────────────────────────────────────────────────
+// Two cards side-by-side. Avatar (halo + ring), name + role pill, italic
+// quote. No header label.
+
+function HostsRow({ hosts }: { hosts: readonly Host[] }) {
+  return (
+    <ul className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {hosts.map((h) => (
+        <li
+          key={h.name}
+          className="flex items-start gap-4 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-5"
+        >
+          <div className={`relative w-14 h-14 rounded-full overflow-hidden shrink-0 ring-2 ring-white shadow-sm ${h.haloClass}`}>
+            <Image src={h.image} alt={h.name} fill className="object-cover" sizes="56px" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-base font-bold text-slate-900">{h.name}</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                {h.role}
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 italic leading-relaxed mt-1">
+              &ldquo;{h.quote}&rdquo;
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

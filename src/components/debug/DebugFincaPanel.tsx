@@ -1,46 +1,25 @@
-import {
-  Wifi,
-  Tv,
-  AirVent,
-  TreePine,
-  PawPrint,
-  ParkingCircle,
-  WashingMachine,
-  Sparkles,
-  MapPin,
-  Mail,
-  Phone,
-  type LucideIcon,
-} from 'lucide-react';
+import { MapPin, Mail, Phone } from 'lucide-react';
 import fincaData from '@config/finca.json';
+import { iconByName } from '@/lib/amenityIcons';
 
-// Visual mapping only — labels come from finca.json. Adding "BBQ" to the JSON
-// renders fine without touching this map; map a new key here if you want a
-// specific icon, otherwise it falls back to Sparkles.
-const AMENITY_ICONS: Record<string, LucideIcon> = {
-  'Starlink WiFi': Wifi,
-  'Smart TV': Tv,
-  'Air Conditioning': AirVent,
-  'Private Terrace': TreePine,
-  'Pets Allowed': PawPrint,
-  'Private Parking': ParkingCircle,
-  Washer: WashingMachine,
-};
-
+// Amenities come from JSON as { name, icon } pairs; this surface and the
+// customer /finca page both resolve the icon via `iconByName`. Add a new
+// amenity entry to `config/finca.json#amenities` (and the icon to
+// `@/lib/amenityIcons` if it's not already in the map).
 function AmenitiesGrid() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-      {fincaData.amenities.map((label) => {
-        const Icon = AMENITY_ICONS[label] ?? Sparkles;
+      {fincaData.amenities.map(({ name, icon }) => {
+        const Icon = iconByName(icon);
         return (
           <div
-            key={label}
+            key={name}
             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-slate-100 hover:border-sand transition-colors"
           >
             <div className="w-8 h-8 rounded-lg bg-sand flex items-center justify-center shrink-0">
               <Icon className="w-4 h-4 text-slate-700" />
             </div>
-            <span className="text-[12px] font-medium text-slate-700">{label}</span>
+            <span className="text-[12px] font-medium text-slate-700">{name}</span>
           </div>
         );
       })}

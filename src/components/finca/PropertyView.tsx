@@ -5,11 +5,12 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BedDouble, Bath, Maximize, Users as UsersIcon, Check,
-  Wifi, Tv, AirVent, TreePine, PawPrint, ParkingCircle, WashingMachine, Sparkles,
+  Sparkles,
   MapPin, Moon, Loader2, XCircle,
   CreditCard, ChevronRight, Sun, Snowflake, User as UserIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { iconByName } from '@/lib/amenityIcons';
 import { eur } from '@/lib/format';
 import type { Property, RatesByMonth } from '@/lib/properties';
 import type { CalendarItem } from '@/lib/calendar';
@@ -57,16 +58,6 @@ import { HostsSpotlight } from '@/components/landing/HostsSpotlight';
 // card flows; direct insert + redirect for cash / 0% policies). See
 // src/lib/payment.ts and docs/payment.md.
 // ============================================================================
-
-const AMENITY_ICONS: Record<string, LucideIcon> = {
-  'Starlink WiFi': Wifi,
-  'Smart TV': Tv,
-  'Air Conditioning': AirVent,
-  'Private Terrace': TreePine,
-  'Pets Allowed': PawPrint,
-  'Private Parking': ParkingCircle,
-  Washer: WashingMachine,
-};
 
 function displayName(slug: string) {
   return slug.charAt(0).toUpperCase() + slug.slice(1);
@@ -586,41 +577,68 @@ function AboutCard({ description }: { description: string }) {
   );
 }
 
-function WhatYouGet({ features, amenities }: { features: string[]; amenities: string[] }) {
+type AmenityEntry = { name: string; icon: string };
+
+function WhatYouGet({ features, amenities }: { features: string[]; amenities: readonly AmenityEntry[] }) {
   return (
     <Card eyebrow="What's included" icon={Check}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Sub title="This property" subtitle="Unique to this unit" items={features}  kind="feature" />
-        <Sub title={`Every ${fincaData.name} stay`} subtitle="Estate-wide" items={amenities} kind="amenity" />
+        <FeatureSub title="This property" subtitle="Unique to this unit" items={features} />
+        <AmenitySub title={`Every ${fincaData.name} stay`} subtitle="Estate-wide" items={amenities} />
       </div>
     </Card>
   );
 }
 
-function Sub({
-  title, subtitle, items, kind,
-}: {
-  title: string;
-  subtitle: string;
-  items: string[];
-  kind: 'feature' | 'amenity';
-}) {
+function SubHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-3">
+      <p className="text-[9px] font-mono uppercase tracking-[0.3em] text-slate-400">{subtitle}</p>
+      <h3 className="text-sm font-bold text-slate-900 mt-0.5">{title}</h3>
+    </div>
+  );
+}
+
+function FeatureSub({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
   return (
     <div>
-      <div className="mb-3">
-        <p className="text-[9px] font-mono uppercase tracking-[0.3em] text-slate-400">{subtitle}</p>
-        <h3 className="text-sm font-bold text-slate-900 mt-0.5">{title}</h3>
-      </div>
+      <SubHeader title={title} subtitle={subtitle} />
       {items.length === 0 ? (
         <p className="text-sm text-slate-400 italic">None listed.</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((item) => {
-            const Icon = kind === 'amenity' ? (AMENITY_ICONS[item] ?? Sparkles) : Check;
+          {items.map((item) => (
+            <li key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
+              <Check className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AmenitySub({
+  title, subtitle, items,
+}: {
+  title: string;
+  subtitle: string;
+  items: readonly AmenityEntry[];
+}) {
+  return (
+    <div>
+      <SubHeader title={title} subtitle={subtitle} />
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-400 italic">None listed.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map(({ name, icon }) => {
+            const Icon = iconByName(icon);
             return (
-              <li key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
+              <li key={name} className="flex items-center gap-2.5 text-sm text-slate-700">
                 <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {item}
+                {name}
               </li>
             );
           })}

@@ -104,8 +104,8 @@ export function lodgingBusinessJsonLd(): Record<string, unknown> {
     },
     checkinTime: finca.check_in_time,
     checkoutTime: finca.check_out_time,
-    petsAllowed: finca.amenities.includes('Pets Allowed'),
-    amenityFeature: finca.amenities.map((name) => ({
+    petsAllowed: finca.amenities.some((a) => a.name === 'Pets Allowed'),
+    amenityFeature: finca.amenities.map(({ name }) => ({
       '@type': 'LocationFeatureSpecification',
       name,
     })),

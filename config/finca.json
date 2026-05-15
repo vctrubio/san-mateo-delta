@@ -6,13 +6,13 @@
   "check_out_time": "11:00",
   "description": "A coastal haven in the south of Spain, perfect for surf and wind lovers. Surrounded by nature and the Atlantic Ocean.",
   "amenities": [
-    "Starlink WiFi",
-    "Smart TV",
-    "Air Conditioning",
-    "Private Terrace",
-    "Pets Allowed",
-    "Private Parking",
-    "Washer"
+    { "name": "Starlink WiFi",     "icon": "wifi" },
+    { "name": "Smart TV",          "icon": "tv" },
+    { "name": "Air Conditioning",  "icon": "air-vent" },
+    { "name": "Private Terrace",   "icon": "tree-pine" },
+    { "name": "Pets Allowed",      "icon": "paw-print" },
+    { "name": "Private Parking",   "icon": "parking-circle" },
+    { "name": "Washer",            "icon": "washing-machine" }
   ],
   "contact": {
     "phone": "+34 629 768 693",
