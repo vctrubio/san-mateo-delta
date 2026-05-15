@@ -7,6 +7,7 @@ import PropertyView from '@/components/finca/PropertyView';
 import { getActivePaymentPolicy } from '@/lib/systemSettings';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, propertyImageUrl } from '@/lib/site';
+import { FincaLead, accentedTitle } from '@/components/finca/FincaLead';
 import fincaData from '@config/finca.json';
 
 export const dynamic = 'force-dynamic';
@@ -77,11 +78,25 @@ export default async function PropertyDetailsPage({
   const itemsBySlug = Object.fromEntries(itemsEntries);
 
   return (
-    <PropertyView
-      properties={properties}
-      initialSlug={slug}
-      itemsBySlug={itemsBySlug}
-      activePolicy={activePolicy.policy}
-    />
+    <>
+      {/* The lead swaps in the property's title (with the noun in ocean
+          italic via `accentedTitle`); PropertyView fills the middle with
+          the booking surface. The estate-wide amenity ribbon, host row,
+          and eyebrow are all in /finca/layout.tsx and persist across
+          property navigation. The PropertyCarousel inside PropertyView
+          is now the URL switcher — each thumbnail is a Link to another
+          /finca/{slug}. */}
+      <FincaLead
+        heading={accentedTitle(selected.title)}
+        description={selected.description}
+      />
+
+      <PropertyView
+        properties={properties}
+        slug={slug}
+        itemsBySlug={itemsBySlug}
+        activePolicy={activePolicy.policy}
+      />
+    </>
   );
 }

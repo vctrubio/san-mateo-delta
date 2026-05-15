@@ -11,7 +11,7 @@ import {
 import { listProperties } from '@/lib/properties';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { absoluteUrl, defaultOgImageUrl } from '@/lib/site';
-import { iconByName } from '@/lib/amenityIcons';
+import { FincaLead } from '@/components/finca/FincaLead';
 import fincaData from '@config/finca.json';
 
 export const metadata: Metadata = {
@@ -29,32 +29,32 @@ export const metadata: Metadata = {
 // ============================================================================
 // /finca — public collection page.
 //
-//   1. Lead — eyebrow + h2 + paragraph. Mirrors PropertyShowcase's voice on
-//      the homepage; the paragraph names the estate-wide amenities so the
-//      guest understands what every home includes before scrolling.
-//   2. Property cards — the booking lead. Existing design unchanged.
-//   3. Amenity ribbon — a thin inline strip of icon + label pairs below
-//      the cards. Reinforces the lead without a header label.
-//   4. Hosts — David + Tano in a two-card row at the bottom. No header;
-//      faces and quotes carry the section.
+// Composes the shared finca scaffold:
+//   1. FincaLead       — estate-level lead (heading + description)
+//   2. Property cards  — the booking lead
+//   3. AmenityRibbon   — estate-wide amenities, persistent
+//   4. HostsRow        — David + Tano, persistent
+//
+// The layout (`/finca/layout.tsx`) owns the banner + the "Punta Paloma"
+// eyebrow above. /finca/[slug] composes the same scaffold but swaps the
+// FincaLead copy for the property's name + description, and inserts
+// PropertyView between the lead and the AmenityRibbon.
 // ============================================================================
-
-type AmenityEntry = { name: string; icon: string };
-
-type Host = {
-  name: string;
-  role: string;
-  quote: string;
-  image: string;
-  haloClass: string;
-};
 
 export default async function FincaIndexPage() {
   const properties = await listProperties();
 
   return (
     <>
-      <PageLead />
+      <FincaLead
+        heading={
+          <>
+            Pick your corner of{' '}
+            <span className="italic text-ocean">{fincaData.name}</span>.
+          </>
+        }
+        description="Each home has its own character, its own light. Every one comes with Starlink, a private terrace, your own parking, and a welcome for your dog."
+      />
 
       <ul className="space-y-4">
         {properties.map((p) => {
@@ -128,85 +128,6 @@ export default async function FincaIndexPage() {
         })}
       </ul>
 
-      <AmenityRibbon amenities={fincaData.amenities} />
-
-      <HostsRow hosts={fincaData.hosts} />
     </>
-  );
-}
-
-// ─── Lead ──────────────────────────────────────────────────────────────────
-// Mirrors PropertyShowcase on the homepage — small ocean eyebrow, big bold
-// h2, descriptive paragraph that names the estate-wide amenities so the
-// guest knows what's included before scrolling.
-
-function PageLead() {
-  return (
-    <div className="mb-12 max-w-2xl">
-      <span className="text-xs font-mono uppercase tracking-[0.3em] text-ocean">
-        Punta Paloma · 300 m walk from the beach 
-      </span>
-      <h1 className="mt-4 text-4xl md:text-6xl font-bold text-slate-900 tracking-tighter text-balance">
-        Pick your corner of <span className="italic text-ocean">San Mateo</span>.
-      </h1>
-      <p className="mt-6 text-slate-500 text-lg leading-relaxed">
-        Each home has its own character, its own light. Every one comes with
-        Starlink, a private terrace, your own parking, and a welcome for
-        your dog.
-      </p>
-    </div>
-  );
-}
-
-// ─── Amenity ribbon ────────────────────────────────────────────────────────
-// Inline icon + label pairs, wrapping. No header; the lead paragraph above
-// already framed what these are. A thin top border separates the ribbon
-// from the property cards.
-
-function AmenityRibbon({ amenities }: { amenities: readonly AmenityEntry[] }) {
-  return (
-    <ul className="mt-12 pt-8 border-t border-slate-200 flex flex-wrap gap-x-7 gap-y-4">
-      {amenities.map(({ name, icon }) => {
-        const Icon = iconByName(icon);
-        return (
-          <li key={name} className="inline-flex items-center gap-2 text-sm text-slate-700">
-            <Icon className="w-4 h-4 text-ocean shrink-0" />
-            <span>{name}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// ─── Hosts row ─────────────────────────────────────────────────────────────
-// Two cards side-by-side. Avatar (halo + ring), name + role pill, italic
-// quote. No header label.
-
-function HostsRow({ hosts }: { hosts: readonly Host[] }) {
-  return (
-    <ul className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-5">
-      {hosts.map((h) => (
-        <li
-          key={h.name}
-          className="flex items-start gap-4 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-5"
-        >
-          <div className={`relative w-14 h-14 rounded-full overflow-hidden shrink-0 ring-2 ring-white shadow-sm ${h.haloClass}`}>
-            <Image src={h.image} alt={h.name} fill className="object-cover" sizes="56px" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-slate-900">{h.name}</span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
-                {h.role}
-              </span>
-            </div>
-            <p className="text-sm text-slate-600 italic leading-relaxed mt-1">
-              &ldquo;{h.quote}&rdquo;
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }

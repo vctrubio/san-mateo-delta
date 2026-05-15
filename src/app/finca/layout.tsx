@@ -1,30 +1,39 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Title } from '@/components/landing/Title';
+import { FincaEyebrow } from '@/components/finca/FincaEyebrow';
+import { AmenityRibbon } from '@/components/finca/AmenityRibbon';
+import { HostsRow } from '@/components/finca/HostsRow';
 import finca from '@config/finca.json';
 
 // ============================================================================
-// /finca layout — persistent banner + finca title that stays mounted across
-// the index (`/finca`) and the property pages (`/finca/[slug]`). Both child
-// routes get this header for free; navigation between them doesn't repaint
-// the banner.
+// /finca layout — the persistent shell wrapping /finca and /finca/[slug]:
 //
-// Banner = the FincaBanner photo as a full-bleed, SHARP backdrop. The only
-// thing that's blurry is a small frosted-glass panel directly behind the
-// Title — a `backdrop-blur` cell so the dark Title text stays readable
-// without washing out the rest of the photograph.
+//   [Banner]                       — FincaBanner photo + clickable Title
+//   [FincaEyebrow]                 — Punta Paloma line + back-to-/finca link
+//                                    (the back link only renders on slug pages,
+//                                    via usePathname inside the client widget)
+//   {children}                     — the per-route content (FincaLead +
+//                                    middle body — list or PropertyView)
+//   [AmenityRibbon]                — estate-wide amenities, every page
+//   [HostsRow]                     — David + Tano, every page
 //
-// The Title itself is the navigation control: clicking it takes the user
-// back to /finca (the collection). On /finca that's a no-op refresh; on
-// /finca/[slug] it returns to the index. The frosted panel grows + warms
-// on hover so the affordance is unmistakable.
+// AmenityRibbon and HostsRow live HERE (not in the pages) because they're
+// route-agnostic and should never re-render between /finca and
+// /finca/[slug] navigations — the React tree stays mounted across the
+// transition.
 // ============================================================================
 
 export default function FincaLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <Banner />
-      <div className="max-w-5xl mx-auto px-6 pt-10 pb-16">{children}</div>
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-16">
+        <FincaEyebrow />
+        {children}
+        <AmenityRibbon />
+        <HostsRow />
+      </div>
     </div>
   );
 }

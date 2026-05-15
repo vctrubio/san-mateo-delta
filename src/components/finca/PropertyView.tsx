@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BedDouble, Bath, Maximize, Users as UsersIcon, Check,
@@ -10,7 +11,6 @@ import {
   CreditCard, ChevronRight, Sun, Snowflake, User as UserIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { iconByName } from '@/lib/amenityIcons';
 import { eur } from '@/lib/format';
 import type { Property, RatesByMonth } from '@/lib/properties';
 import type { CalendarItem } from '@/lib/calendar';
@@ -32,7 +32,6 @@ import {
 import { todayYmd } from '@/lib/dates';
 import fincaData from '@config/finca.json';
 import travel from '@config/travel.json';
-import { HostsSpotlight } from '@/components/landing/HostsSpotlight';
 
 // ============================================================================
 // PropertyView — beta-style property page.
@@ -65,22 +64,21 @@ function displayName(slug: string) {
 
 export default function PropertyView({
   properties,
-  initialSlug,
+  slug,
   itemsBySlug,
   activePolicy,
 }: {
   properties: Property[];
-  initialSlug: string;
+  /** Active property — the URL's [slug]. The carousel below the hero
+   *  links to other slugs; switching is a Next navigation, not local
+   *  state, so booking state resets cleanly on every property change. */
+  slug: string;
   itemsBySlug: Record<string, CalendarItem[]>;
   /** Estate-wide active payment policy at page-load time. Resolved against
    *  the guest's selected dates once they pick a range. */
   activePolicy: PaymentPolicy;
 }) {
-  // URL slug only seeds the initial pick — the carousel switches between
-  // properties client-side so the hero / stats / receipt animate without
-  // a full nav.
-  const [selectedSlug, setSelectedSlug] = useState(initialSlug);
-  const selected = properties.find((p) => p.slug === selectedSlug) ?? properties[0];
+  const selected = properties.find((p) => p.slug === slug) ?? properties[0];
   const items = itemsBySlug[selected.slug] ?? [];
 
   // Booking state lives at this level so the Pricing sidebar and the
@@ -126,12 +124,9 @@ export default function PropertyView({
     if (!range) setStarted(false);
   }, [range]);
 
-  // Switching property in the carousel resets the in-flight booking —
-  // dates and the started flag for LEVANTE shouldn't carry over to ESTRECHO.
-  useEffect(() => {
-    setRange(null);
-    setStarted(false);
-  }, [selectedSlug]);
+  // Note: switching property is now a Next navigation (the carousel below
+  // renders `<Link>` items), so the per-property reset that used to live
+  // here happens for free — each route is a fresh React tree.
 
   // Land with `#book` hash (homepage "Book now" CTA) → auto-open the flow
   // and scroll the calendar into view. Without this the user clicks Book
@@ -215,8 +210,7 @@ export default function PropertyView({
         <Hero property={selected} />
         <PropertyCarousel
           properties={properties}
-          selectedSlug={selectedSlug}
-          onSelect={setSelectedSlug}
+          currentSlug={selected.slug}
         />
       </div>
 
@@ -225,7 +219,13 @@ export default function PropertyView({
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.6fr] gap-5">
         {/* MAIN */}
         <div className="space-y-5">
-          <AboutCard description={selected.description} />
+          {/* The property description and the estate-wide amenities are
+              owned by the /finca page scaffold (FincaLead + AmenityRibbon)
+              so they stay consistent across /finca and /finca/[slug] —
+              the slug page swaps the lead paragraph for this property's
+              description. PropertyView focuses on the booking-mechanic
+              surface: features unique to this unit, the calendar, and
+              the pricing receipt sidebar. */}
 
           {/* FUTURE — auth-aware banner:
               When auth is wired, if the logged-in user already has an
@@ -234,9 +234,9 @@ export default function PropertyView({
               don't re-book the same property by mistake. Stub component:
               <UserUpcomingForProperty propertySlug={selected.slug} /> */}
 
-          {/* "What's included" while browsing → Calendar once the user
-              starts booking. Cross-fade keeps the main column anchored
-              instead of growing/shrinking abruptly. */}
+          {/* Features (unique to this unit) while browsing → Calendar once
+              the user starts booking. Cross-fade keeps the main column
+              anchored instead of growing/shrinking abruptly. */}
           <AnimatePresence mode="wait" initial={false}>
             {!started ? (
               <motion.div
@@ -247,11 +247,7 @@ export default function PropertyView({
                 transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="space-y-5"
               >
-                <WhatYouGet features={selected.features} amenities={fincaData.amenities} />
-                {/* Hosts fill the space below "What's included" while the
-                    booking flow is closed. Shared component with the
-                    landing page so the brand voice stays consistent. */}
-                <HostsSpotlight />
+                <FeaturesCard features={selected.features} />
               </motion.div>
             ) : (
               <motion.div
@@ -390,8 +386,9 @@ export default function PropertyView({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hero — property photo (full bleed) with name on the bottom-left and
-// per-night price on the bottom-right. Matches the beta hero composition.
+// Hero — property photo, no text overlay. The property's name + description
+// are already in the FincaLead above this view (see /finca/[slug]/page.tsx),
+// so the photo here just carries the atmosphere.
 
 function Hero({ property }: { property: Property }) {
   return (
@@ -414,30 +411,6 @@ function Hero({ property }: { property: Property }) {
             className="object-cover"
             sizes="(max-width: 1024px) 100vw, 60vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/65" />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Overlay copy — separate motion key so it cross-fades cleanly.
-          Price is intentionally NOT here — the sidebar Pricing card is the
-          single source of truth for rates. */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`${property.slug}-copy`}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="absolute inset-0 px-6 pb-6 md:pb-8 flex items-end text-white"
-        >
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/75 mb-2">
-              {property.title}
-            </p>
-            <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-tighter leading-none">
-              {displayName(property.slug)}
-            </h1>
-          </div>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -446,18 +419,18 @@ function Hero({ property }: { property: Property }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PropertyCarousel — vertical column on desktop (right of the hero),
-// horizontal scroll on mobile. Click a thumbnail → switch property
-// in-place. The selected one gets a slate-900 ring; the rest dim until
-// hover.
+// horizontal scroll on mobile. Each thumbnail is a Next `<Link>` to
+// `/finca/{slug}` — clicking it navigates rather than switching state
+// in-place. Next's prefetch keeps the swap fast, and the booking-flow
+// state inside PropertyView resets for free (new page = new tree).
+// The current property gets the slate-900 ring; the rest dim.
 
 function PropertyCarousel({
   properties,
-  selectedSlug,
-  onSelect,
+  currentSlug,
 }: {
   properties: Property[];
-  selectedSlug: string;
-  onSelect: (slug: string) => void;
+  currentSlug: string;
 }) {
   return (
     <div
@@ -470,13 +443,12 @@ function PropertyCarousel({
       "
     >
       {properties.map((p) => {
-        const isActive = p.slug === selectedSlug;
+        const isActive = p.slug === currentSlug;
         return (
-          <button
+          <Link
             key={p.slug}
-            type="button"
-            onClick={() => onSelect(p.slug)}
-            aria-pressed={isActive}
+            href={`/finca/${p.slug}`}
+            aria-current={isActive ? 'page' : undefined}
             className={[
               'relative shrink-0 snap-start',
               'w-40 lg:w-full',
@@ -505,7 +477,7 @@ function PropertyCarousel({
                 {displayName(p.slug)}
               </p>
             </div>
-          </button>
+          </Link>
         );
       })}
     </div>
@@ -569,45 +541,18 @@ function Card({
   );
 }
 
-function AboutCard({ description }: { description: string }) {
+// FeaturesCard — features unique to this property. Estate-wide amenities
+// have moved to the page-scaffold AmenityRibbon at the bottom of the
+// /finca and /finca/[slug] surfaces; this card only carries what's
+// specific to the selected unit.
+function FeaturesCard({ features }: { features: string[] }) {
   return (
-    <Card eyebrow="About this stay" icon={Sparkles}>
-      <p className="text-slate-700 leading-relaxed">{description}</p>
-    </Card>
-  );
-}
-
-type AmenityEntry = { name: string; icon: string };
-
-function WhatYouGet({ features, amenities }: { features: string[]; amenities: readonly AmenityEntry[] }) {
-  return (
-    <Card eyebrow="What's included" icon={Check}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <FeatureSub title="This property" subtitle="Unique to this unit" items={features} />
-        <AmenitySub title={`Every ${fincaData.name} stay`} subtitle="Estate-wide" items={amenities} />
-      </div>
-    </Card>
-  );
-}
-
-function SubHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="mb-3">
-      <p className="text-[9px] font-mono uppercase tracking-[0.3em] text-slate-400">{subtitle}</p>
-      <h3 className="text-sm font-bold text-slate-900 mt-0.5">{title}</h3>
-    </div>
-  );
-}
-
-function FeatureSub({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
-  return (
-    <div>
-      <SubHeader title={title} subtitle={subtitle} />
-      {items.length === 0 ? (
-        <p className="text-sm text-slate-400 italic">None listed.</p>
+    <Card eyebrow="This property" icon={Check}>
+      {features.length === 0 ? (
+        <p className="text-sm text-slate-400 italic">No features listed.</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((item) => (
+          {features.map((item) => (
             <li key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
               <Check className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               {item}
@@ -615,36 +560,7 @@ function FeatureSub({ title, subtitle, items }: { title: string; subtitle: strin
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-function AmenitySub({
-  title, subtitle, items,
-}: {
-  title: string;
-  subtitle: string;
-  items: readonly AmenityEntry[];
-}) {
-  return (
-    <div>
-      <SubHeader title={title} subtitle={subtitle} />
-      {items.length === 0 ? (
-        <p className="text-sm text-slate-400 italic">None listed.</p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map(({ name, icon }) => {
-            const Icon = iconByName(icon);
-            return (
-              <li key={name} className="flex items-center gap-2.5 text-sm text-slate-700">
-                <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                {name}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
+    </Card>
   );
 }
 
