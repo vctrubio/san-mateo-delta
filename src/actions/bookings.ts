@@ -7,6 +7,8 @@ import type { BookingStatus, CancelledBy, PaymentType } from '@db/enums';
 import { computeQuote, type Quote } from '@/lib/bookings';
 import { computeRefund } from '@/lib/refund';
 import { todayYmd } from '@/lib/dates';
+import { getActivePaymentPolicy } from '@/lib/systemSettings';
+import { getPresetByKey, resolvePolicy } from '@/lib/payment';
 
 type RequestBookingResult =
   | { ok: true; userId: string; bookingId: string }
@@ -46,6 +48,7 @@ function revalidateForBooking(bookingId: string, userId: string | null) {
   revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${bookingId}`);
   revalidatePath('/admin/properties');
+  revalidatePath('/admin/payments');
   if (userId) {
     revalidatePath(`/user/${userId}`);
     revalidatePath(`/admin/users/${userId}`);
@@ -99,6 +102,13 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
   });
   if ('error' in quote) return { ok: false, error: quote.error };
 
+  // Resolve the estate-wide active policy against this booking's check-in
+  // date. If a split policy was active but check-in is too close for the
+  // balance window to clear, `resolvePolicy` collapses to 100% upfront.
+  // The effective policy is what gets frozen on the booking row.
+  const activePolicy = await getActivePaymentPolicy();
+  const resolved = resolvePolicy(activePolicy.policy, check_in, todayYmd());
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -117,21 +127,22 @@ export async function requestBooking(formData: FormData): Promise<RequestBooking
     const userId = userRows.rows[0].id;
 
     const guestsJson = JSON.stringify({ adults, children, infants, pets });
+    const policyJson = JSON.stringify(resolved.effective);
     const bookingRows = await client.query<{ id: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
          agreed_property_cents, agreed_cleaning_cents,
-         status, guests
+         status, guests, payment_policy
        ) VALUES (
          $1, $2, $3::date, $4::date,
          $5, $6,
-         'request', $7::jsonb
+         'request', $7::jsonb, $8::jsonb
        )
        RETURNING id::text AS id`,
       [
         property.id, userId, check_in, check_out,
         quote.agreed_property_cents, quote.agreed_cleaning_cents,
-        guestsJson,
+        guestsJson, policyJson,
       ],
     );
     const bookingId = bookingRows.rows[0].id;
@@ -220,6 +231,7 @@ export async function createAdminBooking(formData: FormData): Promise<CreateAdmi
 
   const payment_amount_cents = strInt(formData, 'payment_amount_cents');
   const payment_type = (str(formData, 'payment_type') ?? 'reservation') as PaymentType;
+  const payment_policy_key = str(formData, 'payment_policy_key');
 
   if (!slug)         return { ok: false, error: 'Property slug missing.' };
   if (!check_in || !check_out) return { ok: false, error: 'Both check-in and check-out dates required.' };
@@ -298,23 +310,34 @@ export async function createAdminBooking(formData: FormData): Promise<CreateAdmi
       return { ok: false, error: `Dates overlap held booking #${conflict.id} (${conflict.status}).` };
     }
 
+    // Resolve the payment policy for this booking. Admin may override the
+    // estate-wide default via the preset picker on SelectionActionModal
+    // (payment_policy_key); when absent we fall back to whatever is active
+    // in system_settings. Either way the policy is resolved against the
+    // check-in date (too-close → collapse to 100% upfront).
+    const requestedPolicy = payment_policy_key
+      ? getPresetByKey(payment_policy_key).policy
+      : (await getActivePaymentPolicy()).policy;
+    const resolved = resolvePolicy(requestedPolicy, check_in, todayYmd());
+    const policyJson = JSON.stringify(resolved.effective);
+
     const guestsJson = JSON.stringify({ adults, children, infants, pets });
     const { rows: bookingRows } = await client.query<{ id: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
          agreed_property_cents, agreed_cleaning_cents,
-         status, guests, time_check_in, time_check_out
+         status, guests, payment_policy, time_check_in, time_check_out
        ) VALUES (
          $1, $2, $3::date, $4::date,
          $5, $6,
-         $7::booking_status, $8::jsonb,
-         $9::timestamptz, $10::timestamptz
+         $7::booking_status, $8::jsonb, $9::jsonb,
+         $10::timestamptz, $11::timestamptz
        )
        RETURNING id::text AS id`,
       [
         property.id, userId, check_in, check_out,
         agreed_property_cents, agreed_cleaning_cents,
-        status, guestsJson,
+        status, guestsJson, policyJson,
         time_check_in, time_check_out,
       ],
     );

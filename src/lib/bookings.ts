@@ -3,6 +3,7 @@ import { sql } from '@db/client';
 import type { BookingStatus, CancelledBy, Month } from '@db/enums';
 import { HIGH_SEASON_MONTHS } from '@db/enums';
 import type { Paginated } from './searchParams';
+import type { PaymentPolicy } from './payment';
 
 export type BookingRow = {
   id: string;
@@ -21,6 +22,13 @@ export type BookingRow = {
   agreed_total_cents: number;
   status: BookingStatus;
   guests: { adults: number; children: number; infants: number; pets: number };
+  /**
+   * Payment policy snapshot. Frozen at booking creation. Read this when
+   * computing deposit amounts, displaying policy copy, or scheduling
+   * balance charges — `/admin/payments` changes do not reach back into
+   * this column. See src/lib/payment.ts and docs/payment.md.
+   */
+  payment_policy: PaymentPolicy;
   time_check_in: string | null;
   time_check_out: string | null;
   /** Cancellation snapshot, joined from booking_cancellations if status='cancelled'. */
@@ -64,6 +72,7 @@ const BOOKING_SELECT = `
   (b.agreed_property_cents + b.agreed_cleaning_cents)::int AS agreed_total_cents,
   b.status::text                        AS status,
   b.guests                              AS guests,
+  b.payment_policy                      AS payment_policy,
   b.time_check_in::text                 AS time_check_in,
   b.time_check_out::text                AS time_check_out,
   bc.cancelled_at::text                 AS cancelled_at,

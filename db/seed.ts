@@ -6,6 +6,7 @@ import {
   type Month,
 } from './enums';
 import { computeRefund } from '../src/lib/refund';
+import { PAYMENT_PRESETS, resolvePolicy, type PaymentPolicyKey } from '../src/lib/payment';
 
 type PropertySeed = {
   slug: string;
@@ -97,6 +98,9 @@ type BookingSeed = {
   cancellation_reason?: string;
   cancelled_by?: CancelledBy;
   internal_note?: string;           // logged in booking_events
+  /** Payment policy snapshot. Defaults to split_14 if omitted. Sprinkle other
+   *  presets so the dashboard renders cash / full-upfront flavours too. */
+  policy_key?: PaymentPolicyKey;
 };
 
 // 12 reservations spread across the last 4 months. Held statuses
@@ -114,8 +118,8 @@ const BOOKINGS: BookingSeed[] = [
   { property: 'estrecho', guest: 'tom',   in: '2026-04-18', out: '2026-04-22', status: 'cancelled',   adults: 2, cancellation_reason: 'Guest changed plans', cancelled_by: 'guest' },
 
   // Marea (3)
-  { property: 'marea',    guest: null,    in: '2026-01-28', out: '2026-02-02', status: 'checked_out', adults: 2, internal_note: 'Maintenance window' },
-  { property: 'marea',    guest: 'maria', in: '2026-03-14', out: '2026-03-21', status: 'checked_out', adults: 2 },
+  { property: 'marea',    guest: null,    in: '2026-01-28', out: '2026-02-02', status: 'checked_out', adults: 2, internal_note: 'Maintenance window', policy_key: 'cash' },
+  { property: 'marea',    guest: 'maria', in: '2026-03-14', out: '2026-03-21', status: 'checked_out', adults: 2, policy_key: 'full_now' },
   { property: 'marea',    guest: 'tom',   in: '2026-04-25', out: '2026-04-30', status: 'request',     adults: 2 },
 
   // Cala (3)
@@ -231,19 +235,27 @@ async function seedBookings(
     const timeIn  = b.status === 'checked_in' || b.status === 'checked_out' ? `${b.in}T16:00:00Z`  : null;
     const timeOut = b.status === 'checked_out'                              ? `${b.out}T11:00:00Z` : null;
 
+    // Snapshot the policy for this seed booking. Resolved against check-in
+    // so split policies on past dates would collapse — for seed bookings
+    // we resolve against the booking's created_at to match the historical
+    // moment rather than today.
+    const policyKey: PaymentPolicyKey = b.policy_key ?? 'split_14';
+    const requestedPolicy = PAYMENT_PRESETS[policyKey].policy;
+    const resolvedPolicy = resolvePolicy(requestedPolicy, b.in, createdAt.slice(0, 10));
+
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO bookings (
          property_id, user_id, date_check_in, date_check_out,
          agreed_property_cents, agreed_cleaning_cents,
-         status, guests,
+         status, guests, payment_policy,
          time_check_in, time_check_out,
          created_at, updated_at
        ) VALUES (
          $1, $2, $3::date, $4::date,
          $5, $6,
-         $7::booking_status, $8::jsonb,
-         $9, $10,
-         $11, $11
+         $7::booking_status, $8::jsonb, $9::jsonb,
+         $10, $11,
+         $12, $12
        )
        RETURNING id`,
       [
@@ -255,6 +267,7 @@ async function seedBookings(
         agreedCleaning,
         b.status,
         guests,
+        JSON.stringify(resolvedPolicy.effective),
         timeIn,
         timeOut,
         createdAt,

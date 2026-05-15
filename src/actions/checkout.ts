@@ -7,17 +7,18 @@ import { stripe, appUrl } from '@/lib/stripe/server';
 import { totalPaidForBooking } from '@/lib/payments';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
+import { computeDepositCents, type PaymentPolicy } from '@/lib/payment';
 import finca from '../../finca.json';
 
-// Deposit charged on booking. Remaining balance is due 14 days before
-// arrival — that scheduled charge isn't wired yet; for now the host
-// either collects the balance manually or the guest pays it through
-// /user/[id]'s "Pay outstanding" CTA (planned).
-const DEPOSIT_PCT = 0.50;
+// Deposit amount is derived from the booking's snapshotted payment_policy
+// (see src/lib/payment.ts). The scheduled balance charge — auto-pull N days
+// before check-in — isn't wired yet; for now the host either collects the
+// balance manually or the guest pays it through /user/[id]'s "Pay
+// outstanding" CTA.
 
 /**
  * Stripe Checkout kind. Maps onto the existing payment_type enum:
- *   - 'deposit'     → DEPOSIT_PCT of agreed total, type='deposit'
+ *   - 'deposit'     → booking.payment_policy.deposit_pct of agreed total, type='deposit'
  *   - 'full'        → 100% of agreed total, type='reservation'
  *   - 'balance'     → outstanding (agreed total − sum of succeeded payments), type='balance'
  */
@@ -56,6 +57,7 @@ export async function createCheckoutSession(
     check_out: string;
     agreed_property_cents: number;
     agreed_cleaning_cents: number;
+    payment_policy: PaymentPolicy;
   }>(
     `SELECT b.id::text                              AS id,
             b.status::text                          AS status,
@@ -64,7 +66,8 @@ export async function createCheckoutSession(
             b.date_check_in::text                   AS check_in,
             b.date_check_out::text                  AS check_out,
             b.agreed_property_cents::int            AS agreed_property_cents,
-            b.agreed_cleaning_cents::int            AS agreed_cleaning_cents
+            b.agreed_cleaning_cents::int            AS agreed_cleaning_cents,
+            b.payment_policy                        AS payment_policy
        FROM bookings b
        JOIN properties p ON p.id = b.property_id
        LEFT JOIN users u ON u.id = b.user_id
@@ -78,12 +81,22 @@ export async function createCheckoutSession(
   }
 
   const agreedTotal = booking.agreed_property_cents + booking.agreed_cleaning_cents;
+  const policy = booking.payment_policy;
 
   let amount_cents: number;
   let payment_type: PaymentType;
   switch (kind) {
     case 'deposit':
-      amount_cents = Math.round(agreedTotal * DEPOSIT_PCT);
+      // method='cash' bookings never opened Stripe at submit time — refuse
+      // to do so retroactively from the admin path either. The host should
+      // record the cash payment via registerCashPayment instead.
+      if (policy.method === 'cash') {
+        return { ok: false, error: 'Booking is on a cash policy — no Stripe deposit to collect.' };
+      }
+      if (policy.deposit_pct === 0) {
+        return { ok: false, error: 'Booking has no deposit due (0% policy).' };
+      }
+      amount_cents = computeDepositCents(agreedTotal, policy);
       payment_type = 'deposit';
       break;
     case 'full':
@@ -107,8 +120,9 @@ export async function createCheckoutSession(
   // Settings → Branding (one-time config, not via API). See docs/stripe.md.
   const estateName = `Finca ${finca.name}`;
   const propertyLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
-  const depositPctLabel = `${Math.round(DEPOSIT_PCT * 100)}%`;
-  const kindLabel = kind === 'deposit' ? `Deposit (${depositPctLabel})` : kind === 'full' ? 'Full payment' : 'Balance';
+  const kindLabel = kind === 'deposit'
+    ? `Deposit (${policy.deposit_pct}%)`
+    : kind === 'full' ? 'Full payment' : 'Balance';
   const productName = `${estateName} · ${propertyLabel}`;
   const description = `${kindLabel} · ${fmtDateRange(booking.check_in, booking.check_out)}`;
 

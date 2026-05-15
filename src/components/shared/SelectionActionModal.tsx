@@ -32,6 +32,14 @@ import { previewQuote } from '@/actions/bookings';
 import { ymd } from '@/components/calendar/dateUtils';
 import { fmtDate, fmtDateRange, nightsBetween } from '@/lib/dates';
 import type { Quote } from '@/lib/bookings';
+import {
+  PAYMENT_PRESETS,
+  resolvePolicy,
+  computeDepositCents,
+  type PaymentPolicyKey,
+} from '@/lib/payment';
+import { todayYmd } from '@/lib/dates';
+import PaymentPolicyPresetPicker from '@/components/admin/PaymentPolicyPresetPicker';
 import fincaData from '../../../finca.json';
 
 // ============================================================================
@@ -64,6 +72,8 @@ export type SelectionActionModalProps = {
   start: Date;
   end: Date;
   users: SelectionUserOption[];
+  /** Active estate-wide policy — preselected in the per-booking preset picker. */
+  defaultPaymentPolicyKey: PaymentPolicyKey;
   onClose: () => void;
   /** Fired after a successful action so the parent can clear the selection. */
   onSuccess: () => void;
@@ -78,6 +88,7 @@ export default function SelectionActionModal({
   start,
   end,
   users,
+  defaultPaymentPolicyKey,
   onClose,
   onSuccess,
 }: SelectionActionModalProps) {
@@ -126,6 +137,7 @@ export default function SelectionActionModal({
               nights={nights}
               propertyMaxGuests={propertyMaxGuests}
               users={users}
+              defaultPaymentPolicyKey={defaultPaymentPolicyKey}
               onSuccess={() => { onSuccess(); onClose(); }}
             />
           )}
@@ -255,7 +267,7 @@ function BlockView({
 type PaymentChoice = 'none' | 'deposit' | 'full' | 'custom';
 
 function BookingView({
-  slug, start, end, nights, propertyMaxGuests, users, onSuccess,
+  slug, start, end, nights, propertyMaxGuests, users, defaultPaymentPolicyKey, onSuccess,
 }: {
   slug: string;
   start: Date;
@@ -263,8 +275,16 @@ function BookingView({
   nights: number;
   propertyMaxGuests: number;
   users: SelectionUserOption[];
+  defaultPaymentPolicyKey: PaymentPolicyKey;
   onSuccess: () => void;
 }) {
+  // Payment policy for THIS booking. Preselected to the estate-wide active
+  // key but admin can override here without changing the estate default.
+  // The picker shows a too-close caption when the policy will collapse on
+  // submit; the resolved policy is what `createAdminBooking` snapshots.
+  const [paymentPolicyKey, setPaymentPolicyKey] = useState<PaymentPolicyKey>(defaultPaymentPolicyKey);
+  const policy = PAYMENT_PRESETS[paymentPolicyKey].policy;
+  const resolvedPolicy = resolvePolicy(policy, ymd(start), todayYmd());
   const [withUser, setWithUser] = useState(true);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -341,10 +361,10 @@ function BookingView({
   const paymentAmountCents = useMemo(() => {
     if (paymentChoice === 'none' || customTotalCents == null) return 0;
     if (paymentChoice === 'full') return customTotalCents;
-    if (paymentChoice === 'deposit') return Math.round(customTotalCents / 2);
+    if (paymentChoice === 'deposit') return computeDepositCents(customTotalCents, resolvedPolicy.effective);
     const v = parseEur(customPaymentEuros);
     return v ?? 0;
-  }, [paymentChoice, customTotalCents, customPaymentEuros]);
+  }, [paymentChoice, customTotalCents, customPaymentEuros, resolvedPolicy.effective]);
 
   const totalGuests = adults + children;
   const overCapacity = totalGuests > propertyMaxGuests;
@@ -391,6 +411,10 @@ function BookingView({
     if (checkOutTime) {
       fd.set('time_check_out', combineDateTime(end, checkOutTime));
     }
+    // Payment policy for this booking — server resolves it again against
+    // the check-in date and snapshots the result onto bookings.payment_policy.
+    fd.set('payment_policy_key', paymentPolicyKey);
+
     // Payment only flows to the action when the booking is being confirmed —
     // an invite hasn't been accepted yet, so there's nothing to charge for.
     // (UI also hides the payment section on invite, but the state may still
@@ -559,8 +583,24 @@ function BookingView({
         </div>
       </Section>
 
-      {/* ─ Payment ─ only on direct confirm. Invites have nothing to charge
-          for until the guest accepts. */}
+      {/* ─ Payment policy ─ the *terms* of this booking. Distinct from the
+          cash-payment section below (which records actual money received).
+          Pick a preset; the server resolves it against the check-in date and
+          snapshots the effective policy onto the booking row. */}
+      <Section
+        label="Payment policy"
+        hint={resolvedPolicy.collapsed ? 'will collapse to 100% upfront' : undefined}
+      >
+        <PaymentPolicyPresetPicker
+          value={paymentPolicyKey}
+          onChange={setPaymentPolicyKey}
+          checkInYmd={ymd(start)}
+        />
+      </Section>
+
+      {/* ─ Cash payment ─ only on direct confirm. Records money already
+          collected from the guest in person — distinct from the policy
+          above. Invites have nothing to charge for until the guest accepts. */}
       {statusChoice === 'confirmed' && (
         <Section
           label="Cash payment"
@@ -576,8 +616,10 @@ function BookingView({
             <PickerTile
               active={paymentChoice === 'deposit'}
               onClick={() => setPaymentChoice('deposit')}
-              label="Deposit · 50%"
-              sub={customTotalCents != null ? eur(Math.round(customTotalCents / 2)) : '—'}
+              label={`Deposit · ${resolvedPolicy.effective.deposit_pct}%`}
+              sub={customTotalCents != null
+                ? eur(computeDepositCents(customTotalCents, resolvedPolicy.effective))
+                : '—'}
             />
             <PickerTile
               active={paymentChoice === 'full'}

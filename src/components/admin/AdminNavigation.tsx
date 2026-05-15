@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarRange,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import AdminActions from './AdminActions';
@@ -39,6 +40,7 @@ const NAV: Route[] = [
   { href: '/admin',            label: 'Finca',       icon: LayoutDashboard },
   // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
+  { href: '/admin/payments',   label: 'Payments',    icon: Wallet },
   { href: '/admin/users',      label: 'Users',       icon: Users },
 ];
 

@@ -133,7 +133,7 @@ CREATE TABLE bookings (
   -- the estate-wide system_settings.active_payment_policy_key (or any
   -- admin override) against the check-in date via the resolver in
   -- src/lib/payment.ts and stores the effective policy here. Future
-  -- /admin/settings changes do NOT reach back into this row. See
+  -- /admin/payments changes do NOT reach back into this row. See
   -- docs/payment.md.
   payment_policy         JSONB       NOT NULL CHECK (
                             jsonb_typeof(payment_policy) = 'object'
@@ -306,3 +306,26 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_users_updated_at      BEFORE UPDATE ON users      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_properties_updated_at BEFORE UPDATE ON properties FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_bookings_updated_at   BEFORE UPDATE ON bookings   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================================
+-- SYSTEM SETTINGS
+-- ============================================================================
+-- Singleton row (id=1) holding estate-wide runtime config that admin can
+-- flip from the UI without redeploying. Today this is just the active
+-- payment-policy preset key; future global toggles land here too.
+--
+-- The active key is one of the four presets defined in src/lib/payment.ts —
+-- the CHECK constraint enforces the same vocabulary the picker exposes.
+-- Booking rows snapshot their effective policy at creation time, so editing
+-- this row never reaches back into existing bookings.
+
+CREATE TABLE system_settings (
+  id                          INT         PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  active_payment_policy_key   TEXT        NOT NULL DEFAULT 'split_14'
+                                          CHECK (active_payment_policy_key IN ('split_14','split_7','full_now','cash')),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO system_settings (id) VALUES (1);
+
+CREATE TRIGGER trg_system_settings_updated_at BEFORE UPDATE ON system_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();

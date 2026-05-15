@@ -3,6 +3,7 @@ import { listProperties } from '@/lib/properties';
 import { getCalendarItems, windowFor } from '@/lib/calendar';
 import type { CalendarItem } from '@/lib/calendar';
 import PropertyView from '@/components/finca/PropertyView';
+import { getActivePaymentPolicy } from '@/lib/systemSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,12 @@ export const dynamic = 'force-dynamic';
 // availability windows in parallel; the client `PropertyView` owns the
 // "selected" state so the carousel can switch in-place with animation
 // without hitting the network. The URL slug only seeds the initial pick.
+//
+// `activePolicy` is the estate-wide payment policy in effect right now —
+// the booking receipt resolves it against the guest's selected dates
+// (collapsing 50/14 to 100% upfront when check-in is too close, etc.) and
+// the submit path adapts (no Stripe call on cash policies, full charge
+// when collapsed).
 export default async function PropertyDetailsPage({
   params,
 }: {
@@ -21,12 +28,15 @@ export default async function PropertyDetailsPage({
   if (!selected) notFound();
 
   const { from, to } = windowFor(new Date(), 6);
-  const itemsEntries = await Promise.all(
-    properties.map(async (p): Promise<[string, CalendarItem[]]> => [
-      p.slug,
-      await getCalendarItems({ propertyId: p.id, from, to, mode: 'public' }),
-    ]),
-  );
+  const [itemsEntries, activePolicy] = await Promise.all([
+    Promise.all(
+      properties.map(async (p): Promise<[string, CalendarItem[]]> => [
+        p.slug,
+        await getCalendarItems({ propertyId: p.id, from, to, mode: 'public' }),
+      ]),
+    ),
+    getActivePaymentPolicy(),
+  ]);
   const itemsBySlug = Object.fromEntries(itemsEntries);
 
   return (
@@ -34,6 +44,7 @@ export default async function PropertyDetailsPage({
       properties={properties}
       initialSlug={slug}
       itemsBySlug={itemsBySlug}
+      activePolicy={activePolicy.policy}
     />
   );
 }

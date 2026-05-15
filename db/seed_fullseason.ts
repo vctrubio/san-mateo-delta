@@ -21,6 +21,7 @@ import {
   type Month,
 } from './enums';
 import { computeRefund } from '../src/lib/refund';
+import { PAYMENT_PRESETS, resolvePolicy, type PaymentPolicyKey } from '../src/lib/payment';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Deterministic PRNG (mulberry32) so the dataset is identical every run.
@@ -381,22 +382,36 @@ async function seedBookings(
     const timeIn  = b.status === 'checked_in' || b.status === 'checked_out' ? `${b.in}T16:00:00Z`  : null;
     const timeOut = b.status === 'checked_out'                              ? `${b.out}T11:00:00Z` : null;
 
+    // Sprinkle some policy variety: every 7th booking on cash, every 11th
+    // on full_now, the rest on the default split_14. Resolved against
+    // created_at so historical bookings reflect their booking-day rule.
+    const policyKey: PaymentPolicyKey =
+      b.in.charCodeAt(8) % 7 === 0 ? 'cash'
+      : b.in.charCodeAt(9) % 11 === 0 ? 'full_now'
+      : 'split_14';
+    const resolvedPolicy = resolvePolicy(
+      PAYMENT_PRESETS[policyKey].policy,
+      b.in,
+      createdAt.slice(0, 10),
+    );
+
     let bookingId: string;
     try {
       const { rows } = await pool.query<{ id: string }>(
         `INSERT INTO bookings (
            property_id, user_id, date_check_in, date_check_out,
            agreed_property_cents, agreed_cleaning_cents,
-           status, guests, time_check_in, time_check_out,
+           status, guests, payment_policy, time_check_in, time_check_out,
            created_at, updated_at
          ) VALUES (
            $1, $2, $3::date, $4::date,
            $5, $6,
-           $7::booking_status, $8::jsonb, $9, $10,
-           $11, $11
+           $7::booking_status, $8::jsonb, $9::jsonb, $10, $11,
+           $12, $12
          ) RETURNING id::text`,
         [propRow.id, userId, b.in, b.out, agreedProperty, agreedCleaning,
-         b.status, guests, timeIn, timeOut, createdAt],
+         b.status, guests, JSON.stringify(resolvedPolicy.effective),
+         timeIn, timeOut, createdAt],
       );
       bookingId = rows[0].id;
     } catch (err) {

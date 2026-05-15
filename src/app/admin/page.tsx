@@ -11,6 +11,7 @@ import {
   type FuturePropertyData,
 } from '@/lib/properties';
 import type { SelectionUserOption } from '@/components/shared/SelectionActionModal';
+import { getActivePaymentPolicy } from '@/lib/systemSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function AdminDashboardPage() {
   // 6-month forward window — same lens as the per-property strip.
   const { from, to } = windowFor(new Date(), 6);
 
-  const [calendarRows, futureRows, overview, users] = await Promise.all([
+  const [calendarRows, futureRows, overview, users, activePolicy] = await Promise.all([
     Promise.all(
       properties.map(async (p) => ({
         slug: p.slug,
@@ -46,6 +47,10 @@ export default async function AdminDashboardPage() {
     sql<SelectionUserOption>(
       `SELECT id::text, name, email FROM users ORDER BY name`,
     ),
+    // Estate-wide payment policy default; SelectionActionModal's preset
+    // picker uses this as the initial selection. Admin can override per
+    // booking from the picker; estate-wide changes happen on /admin/payments.
+    getActivePaymentPolicy(),
   ]);
 
   const itemsBySlug: Record<string, CalendarItem[]> = {};
@@ -68,6 +73,7 @@ export default async function AdminDashboardPage() {
       futureBySlug={futureBySlug}
       overview={overview}
       users={users}
+      defaultPaymentPolicyKey={activePolicy.key}
     />
   );
 }

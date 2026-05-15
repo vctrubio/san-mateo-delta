@@ -21,6 +21,14 @@ import GuestConfig from '@/components/shared/GuestConfig';
 import { DEFAULT_GUESTS, totalGuests, type GuestCounts } from '@/lib/guests';
 import { previewQuote, requestBooking } from '@/actions/bookings';
 import { createCheckoutSession } from '@/actions/checkout';
+import {
+  resolvePolicy,
+  computeDepositCents,
+  chargesCardAtBooking,
+  describePolicy,
+  type PaymentPolicy,
+} from '@/lib/payment';
+import { todayYmd } from '@/lib/dates';
 import fincaData from '../../../finca.json';
 import { HostsSpotlight } from '@/components/landing/HostsSpotlight';
 
@@ -39,11 +47,15 @@ import { HostsSpotlight } from '@/components/landing/HostsSpotlight';
 // into a receipt with line-item breakdown, and the main column reveals
 // guest + identity + submit inline below the Calendar.
 //
-// Payment: 50% deposit on booking via Stripe checkout. Balance due 14
-// days before arrival (manual for now; scheduled charge is a follow-up).
+// Payment terms are driven by the estate-wide active policy passed in via
+// the `activePolicy` prop (read from `system_settings.active_payment_policy_key`
+// in the server page). Once dates are picked, we resolve the policy against
+// the selected check-in date — too-close split policies collapse to 100%
+// upfront and surface a plain-English explanation in the receipt. The
+// resolved policy is what the submit path acts on (Stripe Checkout for
+// card flows; direct insert + redirect for cash / 0% policies). See
+// src/lib/payment.ts and docs/payment.md.
 // ============================================================================
-
-const DEPOSIT_PCT = 0.5;
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
   'Starlink WiFi': Wifi,
@@ -63,10 +75,14 @@ export default function PropertyView({
   properties,
   initialSlug,
   itemsBySlug,
+  activePolicy,
 }: {
   properties: Property[];
   initialSlug: string;
   itemsBySlug: Record<string, CalendarItem[]>;
+  /** Estate-wide active payment policy at page-load time. Resolved against
+   *  the guest's selected dates once they pick a range. */
+  activePolicy: PaymentPolicy;
 }) {
   // URL slug only seeds the initial pick — the carousel switches between
   // properties client-side so the hero / stats / receipt animate without
@@ -144,6 +160,18 @@ export default function PropertyView({
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = datesReady && guestsValid && identityValid;
 
+  // Resolve the active estate policy against the picked check-in date.
+  // Without a range we still resolve against today + 60 days so the
+  // sidebar can describe the policy generically — collapse only fires
+  // when there's a real range to evaluate.
+  const resolvedPolicy = range
+    ? resolvePolicy(activePolicy, ymd(range.start), todayYmd())
+    : { effective: activePolicy, requested: activePolicy, collapsed: false } as const;
+  const willChargeCard = chargesCardAtBooking(resolvedPolicy.effective);
+  const depositCents = quote
+    ? computeDepositCents(quote.agreed_total_cents, resolvedPolicy.effective)
+    : 0;
+
   function submit() {
     if (!range || !quote) return;
     setError(null);
@@ -168,12 +196,19 @@ export default function PropertyView({
     startTransition(async () => {
       const result = await requestBooking(fd);
       if (!result.ok) { setError(result.error); return; }
-      // 50% deposit on booking. Webhook will land the succeeded payment;
-      // remaining balance scheduled 14 days before arrival is a follow-up.
+
+      // If the resolved policy is cash or 0% upfront, skip Stripe entirely —
+      // the booking is recorded and admin will collect on arrival. Otherwise
+      // open Stripe Checkout for the deposit (or full payment when the
+      // policy is 100% upfront).
+      if (!willChargeCard) {
+        window.location.href = `/user/${result.userId}?just_booked=${result.bookingId}`;
+        return;
+      }
       const checkout = await createCheckoutSession(result.bookingId, 'deposit');
       if (!checkout.ok) {
         setError(`Booking saved (#${result.bookingId}), but Stripe checkout failed: ${checkout.error}.`);
-        window.location.href = `/user/${result.userId}`;
+        window.location.href = `/user/${result.userId}?just_booked=${result.bookingId}`;
         return;
       }
       window.location.href = checkout.url;
@@ -291,16 +326,34 @@ export default function PropertyView({
                         ? `Max ${selected.max_guests} guests`
                         : !identityValid
                           ? 'Add your name & email'
-                          : (
-                            <>
-                              <CreditCard className="w-4 h-4" />
-                              Pay {eur(Math.round((quote?.agreed_total_cents ?? 0) * DEPOSIT_PCT))} deposit
-                              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </>
-                          )}
+                          : !willChargeCard
+                            ? (
+                              <>
+                                <ChevronRight className="w-4 h-4" />
+                                Reserve · pay on arrival
+                                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                              </>
+                            )
+                            : resolvedPolicy.effective.deposit_pct === 100
+                              ? (
+                                <>
+                                  <CreditCard className="w-4 h-4" />
+                                  Pay {eur(depositCents)} · full payment
+                                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </>
+                              )
+                              : (
+                                <>
+                                  <CreditCard className="w-4 h-4" />
+                                  Pay {eur(depositCents)} deposit
+                                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </>
+                              )}
                 </button>
                 <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest text-center">
-                  Pay securely on Stripe. Test card 4242 4242 4242 4242.
+                  {willChargeCard
+                    ? 'Pay securely on Stripe. Test card 4242 4242 4242 4242.'
+                    : 'No card collected at booking. The host will collect on arrival.'}
                 </p>
               </motion.div>
             )}
@@ -317,6 +370,8 @@ export default function PropertyView({
             isQuoting={isQuoting}
             quoteError={quoteError}
             started={started}
+            resolvedPolicy={resolvedPolicy}
+            depositCents={depositCents}
             onBook={() => setStarted(true)}
             onCancel={() => {
               // Close — wipe the whole in-flight booking back to a fresh
@@ -588,6 +643,8 @@ function PricingCard({
   isQuoting,
   quoteError,
   started,
+  resolvedPolicy,
+  depositCents,
   onBook,
   onCancel,
 }: {
@@ -598,6 +655,13 @@ function PricingCard({
   isQuoting: boolean;
   quoteError: string | null;
   started: boolean;
+  resolvedPolicy: {
+    effective: PaymentPolicy;
+    requested: PaymentPolicy;
+    collapsed: boolean;
+    collapseReason?: string;
+  };
+  depositCents: number;
   onBook: () => void;
   onCancel: () => void;
 }) {
@@ -605,7 +669,15 @@ function PricingCard({
   const flat = low === high;
 
   if (started && quote) {
-    return <PricingReceipt quote={quote} cleaningFeeCents={cleaningFeeCents} onCancel={onCancel} />;
+    return (
+      <PricingReceipt
+        quote={quote}
+        cleaningFeeCents={cleaningFeeCents}
+        resolvedPolicy={resolvedPolicy}
+        depositCents={depositCents}
+        onCancel={onCancel}
+      />
+    );
   }
 
   return (
@@ -667,12 +739,19 @@ function PricingCard({
         </div>
       )}
 
-      {/* Deposit policy */}
+      {/* Payment policy — derived from the estate-wide active policy
+          (system_settings). Reflects any too-close collapse for the
+          currently-selected dates. */}
       <div className="mt-4 pt-4 border-t border-slate-200">
-        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500 mb-1">Deposit</p>
+        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500 mb-1">Payment</p>
         <p className="text-xs text-slate-600 leading-relaxed">
-          50% on booking. Balance 14 days before arrival.
+          {describePolicy(resolvedPolicy.effective)}
         </p>
+        {resolvedPolicy.collapsed && resolvedPolicy.collapseReason && (
+          <p className="mt-1 text-[11px] text-amber-700 leading-relaxed">
+            {resolvedPolicy.collapseReason}
+          </p>
+        )}
       </div>
 
       {/* FUTURE — auth gate:
@@ -705,15 +784,26 @@ function PricingCard({
 function PricingReceipt({
   quote,
   cleaningFeeCents,
+  resolvedPolicy,
+  depositCents,
   onCancel,
 }: {
   quote: Quote;
   cleaningFeeCents: number;
+  resolvedPolicy: {
+    effective: PaymentPolicy;
+    requested: PaymentPolicy;
+    collapsed: boolean;
+    collapseReason?: string;
+  };
+  depositCents: number;
   onCancel: () => void;
 }) {
   const isPeak = HIGH_SEASON_MONTHS.includes(quote.rate_month as Month);
-  const deposit = Math.round(quote.agreed_total_cents * DEPOSIT_PCT);
-  const balance = quote.agreed_total_cents - deposit;
+  const policy = resolvedPolicy.effective;
+  const balance = quote.agreed_total_cents - depositCents;
+  const isCash = policy.method === 'cash';
+  const isFullUpfront = policy.deposit_pct === 100;
   return (
     <section className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-6">
       <div className="flex items-baseline justify-between gap-3 mb-4">
@@ -765,13 +855,39 @@ function PricingReceipt({
         </div>
       </dl>
 
+      {resolvedPolicy.collapsed && resolvedPolicy.collapseReason && (
+        <div className="mt-4 pt-4 border-t border-slate-200 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-3 py-2 text-[11px] text-amber-900 leading-relaxed">
+          <strong>Full payment due now.</strong> {resolvedPolicy.collapseReason}
+        </div>
+      )}
+
       <div className="mt-4 pt-4 border-t border-slate-200 space-y-2 text-[13px] tabular-nums">
-        <ReceiptRow label="Deposit (on booking)" value={eur(deposit)} highlight />
-        <ReceiptRow label="Balance (14 days before)" value={eur(balance)} muted />
+        {isCash ? (
+          <ReceiptRow label="Due on arrival (cash)" value={eur(quote.agreed_total_cents)} highlight />
+        ) : isFullUpfront ? (
+          <ReceiptRow label="Total due now" value={eur(quote.agreed_total_cents)} highlight />
+        ) : (
+          <>
+            <ReceiptRow label={`Deposit · ${policy.deposit_pct}% on booking`} value={eur(depositCents)} highlight />
+            <ReceiptRow
+              label={
+                policy.balance_days_before === 0
+                  ? 'Balance · on arrival'
+                  : `Balance · ${policy.balance_days_before} days before`
+              }
+              value={eur(balance)}
+              muted
+            />
+          </>
+        )}
       </div>
 
       <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mt-4 leading-relaxed">
-        Pay {eur(deposit)} now to confirm. Stripe charges the balance automatically 14 days before check-in.
+        {isCash
+          ? 'No card required at booking. The host will collect on arrival.'
+          : isFullUpfront
+            ? `Pay ${eur(quote.agreed_total_cents)} now to confirm.`
+            : `Pay ${eur(depositCents)} now to confirm. The balance is charged ${policy.balance_days_before} days before check-in.`}
       </p>
     </section>
   );

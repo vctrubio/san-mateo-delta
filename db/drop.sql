@@ -1,6 +1,7 @@
 -- Drop everything in dependency-safe order. Used by db:reset before re-applying schema.sql.
 -- CASCADE wipes all foreign key references in one shot.
 
+DROP TABLE IF EXISTS system_settings        CASCADE;
 DROP TABLE IF EXISTS booking_events         CASCADE;
 DROP TABLE IF EXISTS payment_refunds        CASCADE;
 DROP TABLE IF EXISTS booking_payments       CASCADE;

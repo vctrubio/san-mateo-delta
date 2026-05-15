@@ -1,169 +1,229 @@
 # User story — booking + payments
 
-Branch: `user-story`. Tracks what's shipped and what's still ahead for the
-guest-side journey: landing → property → booking → payment → dashboard.
+Branch: `user-story`. The end-to-end guest journey + the admin payment
+controls that wrap around it.
 
-The admin side has been hardened on `main` (notification bell, search
-command palette, user dashboard, history-only seed). This branch is about
-making the guest path feel as polished.
+The admin side was hardened on `main` (notification bell, search command
+palette, user dashboard, history-only seed). This branch made the guest
+path match that quality, then layered on a runtime-switchable payment
+policy with a dedicated **Payments HQ** at `/admin/payments`.
 
-## Today's flow (what works)
+## Today's flow
 
 ```
    /                          /finca/[slug]                          submit
 ┌─────────────────┐  card  ┌──────────────────────────────┐    ┌───────────────────┐
 │ HeroLanding     │ ─────▶ │ PropertyView                 │    │ requestBooking    │
-│ PropertyShowcase│        │  · hero + 4-prop carousel    │    │  upsert user      │
-│ AboutSection    │        │  · characteristics           │    │  insert booking   │
-│ Footer          │        │  · about · what's included   │    │    status=request │
-└─────────────────┘        │  · hosts (souls)             │    │  revalidate /admin│
-                           │ ┌──────────────────────────┐ │    └──────┬────────────┘
-                           │ │ PricingCard (sidebar)    │ │           │
-                           │ │  rates + deposit policy  │ │           ▼
-                           │ │  [Book your stay]        │ │    createCheckoutSession
-                           │ └──────────┬───────────────┘ │       ('deposit' = 50%)
+│  + "See homes ↓"│        │  · hero + 4-prop carousel    │    │  upsert user      │
+│ PropertyShowcase│        │  · characteristics           │    │  insert booking   │
+│  (2-CTA modal)  │        │  · about · what's included   │    │    status=request │
+│ AboutSection    │        │  · hosts (souls)             │    │    + payment_policy
+│ Footer          │        │ ┌──────────────────────────┐ │    │    snapshot       │
+└─────────────────┘        │ │ PricingCard (sidebar)    │ │    │  revalidate /admin│
+                           │ │  rates + describePolicy()│ │    └──────┬────────────┘
+                           │ │  [Book your stay]        │ │           │
+                           │ └──────────┬───────────────┘ │           │
                            │            │ click           │           │
-                           │            ▼                 │           ▼
-                           │  Calendar replaces features  │    Stripe Checkout
-                           │  Guests + Identity reveal    │    (50% deposit charged)
-                           │  Receipt mode in sidebar     │           │
-                           │   · nights × rate            │           ▼
-                           │   · cleaning fee             │    /checkout/success
-                           │   · 50% deposit on booking   │           │
-                           │   · 50% balance 14d before   │           ▼
-                           │  [Pay €X deposit] ───────────│──▶  /user/[id]
-                           └──────────────────────────────┘    UserDashboard
-                                                               (Pending host approval)
+                           │            ▼                 │           │
+                           │  Calendar replaces features  │           │
+                           │  Guests + Identity reveal    │           │
+                           │  Receipt adapts to resolved  │           │
+                           │  policy (split / full / cash)│           │
+                           │  [Reserve | Pay deposit | …] │           ▼
+                           │            │                 │    chargesCardAtBooking?
+                           └────────────│─────────────────┘    │
+                                        ▼                      ├── yes → createCheckoutSession
+                                                               │           ('deposit')
+                                                               │            │
+                                                               │            ▼
+                                                               │       Stripe Checkout
+                                                               │       (deposit charged)
+                                                               │            │
+                                                               └── no  ────┤
+                                                                            ▼
+                                                                 /checkout/success
+                                                                            │
+                                                                            ▼
+                                                                  /user/[id]?just_booked=…
+                                                                  UserDashboard
+                                                                  + JustBookedBanner
+                                                                  (Request received /
+                                                                   Booking confirmed /
+                                                                   Reserve · pay on arrival)
 ```
 
-**Guest pays by card only.** Cash is admin-only — recorded from
-`/admin/bookings/[id]` after the guest arrives.
+**The booking row carries the policy.** At creation we read the active
+estate policy (or admin's per-booking override), resolve it against the
+check-in date (collapse to 100% upfront when too close), and freeze the
+result on `bookings.payment_policy`. Every downstream surface — receipt,
+banner, balance button, admin payments HQ — derives copy and amounts
+from that snapshot. Policy switches at `/admin/payments` never reach
+back into existing bookings. See [`docs/payment.md`](./payment.md).
 
-**Deposit 50% / balance 14 days before arrival.** Deposit lands on
-Stripe immediately. The balance charge is currently manual — scheduled
-charge is a follow-up (see "Payment management" below).
-
-Concurrently on the admin side: `getAdminAlerts()` re-runs on the next
+Concurrently on the admin side: `getAdminAlerts()` reruns on the next
 `/admin` render, the `request_awaiting` alert appears in the bell (⌘K),
-and admin clicks **Confirm** to move the booking to `confirmed`.
+and admin confirms to move the booking to `confirmed`. The same booking
+also surfaces under `/admin/payments` → "Outstanding" if anything is
+owed.
 
 ## What this branch added
 
-1. **Two-CTA property modal** (`src/components/landing/PropertyShowcaseGrid.tsx`)
-   — clicking a card on `/` opens a modal with **Book now** (primary →
-   `/finca/[slug]#book`) and **View full property** (secondary →
-   `/finca/[slug]`).
+1. **Two-CTA property modal** (`PropertyShowcaseGrid.tsx`) on `/` — "Book
+   now" → `/finca/[slug]#book`, "View full property" → `/finca/[slug]`.
+   Modal dismisses on click so the transition doesn't flash.
 
-2. **Persistent `/finca` banner** (`src/app/finca/layout.tsx`)
-   — cream `#F5F2ED` surface, hosts the shared `<Title>` typographic stamp
-   from the homepage hero so the brand voice carries across `/finca` and
-   `/finca/[slug]`. `FincaBackPill` is context-aware: "Home" on `/finca`,
-   "All properties" on `/finca/[slug]`.
+2. **Hero CTA** on `/` ("See the homes ↓") smooth-scrolls to the
+   property collection (`html` has `scroll-smooth`; `PropertyShowcase`
+   anchored at `#homes`).
 
-3. **`/finca` collection page** — properties first (no header chrome above
-   them), followed by an Estate amenities card and a "Your hosts" card
-   (shared `HostsSpotlight`).
+3. **Persistent `/finca` banner** (`src/app/finca/layout.tsx`) with the
+   shared `<Title>` brand stamp on a cream surface + context-aware back
+   pill ("Home" on `/finca`, "All properties" on `/finca/[slug]`).
 
-4. **`/finca/[slug]` rebuild** (`src/components/finca/PropertyView.tsx` — client):
-   - Hero photo on the left + 4-property carousel on the right. Switching
-     a property in the carousel cross-fades the hero, updates all stats
-     in place, resets any in-flight booking.
+4. **`/finca` collection page** — properties first, then estate
+   amenities, then `<HostsSpotlight>` (shared with the landing page).
+
+5. **`/finca/[slug]` rebuild** (`PropertyView.tsx` — client):
+   - Hero photo + 4-property carousel; switching properties cross-fades
+     in place and resets any in-flight booking.
    - Stats row (sleeps · beds · baths · m²) — beta-style pill cards.
-   - About + What's included (per-property features + estate-wide amenities).
-   - `HostsSpotlight` below "What's included" while the booking flow is
-     closed — same component as the landing page's "Souls of San Mateo".
-   - **Sidebar `PricingCard`** carries the booking control. Two modes:
-     - **Browse** — rate table (low / peak / cleaning) + 50%/14d deposit
-       policy + Book CTA.
-     - **Receipt** — nights × rate + cleaning + total + deposit/balance
-       split. "Close" button resets all booking state.
-   - **Inline booking flow.** Clicking "Book your stay" in the sidebar
-     cross-fades "What's included" → `Calendar` in the main column and
-     reveals Guests + Identity + Submit below. No modal anywhere.
+   - About + What's included; `<HostsSpotlight>` fills the space when
+     the booking flow is closed.
+   - Sidebar `PricingCard`: rate table + `describePolicy()` line +
+     [Book your stay].
+   - **Inline booking flow** — Book click cross-fades What's included →
+     `Calendar`, reveals Guests + Identity + Submit below; sidebar
+     flips to detailed `PricingReceipt`. No modal.
+   - **`#book` hash** auto-opens the flow and scrolls the calendar into
+     view so the homepage "Book now" CTA works end-to-end.
 
-5. **Payment policy = 50% deposit + 14-day balance**
-   (`src/actions/checkout.ts`, `src/actions/payments.ts`). `DEPOSIT_PCT`
-   bumped from `0.30` → `0.50`. UI clearly shows what's due now vs later.
+6. **Runtime-switchable payment policy** — full vocabulary in
+   [`docs/payment.md`](./payment.md):
+   - Four named presets (`split_14`, `split_7`, `full_now`, `cash`) in
+     `src/lib/payment.ts`.
+   - **Estate-wide active** key on `system_settings` (singleton DB row).
+     Flippable from the new `/admin/payments` page; instant, no restart.
+   - **Per-booking override** on `SelectionActionModal` —
+     `PaymentPolicyPresetPicker` preselects the active default; admin
+     can switch on a booking-by-booking basis without changing the
+     estate setting.
+   - **Snapshot** to `bookings.payment_policy` at creation; every
+     consumer reads from there.
+   - **Too-close resolver**: a split policy whose `balance_days_before`
+     window can't clear before check-in auto-collapses to 100% upfront
+     (same method) and surfaces the reason ("Check-in is in 5 days;
+     balance can't clear 14 days before arrival.") in the receipt and
+     the picker caption.
+   - **Adaptive submit** — `chargesCardAtBooking(policy)`: cash + 0%
+     skip Stripe entirely and redirect straight to
+     `/user/[id]?just_booked=`; split + full open Checkout.
 
-6. **Calendar `monthsDefault` accepts `1`** — minor type widening for
-   compact single-month previews if needed (currently the booking flow
-   uses 2 months).
+7. **Payments HQ** (`/admin/payments`) replaces `/admin/settings`. Five
+   composable sections, all derived state (mirrors the
+   [admin-notifications](./admin-notifications.md) pattern):
+   - Policy switcher — 4 preset cards.
+   - **Outstanding** — bookings with `paid < agreed_total`, grouped by
+     urgency (`checked_in_unpaid` / `overdue_checkin` → rose;
+     `check_in_today` / `request_awaiting` → amber; `upcoming` →
+     slate). Total owed in the header.
+   - **Upcoming balance** — split-policy bookings whose computed
+     balance-due-date (`check_in − balance_days_before`) is in the next
+     30 days. Per-row "due in Nd / due today / due Nd ago" with tone.
+   - **Recent payments** — last 20 succeeded `booking_payments` rows
+     (last 30d), with Stripe/Banknote icon and total collected.
+   - **Stale pending sessions** — Stripe `booking_payments` stuck in
+     `pending > 1h`. Surfaces abandoned checkouts and webhook gaps.
+   - Every booking row deep-links to `/admin/bookings/[id]`.
 
-7. **Booking handoff polish.** `#book` hash on `/finca/[slug]` now
-   auto-opens the booking flow and scrolls the calendar into view (the
-   homepage "Book now" CTA actually works again). The property modal
-   on `/` dismisses before navigation so there's no flash. After paying
-   the deposit, `/checkout/success` redirects to
-   `/user/[id]?just_booked=<id>` and the dashboard surfaces a
-   confirmation banner echoing the booking back to the guest.
+8. **Confirmation moment** on `/user/[id]` — fresh bookings arrive with
+   `?just_booked=<id>` from `/checkout/success`. `<JustBookedBanner>`
+   echoes the booking back, with body copy derived from
+   `booking.payment_policy` (three flavours: cash / full / split).
 
-8. **Guest payment + cancellation.** `BookingActions` on each dashboard
-   row gives the guest a "Pay €X balance" button (manual fallback for
-   the scheduled balance charge — reuses `createCheckoutSession(id, 'balance')`)
-   and a Cancel dialog that previews the refund tier from
-   `computeRefund` before submitting. Cancellations go through the
-   existing `cancelBooking` action with `cancelled_by='guest'`.
+9. **Guest BookingActions** (`src/components/user/BookingActions.tsx`)
+   on every dashboard row:
+   - "Pay €X balance" — manual fallback for the scheduled balance
+     charge. Reuses `createCheckoutSession(id, 'balance')`.
+   - "Cancel booking" → modal previewing the refund tier from
+     `computeRefund` (capped at `paid_cents`) before submitting.
 
-9. **Polish.** Hero on `/` now has a "See the homes ↓" pill that
-   smooth-scrolls to the `#homes` section. `/user` defaults to a
-   sign-up surface; the public list of demo accounts is gated behind
-   `?demo=1` so casual visitors don't see other users' emails. `html`
-   gets `scroll-smooth` for anchor navigation.
+10. **`/user` privacy gate** — public list of demo accounts now hidden
+    by default; show with `?demo=1`. Default view is the sign-up
+    surface.
 
-## Plan of action — what's left
+11. **Admin nav** order: Finca · Bookings · Payments · Users. New
+    `Wallet` icon for Payments.
 
-The guest can land, browse, book, pay deposit, get a confirmation,
-land on a dashboard with all their bookings, settle the balance, and
-cancel with a clear refund preview. End-to-end testable. What still
-needs to land for a real launch (not a walkthrough):
+## What's left
 
-| #  | Item | Why |
-|----|------|-----|
-| A  | **Scheduled balance charge.** Stripe charges the remaining 50% automatically 14 days before check-in. Today the "Pay balance" button is the manual path. | Needs a cron / scheduled Stripe payment intent — flagged near `DEPOSIT_PCT` in `src/actions/checkout.ts`. |
-| B  | **Real auth.** Today `/user/[id]` is reachable by URL-typing and `/user` is sign-up only. Once auth lands, `/user` resolves to the logged-in user, and PropertyView's `// FUTURE — auth gate` comments wire up to the real check. | Privacy + UX. The URL pattern is already correct. |
-| C  | **Upcoming-booking banner on `/finca/[slug]`.** When the logged-in user has an upcoming booking for this property, show it ("Your stay: May 19 → 26 · view details") so they don't re-book the same dates. Stub: `<UserUpcomingForProperty propertySlug={...} />`. Marker comment in PropertyView. | Awareness — depends on auth. |
-| D  | **Stripe refund on guest cancellation.** Today `cancelBooking` writes `booking_cancellations.refund_amount_cents` but doesn't fire the refund through Stripe — the host has to issue it from the admin side. | Money — webhook-driven refund + reconciliation. |
-| E  | **Stripe webhook audit.** Confirm the `pending → succeeded` flip is reliable for hosted checkout; abandoned sessions get cleaned up. | Trust — `docs/stripe.md` + `src/app/api/webhooks/stripe/route.ts`. |
+The guest can: land, browse, book under any policy, pay (or not, if
+cash), get a confirmation, see their bookings, settle the balance, and
+cancel with a clear refund preview. The admin can: switch payment terms
+instantly, override per-booking, see who owes what, watch payments
+land, spot stale Stripe sessions. End-to-end testable.
 
-## Plan of action — communications (deferred)
+What still needs to land for a real launch:
 
-| # | Item | State |
-|---|------|-------|
-| α | **Booking confirmation email** ("Request sent" / "Booking confirmed" / "Payment received"). | Not started. `booking.access_token` already exists for the future accept-link flow. |
-| β | **Status-change notifications** to the guest when admin confirms / cancels. | Not started. Triggered off `booking_events` rows. |
-| γ | **Payment receipts.** Stripe sends its own; cash-on-arrival needs a manual sender. | Not started. |
-| δ | **Cancellation confirmations** with policy outcome. | Not started. |
+| Tier | Item | Why |
+|------|------|-----|
+| **Critical** | **Scheduled balance charge.** Stripe auto-pull N days before check-in (N = `booking.payment_policy.balance_days_before`). Today the "Pay balance" button + the /admin/payments "Upcoming balance" section are the manual path. `balanceDueDate()` already exists; needs a cron / scheduled PI. | Trust + revenue. |
+| **Critical** | **Real auth.** Today `/user/[id]` is URL-typeable; `/user` is sign-up only. Once auth lands, `/user` resolves to the logged-in user. `// FUTURE — auth gate` comments in PropertyView mark the spot. | Privacy + UX. |
+| **Polish** | **Upcoming-booking banner** on `/finca/[slug]` — when the logged-in user has an upcoming booking for the property, show it so they don't re-book the same dates. Depends on auth. | Awareness. |
+| **Polish** | **Stripe refund on guest cancel** — today `cancelBooking` writes `booking_cancellations.refund_amount_cents` but doesn't fire the Stripe refund. Host issues it manually from admin. Should be automatic on guest-side cancel. | Money. |
+| **Polish** | **Stripe webhook audit + stale-session cleanup action.** `/admin/payments` surfaces them; needs a one-click "void this pending row" affordance. | Hygiene. |
+| **Comms** (deferred) | Booking confirmation email · status-change notifications · payment receipts · cancellation confirmations. | Not started. `booking.access_token` already exists for the future accept-link. |
 
 ## Source files this branch touched
 
-- `src/app/finca/layout.tsx` — new persistent banner
-- `src/app/finca/page.tsx` — properties-first collection
-- `src/app/finca/[slug]/page.tsx` — server shell, fetches all 4 properties + items
-- `src/app/user/page.tsx` — sign-up surface; user list gated behind `?demo=1`
-- `src/app/user/[id]/page.tsx` — reads `?just_booked` and threads it to the dashboard
-- `src/app/checkout/success/page.tsx` — dashboard link now carries `?just_booked`
-- `src/app/layout.tsx` — `scroll-smooth` for anchor navigation
-- `src/components/finca/PropertyView.tsx` — client view + `#book` hash listener
-- `src/components/finca/FincaBackPill.tsx` — context-aware back link
-- `src/components/landing/HeroLanding.tsx` — "See the homes ↓" CTA
-- `src/components/landing/PropertyShowcase.tsx` — `id="homes"` anchor target
-- `src/components/landing/PropertyShowcaseGrid.tsx` — modal dismiss-on-click
-- `src/components/landing/Title.tsx` · `HostsSpotlight.tsx` — shared primitives
-- `src/components/user/UserDashboard.tsx` — `JustBookedBanner` + `BookingActions`
-- `src/components/user/BookingActions.tsx` — Pay balance + Cancel dialog with refund preview
-- `src/actions/checkout.ts` · `src/actions/payments.ts` — `DEPOSIT_PCT` at 50%
-- `public/banner.jpg` — banner placeholder (Cloudinary swap later)
+### New
 
-**Removed** (no longer used):
-- `src/components/finca/BookNowForm.tsx` — replaced by the inline flow in PropertyView
-- `src/components/finca/BookingFlow.tsx` — earlier modal iteration
-- `src/components/finca/BookingPanel.tsx` — earlier iteration
+- `src/lib/payment.ts` — presets, resolver, helpers (pure module).
+- `src/lib/systemSettings.ts` — singleton row reader.
+- `src/lib/adminPayments.ts` — Payments HQ data layer.
+- `src/actions/settings.ts` — `updateActivePaymentPolicy` action.
+- `src/app/admin/payments/page.tsx` — Payments HQ.
+- `src/app/finca/layout.tsx` — persistent banner.
+- `src/components/admin/PaymentPolicyCard.tsx` — preset tile on Payments HQ.
+- `src/components/admin/PaymentPolicyPresetPicker.tsx` — 2×2 picker in SelectionActionModal.
+- `src/components/finca/FincaBackPill.tsx` — context-aware back link.
+- `src/components/landing/Title.tsx` · `HostsSpotlight.tsx` — shared primitives.
+- `src/components/user/BookingActions.tsx` — Pay balance + Cancel dialog.
+- `src/components/user/UserDashboard.tsx` — rebuilt with grouped sections + JustBookedBanner.
+- `docs/payment.md` · `docs/user-story.md` (this).
+
+### Modified
+
+- `db/schema.sql` — `system_settings` table, `bookings.payment_policy` column + CHECK.
+- `db/seed.ts` · `db/seed_fullseason.ts` — snapshot policies on every seeded booking.
+- `db/drop.sql` — drops `system_settings`.
+- `src/actions/bookings.ts` — `requestBooking` + `createAdminBooking` resolve + snapshot policy.
+- `src/actions/checkout.ts` · `src/actions/payments.ts` — derive deposit from booking snapshot; reject Stripe path for cash bookings.
+- `src/lib/bookings.ts` — `BookingRow.payment_policy`, SELECT updated.
+- `src/components/finca/PropertyView.tsx` — accepts `activePolicy`, resolves against picked dates, adaptive submit path + button label + footer copy.
+- `src/components/shared/SelectionActionModal.tsx` — new "Payment policy" section, deposit-tile label derives from picked policy.
+- `src/components/admin/AdminNavigation.tsx` — Payments link (Wallet icon).
+- `src/components/admin/AdminCalendarView.tsx` · `src/app/admin/page.tsx` — thread `defaultPaymentPolicyKey` through.
+- `src/app/user/page.tsx` — `?demo=1` privacy gate.
+- `src/app/user/[id]/page.tsx` — accept `?just_booked`.
+- `src/app/checkout/success/page.tsx` — dashboard link carries `?just_booked`.
+- `src/app/finca/[slug]/page.tsx` — fetches active payment policy.
+- `src/app/layout.tsx` — `scroll-smooth`.
+- `AGENTS.md` — documents `docs/payment.md`.
+
+### Removed
+
+- `src/app/admin/settings/` — replaced by `/admin/payments`.
+- `src/components/finca/BookNowForm.tsx` · `BookingFlow.tsx` · `BookingPanel.tsx` — replaced by the inline flow in PropertyView (earlier iterations).
 
 ## Shared primitives
 
-- `@/components/shared/GuestConfig` — adults/children/infants/pets picker
-- `@/lib/guests` — `GuestCounts`, `DEFAULT_GUESTS`, `totalGuests`, `formatGuests`
-- `@/lib/bookingState` — `paymentState(b)`, `bookingBucket(status)`, alert kinds
-- `@/lib/refund` — `computeRefund(...)` policy math
-- `@/actions/bookings` — `requestBooking`, `transitionStatus`, `cancelBooking`
-- `@/actions/checkout` — `createCheckoutSession` (`deposit` = 50%)
+- `@/lib/payment` — `PAYMENT_PRESETS`, `resolvePolicy`, `computeDepositCents`, `balanceDueDate`, `describePolicy`, `chargesCardAtBooking`.
+- `@/lib/systemSettings` — `getActivePaymentPolicy()`.
+- `@/lib/adminPayments` — `getPaymentsHqData()` + per-section queries.
+- `@/components/shared/GuestConfig` — adults/children/infants/pets picker.
+- `@/lib/guests` — `GuestCounts`, `DEFAULT_GUESTS`, `totalGuests`, `formatGuests`.
+- `@/lib/bookingState` — `paymentState(b)`, `bookingBucket(status)`, alert kinds.
+- `@/lib/refund` — `computeRefund(...)` policy math.
+- `@/actions/bookings` — `requestBooking`, `transitionStatus`, `cancelBooking`, `createAdminBooking`.
+- `@/actions/checkout` — `createCheckoutSession` (`deposit` derives amount from booking snapshot).
+- `@/actions/settings` — `updateActivePaymentPolicy`.

@@ -69,8 +69,8 @@ function Flow() {
     { label: 'Property modal',          body: 'Two CTAs: Book now (primary, → /finca/[slug]#book) · View full property (secondary).' },
     { label: '/finca/[slug]',           body: 'PropertyView: hero + carousel · characteristics · about · features · sidebar PricingCard (rates + deposit policy) · LocationCard.' },
     { label: 'Click "Book your stay"',  body: 'PricingCard flips to Receipt mode; main column swaps "What\'s included" for the Calendar; guests + identity reveal inline below.' },
-    { label: 'Submit',                  body: 'requestBooking → upsert user, insert booking (status=request), revalidate /admin. Then createCheckoutSession(\'deposit\') for 50% via Stripe.' },
-    { label: 'Stripe Checkout',         body: 'Hosted page charges 50% deposit. Webhook flips pending → succeeded. Balance (50%) is due 14 days before arrival — manual for now; scheduled charge is a follow-up.' },
+    { label: 'Submit',                  body: 'requestBooking → upsert user, insert booking (status=request, payment_policy snapshot), revalidate /admin. If the snapshotted policy charges card at booking, createCheckoutSession(\'deposit\') opens Stripe; cash / 0% policies skip Stripe and redirect straight to /user/[id].' },
+    { label: 'Stripe Checkout',         body: 'Hosted page charges the deposit (50%/100% depending on policy). Webhook flips pending → succeeded. Balance, when applicable, is due N days before arrival per the booking\'s snapshotted policy — manual today; scheduled charge is a follow-up.' },
     { label: '/user/[id]',              body: 'UserDashboard, grouped by state. Fresh booking shows under Pending host approval.' },
     { label: 'Admin bell · ⌘K',         body: 'getAdminAlerts picks up the new request_awaiting on the next render.' },
   ];
@@ -96,10 +96,12 @@ const SHIPPED = [
   'Two-CTA property modal on / (Book now + View full property) — dismisses before navigation',
   'Persistent /finca banner with shared <Title> from the homepage hero (cream surface + back pill)',
   '/finca/[slug] rebuilt: hero photo + 4-property carousel · characteristics · about · what\'s included · sidebar PricingCard + LocationCard · hosts (souls of San Mateo)',
-  'Inline booking flow (no modal): click "Book your stay" → calendar replaces features, guests + identity slide in below, sidebar flips to detailed Receipt with season + 50%/14-day split',
+  'Inline booking flow (no modal): click "Book your stay" → calendar replaces features, guests + identity slide in below, sidebar flips to detailed Receipt that adapts to the resolved policy',
   '#book hash auto-opens the booking flow and scrolls the calendar into view — homepage "Book now" CTA works end-to-end',
-  '50% deposit on booking via Stripe Checkout; balance scheduled 14 days before arrival (manual today, scheduled charge planned)',
-  'Confirmation moment on /user/[id] — fresh bookings land with a "Request received / Booking confirmed" banner via ?just_booked= from /checkout/success',
+  'Runtime-switchable payment policy at /admin/payments (4 presets: split_14, split_7, full_now, cash). Each booking snapshots the resolved policy onto bookings.payment_policy at creation; switches never reach back into existing bookings. Too-close split policies auto-collapse to 100% upfront with a plain-English notice.',
+  'Per-booking policy override on the admin calendar modal — preset picker preselects the estate-wide default, override snapshots independently',
+  'Payments HQ replaces /admin/settings: policy switcher + Outstanding · Upcoming balance · Recent payments · Stale Stripe sessions sections (derived state only, no payments-summary table)',
+  'Confirmation moment on /user/[id] — fresh bookings land with a "Request received / Booking confirmed / Reserve received" banner via ?just_booked= from /checkout/success; copy derives from booking.payment_policy snapshot',
   'Guest BookingActions on every dashboard row: "Pay €X balance" (Stripe Checkout, kind=balance) + Cancel dialog that previews the refund tier from computeRefund before submitting',
   'Hero CTA on / ("See the homes ↓") smooth-scrolls to the property collection',
   '/user privacy gate: list of demo accounts only shown with ?demo=1; default view is the sign-up surface',
@@ -131,9 +133,9 @@ const STORY_ITEMS: PlanItem[] = [
 ];
 
 const PAYMENT_ITEMS: PlanItem[] = [
-  { title: 'Scheduled balance charge',         body: 'Stripe should charge the remaining 50% automatically 14 days before check-in. Today the "Pay balance" button on the user dashboard is the manual path. Needs a cron / scheduled PI.' },
+  { title: 'Scheduled balance charge',         body: 'Stripe should auto-pull the balance N days before check-in (N = policy.balance_days_before snapshotted on the booking). Today the "Pay balance" button + the /admin/payments "Upcoming balance" section are the manual path. balanceDueDate() is already wired; needs a cron / scheduled PI.' },
   { title: 'Stripe refund on guest cancel',    body: 'cancelBooking writes booking_cancellations.refund_amount_cents but doesn\'t actually fire the refund through Stripe — the host issues it from admin. Should be automatic on guest-side cancel.' },
-  { title: 'Stripe webhook audit',             body: 'Confirm pending → succeeded flip is reliable for hosted checkout, abandoned sessions get cleaned up.' },
+  { title: 'Stripe webhook audit',             body: 'Confirm pending → succeeded flip is reliable for hosted checkout. /admin/payments\' "Stale pending sessions" section surfaces abandoned ones today; needs a cleanup action.' },
 ];
 
 const COMMS_ITEMS: PlanItem[] = [
@@ -167,19 +169,24 @@ function Plan({ title, items, icon: Icon }: { title: string; items: PlanItem[]; 
 function Files() {
   const items: Array<[string, string]> = [
     ['docs/user-story.md',                              'Source of truth — what this panel mirrors'],
+    ['docs/payment.md',                                 'Payment policy spec: 4 presets, too-close rule, snapshot principle'],
     ['src/app/finca/layout.tsx',                        'Persistent /finca banner (Title from HeroLanding) + back pill'],
-    ['src/app/finca/[slug]/page.tsx',                   'Server shell: fetches all 4 properties + their calendar items'],
-    ['src/components/finca/PropertyView.tsx',           'Client: hero + carousel + characteristics + about + features + Calendar + booking form + Pricing/Location sidebar'],
-    ['src/components/finca/FincaBackPill.tsx',          'Context-aware back link in the banner (Home ↔ All properties)'],
-    ['src/components/landing/Title.tsx',                'Shared SAN MATEO / FINCA / TARIFA typographic stamp (hero + banner)'],
-    ['src/components/landing/HostsSpotlight.tsx',       'Shared "Souls of San Mateo" hosts block (landing + property page)'],
-    ['src/components/landing/PropertyShowcaseGrid.tsx', 'Two-CTA property modal on the homepage'],
+    ['src/app/finca/[slug]/page.tsx',                   'Server shell: fetches properties + calendar items + active payment policy'],
+    ['src/app/admin/payments/page.tsx',                 'Payments HQ — policy switcher + outstanding/upcoming/recent/stale sections'],
+    ['src/components/finca/PropertyView.tsx',           'Client: hero + carousel + Calendar + booking form + Pricing/Location sidebar; resolves policy against picked dates'],
+    ['src/components/landing/HeroLanding.tsx',          '"See the homes ↓" hero CTA + brand stamp'],
+    ['src/components/admin/PaymentPolicyCard.tsx',      'Preset tile on /admin/payments'],
+    ['src/components/admin/PaymentPolicyPresetPicker.tsx', '2×2 preset picker in SelectionActionModal (per-booking override)'],
     ['src/components/shared/GuestConfig.tsx',           'Shared adults/children/infants/pets picker'],
     ['src/lib/guests.ts',                               'GuestCounts + DEFAULT_GUESTS + totalGuests + formatGuests'],
+    ['src/lib/payment.ts',                              'Presets, resolver (too-close rule), computeDepositCents, describePolicy'],
+    ['src/lib/systemSettings.ts',                       'getActivePaymentPolicy() — reads system_settings singleton'],
+    ['src/lib/adminPayments.ts',                        'Payments HQ data layer: outstanding/upcomingBalance/recent/stalePending'],
     ['src/lib/bookingState.ts',                         'paymentState() — payment-axis derivation'],
     ['src/lib/refund.ts',                               'computeRefund() — cancellation policy math'],
-    ['src/actions/bookings.ts',                         'requestBooking, transitionStatus, cancelBooking'],
-    ['src/actions/checkout.ts',                         'createCheckoutSession — 50% deposit on booking (DEPOSIT_PCT)'],
+    ['src/actions/bookings.ts',                         'requestBooking, transitionStatus, cancelBooking, createAdminBooking — snapshot policy at insert'],
+    ['src/actions/checkout.ts',                         'createCheckoutSession — derives deposit from booking.payment_policy snapshot'],
+    ['src/actions/settings.ts',                         'updateActivePaymentPolicy — flip the estate-wide preset'],
   ];
   return (
     <div className="rounded-2xl bg-white border border-slate-200 p-5 mb-5">

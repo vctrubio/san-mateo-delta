@@ -19,6 +19,7 @@ import { fmtDate, fmtDateRange, nightsBetween, relativeStayLabel } from '@/lib/d
 import { eur } from '@/lib/format';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { paymentState } from '@/lib/bookingState';
+import { describePolicy } from '@/lib/payment';
 import { formatGuests } from '@/lib/guests';
 import type { BookingRow } from '@/lib/bookings';
 import type { User } from '@/lib/users';
@@ -190,6 +191,19 @@ function Stat({ label, value }: { label: string; value: string }) {
 function JustBookedBanner({ booking }: { booking: BookingRow }) {
   const propLabel = PROPERTY_LABELS[booking.property_slug as PropertySlug] ?? booking.property_slug;
   const isConfirmed = booking.status === 'confirmed' || booking.status === 'checked_in';
+  const policy = booking.payment_policy;
+  const isCash = policy.method === 'cash';
+  // Body copy derives from the booking's snapshotted policy — so a guest
+  // who booked under 50/14 still sees "balance 14 days before arrival"
+  // even if admin later flips estate-wide to cash mode.
+  const body = isConfirmed
+    ? 'Your stay is locked in. Add the dates to your calendar and we’ll see you in Tarifa.'
+    : isCash
+      ? 'Your host typically replies within 24 hours. No card was collected — pay in cash on arrival.'
+      : policy.deposit_pct === 100
+        ? 'Your host typically replies within 24 hours. Full payment has been received.'
+        : `Your host typically replies within 24 hours. Deposit has been received; the balance is due ${policy.balance_days_before} day${policy.balance_days_before === 1 ? '' : 's'} before arrival.`;
+
   return (
     <section className="rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50 border border-emerald-200 p-5 md:p-6 shadow-[0_4px_24px_-12px_rgba(16,185,129,0.25)]">
       <div className="flex items-start gap-4">
@@ -198,15 +212,14 @@ function JustBookedBanner({ booking }: { booking: BookingRow }) {
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-emerald-700 mb-1">
-            {isConfirmed ? 'Booking confirmed' : 'Request received'}
+            {isConfirmed ? 'Booking confirmed' : isCash ? 'Reserve received' : 'Request received'}
           </p>
           <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
             {propLabel} · {fmtDateRange(booking.date_check_in, booking.date_check_out)}
           </h2>
-          <p className="text-sm text-slate-600 leading-relaxed mt-1">
-            {isConfirmed
-              ? 'Your stay is locked in. Add the dates to your calendar and we’ll see you in Tarifa.'
-              : 'Your host typically replies within 24 hours. Deposit has been received; the rest is due 14 days before arrival.'}
+          <p className="text-sm text-slate-600 leading-relaxed mt-1">{body}</p>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-emerald-600 mt-2">
+            {describePolicy(policy)}
           </p>
         </div>
       </div>

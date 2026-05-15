@@ -21,6 +21,7 @@ import { parseYmd, startOfDay } from '@/components/calendar/dateUtils';
 import type { FuturePropertyData } from '@/lib/properties';
 import type { EstateOverview as EstateOverviewData } from '@/lib/dashboard';
 import type { BookingStatus } from '@db/enums';
+import type { PaymentPolicyKey } from '@/lib/payment';
 
 // ============================================================================
 // AdminCalendarView — client shell that owns all the calendar-page state
@@ -49,6 +50,9 @@ export type AdminCalendarViewProps = {
   futureBySlug: Record<string, FuturePropertyData>;
   overview: EstateOverviewData;
   users: SelectionUserOption[];
+  /** Active estate-wide policy key. Preselects the per-booking preset picker
+   *  in the selection modal; admin can still override per booking. */
+  defaultPaymentPolicyKey: PaymentPolicyKey;
 };
 
 export default function AdminCalendarView({
@@ -57,6 +61,7 @@ export default function AdminCalendarView({
   futureBySlug,
   overview,
   users,
+  defaultPaymentPolicyKey,
 }: AdminCalendarViewProps) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ start: Date; end: Date | null } | null>(null);
@@ -256,6 +261,7 @@ export default function AdminCalendarView({
           start={selection.start}
           end={selection.end}
           users={users}
+          defaultPaymentPolicyKey={defaultPaymentPolicyKey}
           onClose={() => setSelectionModalDismissed(true)}
           onSuccess={() => {
             setSelection(null);

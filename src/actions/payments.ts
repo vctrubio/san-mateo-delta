@@ -5,8 +5,7 @@ import { pool } from '@db/client';
 import type { PaymentType } from '@db/enums';
 import { totalPaidForBooking } from '@/lib/payments';
 import { stripe } from '@/lib/stripe/server';
-
-const DEPOSIT_PCT = 0.50;
+import { computeDepositCents, type PaymentPolicy } from '@/lib/payment';
 
 function str(form: FormData, key: string): string | null {
   const v = form.get(key);
@@ -17,6 +16,7 @@ function revalidateForBookingPayment(bookingId: string, userId: string | null) {
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${bookingId}`);
+  revalidatePath('/admin/payments');
   if (userId) revalidatePath(`/user/${userId}`);
 }
 
@@ -29,10 +29,12 @@ export async function recordPayment(formData: FormData): Promise<void> {
     agreed_total_cents: number;
     user_id: string | null;
     status: string;
+    payment_policy: PaymentPolicy;
   }>(
     `SELECT (agreed_property_cents + agreed_cleaning_cents)::int AS agreed_total_cents,
             user_id::text AS user_id,
-            status::text AS status
+            status::text AS status,
+            payment_policy AS payment_policy
      FROM bookings WHERE id = $1`,
     [bookingId],
   );
@@ -45,7 +47,10 @@ export async function recordPayment(formData: FormData): Promise<void> {
   let amount_cents: number;
   switch (type) {
     case 'deposit':
-      amount_cents = Math.round(booking.agreed_total_cents * DEPOSIT_PCT);
+      // Deposit cents derive from THIS booking's snapshotted policy — never
+      // the current /admin/payments value. Honors per-booking overrides.
+      amount_cents = computeDepositCents(booking.agreed_total_cents, booking.payment_policy);
+      if (amount_cents === 0) throw new Error('Booking has no deposit due (0% policy).');
       break;
     case 'reservation':
       amount_cents = booking.agreed_total_cents;

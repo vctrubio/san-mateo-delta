@@ -24,6 +24,7 @@ docs/                      # design + architecture docs (all markdown lives here
   availability.md          # three-bucket availability + the /admin estate dashboard
   rates.md                 # pricing architecture + rate-selection algorithm
   refund.md                # cancellation-refund policy + tier logic
+  payment.md               # runtime-switchable payment policy + the four presets
   stripe.md                # payment methods, webhooks, lifecycle, test cards
   ics.md                   # /api/bookings/[id]/ical — calendar export format
   invitations.md           # /admin/invite — friends-and-family custom-price bookings
