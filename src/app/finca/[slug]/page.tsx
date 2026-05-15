@@ -11,7 +11,6 @@ import { PropertyStickers } from '@/components/finca/PropertyStickers';
 import { PropertyPhotosWireframe } from '@/components/finca/PropertyPhotosWireframe';
 import { PropertySectionTabs } from '@/components/finca/PropertySectionTabs';
 import { PropertyPrices } from '@/components/finca/PropertyPrices';
-import Calendar from '@/components/calendar/Calendar';
 import fincaData from '@config/finca.json';
 
 export const dynamic = 'force-dynamic';
@@ -93,8 +92,9 @@ export default async function PropertyDetailsPage({
       <PropertyNavigationGallery properties={properties} currentSlug={slug} />
 
       <PropertySectionTabs
+        slug={selected.slug}
+        calendarItems={items}
         property={<PropertyPhotosWireframe property={selected} />}
-        availability={<Calendar items={items} slug={selected.slug} />}
         prices={<PropertyPrices property={selected} activePolicy={activePolicy.policy} />}
       />
     </>
