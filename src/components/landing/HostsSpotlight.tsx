@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
 
 // ============================================================================
 // HostsSpotlight — the "Souls of San Mateo" host portraits.

@@ -10,6 +10,13 @@
 //   full_now → 100% upfront                            · stripe
 //   cash     → 0% on booking · pay on arrival          · cash
 //
+// Preset *data* (labels, copy, deposit_pct, balance_days_before, method)
+// lives in `config/payments.json` so the wording can be tweaked without
+// code review. Preset *keys* are pinned both here and in the
+// `system_settings.active_payment_policy_key` CHECK constraint in
+// `db/schema.sql` — adding or renaming a key requires both edits plus
+// `bun db:init`.
+//
 // At booking creation the requested policy gets RESOLVED against the
 // check-in date — see `resolvePolicy`. If a split policy was picked but
 // the booking is closer than its `balance_days_before` window, we collapse
@@ -18,6 +25,8 @@
 // the lifetime of the booking).
 //
 // See docs/payment.md for the full spec.
+
+import paymentsConfig from '@config/payments.json';
 
 export type PaymentMethod = 'stripe' | 'cash';
 
@@ -34,40 +43,55 @@ export type PaymentPolicyKey = 'split_14' | 'split_7' | 'full_now' | 'cash';
 
 export const PAYMENT_POLICY_KEYS = ['split_14', 'split_7', 'full_now', 'cash'] as const satisfies readonly PaymentPolicyKey[];
 
-export const PAYMENT_PRESETS: Record<PaymentPolicyKey, {
+type PresetEntry = {
   key: PaymentPolicyKey;
   label: string;
   description: string;
   policy: PaymentPolicy;
-}> = {
-  split_14: {
-    key: 'split_14',
-    label: '50% now · balance 14 days before',
-    description: 'Standard split. Half the total clears on Stripe at booking, the rest 14 days before arrival.',
-    policy: { deposit_pct: 50, balance_days_before: 14, method: 'stripe' },
-  },
-  split_7: {
-    key: 'split_7',
-    label: '50% now · balance 7 days before',
-    description: 'Same split, tighter balance window. Useful when bookings are typically last-minute.',
-    policy: { deposit_pct: 50, balance_days_before: 7, method: 'stripe' },
-  },
-  full_now: {
-    key: 'full_now',
-    label: '100% upfront · card',
-    description: 'Full payment cleared at booking. No outstanding balance to chase later.',
-    policy: { deposit_pct: 100, balance_days_before: 0, method: 'stripe' },
-  },
-  cash: {
-    key: 'cash',
-    label: '0% now · pay on arrival in cash',
-    description: "No card collected at booking. Admin records the guest's cash payment when they arrive.",
-    policy: { deposit_pct: 0, balance_days_before: 0, method: 'cash' },
-  },
 };
 
+// Materialise each preset from JSON at module load. The shape is
+// validated structurally so a typo in `config/payments.json` throws here
+// (clear stack trace) rather than at the first booking attempt.
+function loadPresetsFromConfig(): Record<PaymentPolicyKey, PresetEntry> {
+  const out = {} as Record<PaymentPolicyKey, PresetEntry>;
+  const presetsRaw = paymentsConfig.presets as Record<string, unknown>;
+  for (const key of PAYMENT_POLICY_KEYS) {
+    const raw = presetsRaw[key];
+    if (!raw || typeof raw !== 'object') {
+      throw new Error(`config/payments.json: missing preset "${key}"`);
+    }
+    const r = raw as { label?: unknown; description?: unknown; policy?: unknown };
+    const p = r.policy as { deposit_pct?: unknown; balance_days_before?: unknown; method?: unknown } | undefined;
+    if (
+      typeof r.label !== 'string' ||
+      typeof r.description !== 'string' ||
+      !p ||
+      typeof p.deposit_pct !== 'number' ||
+      typeof p.balance_days_before !== 'number' ||
+      (p.method !== 'stripe' && p.method !== 'cash')
+    ) {
+      throw new Error(`config/payments.json: preset "${key}" has an invalid shape`);
+    }
+    out[key] = {
+      key,
+      label: r.label,
+      description: r.description,
+      policy: {
+        deposit_pct: p.deposit_pct,
+        balance_days_before: p.balance_days_before,
+        method: p.method,
+      },
+    };
+  }
+  return out;
+}
+
+export const PAYMENT_PRESETS: Record<PaymentPolicyKey, PresetEntry> = loadPresetsFromConfig();
+
 /** Fallback if `system_settings` can't be read (DB unavailable, fresh schema). */
-export const FALLBACK_POLICY_KEY: PaymentPolicyKey = 'split_14';
+export const FALLBACK_POLICY_KEY: PaymentPolicyKey =
+  isValidPolicyKey(paymentsConfig.default_key) ? paymentsConfig.default_key : 'split_14';
 
 export function isValidPolicyKey(v: unknown): v is PaymentPolicyKey {
   return typeof v === 'string' && (PAYMENT_POLICY_KEYS as readonly string[]).includes(v);

@@ -2,7 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { Plane, Ship, MapPin, Mail } from 'lucide-react';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
+import socials from '@config/socials.json';
+import travel from '@config/travel.json';
 import { HostsSpotlight } from './HostsSpotlight';
 
 function AboutBackgroundText() {
@@ -58,7 +60,7 @@ function ContactCard() {
           </div>
           <div className="flex items-center gap-3">
             <Mail className="w-4 h-4 text-ocean" />
-            <span className="text-sm">{fincaData.contact.email}</span>
+            <span className="text-sm">{socials.email}</span>
           </div>
         </div>
       </div>
@@ -82,7 +84,7 @@ function TravelGrid() {
         <Plane className="w-5 h-5 text-slate-300 mb-6 group-hover:text-ocean transition-colors" />
         <h3 className="font-mono text-xs uppercase tracking-widest text-slate-400 mb-2">Arrival</h3>
         <div className="space-y-4">
-          {fincaData.travel.airports.map((airport) => (
+          {travel.airports.map((airport) => (
             <div key={airport.name}>
               <span className="block text-lg font-bold text-slate-900">{airport.name}</span>
               <span className="text-xs text-slate-500 uppercase">{airport.distance} | {airport.time}</span>
@@ -95,10 +97,10 @@ function TravelGrid() {
         <Ship className="w-5 h-5 text-slate-300 mb-6 group-hover:text-ocean transition-colors" />
         <h3 className="font-mono text-xs uppercase tracking-widest text-slate-400 mb-2">The Strait</h3>
         <div>
-          <span className="block text-lg font-bold text-slate-900">{fincaData.travel.strait.name}</span>
+          <span className="block text-lg font-bold text-slate-900">{travel.strait.name}</span>
           <p className="text-xs text-slate-500 leading-relaxed mt-2 uppercase">
-            {fincaData.travel.strait.country} • {fincaData.travel.strait.time} <br />
-            <span className="text-ocean font-bold">{fincaData.travel.strait.difference}</span>
+            {travel.strait.country} • {travel.strait.time} <br />
+            <span className="text-ocean font-bold">{travel.strait.difference}</span>
           </p>
         </div>
       </div>

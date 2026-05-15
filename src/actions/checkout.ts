@@ -8,7 +8,8 @@ import { totalPaidForBooking } from '@/lib/payments';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { fmtDateRange } from '@/lib/dates';
 import { computeDepositCents, type PaymentPolicy } from '@/lib/payment';
-import finca from '../../finca.json';
+import finca from '@config/finca.json';
+import socials from '@config/socials.json';
 
 // Deposit amount is derived from the booking's snapshotted payment_policy
 // (see src/lib/payment.ts). The scheduled balance charge — auto-pull N days
@@ -150,7 +151,7 @@ export async function createCheckoutSession(
       client_reference_id: booking.id,
       custom_text: {
         submit: {
-          message: `After payment, your booking is confirmed and a receipt is sent to your email. Questions? ${finca.contact.email}`,
+          message: `After payment, your booking is confirmed and a receipt is sent to your email. Questions? ${socials.email}`,
         },
       },
       metadata: {

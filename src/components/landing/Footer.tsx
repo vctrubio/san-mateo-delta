@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { Share2 } from 'lucide-react';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
+import socials from '@config/socials.json';
 
 export default function Footer() {
-  const airbnbUrl = fincaData.contact.airbnb;
+  const airbnbUrl = socials.airbnb;
 
   const [shareUrl, setShareUrl] = React.useState('');
   const [wind, setWind] = React.useState({ speed: 18, deg: 270 });

@@ -1,4 +1,4 @@
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
 
 // ============================================================================
 // Title — the iconic "SAN MATEO / ── FINCA ── / TARIFA" typographic stamp.

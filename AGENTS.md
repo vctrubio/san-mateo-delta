@@ -17,7 +17,11 @@ src/
     landing/               # HeroLanding, PropertyShowcase, AboutSection, Footer
     debug/                 # DebugColorPanel
   lib/                     # utilities, clients, shared logic (when needed)
-finca.json                 # static estate config at project root
+config/                    # static configuration, imported via the @config/* alias
+  finca.json               # estate identity: name, subtitle, est, check-in/out times, amenities, location, hosts
+  socials.json             # contact channels + external links (phone, email, website, airbnb, facebook, instagram, whatsapp)
+  travel.json              # how guests reach the finca (airports, ferry crossings)
+  payments.json            # 4 named payment-policy presets + default_key — wired into src/lib/payment.ts
 public/images/             # property + host images
 docs/                      # design + architecture docs (all markdown lives here)
   schema.md                # tables, relationships, enums, invariants, recipes
@@ -35,7 +39,25 @@ Rules:
 - Route files import components via the `@/components/<area>/<Name>` alias (configured in `tsconfig.json` paths).
 - Group components by area (`landing/`, `debug/`, `booking/`, `admin/`...), not by type. Avoid a flat `src/components/` dump.
 - Components that wrap the shared `<Modal>` shell (`@/components/shared/Modal`) live next to it in `src/components/shared/`, not in feature folders — even if their content is feature-specific. Keeps the modal family discoverable in one place. Examples: `PropertyDetailModals.tsx` lives in `shared/` because it composes `<Modal>`, even though it shows admin-only data.
-- Static config (estate metadata, copy) lives in JSON at the repo root and is imported with relative paths.
+- Static config (estate metadata, copy, payment-policy presets, external links) lives in `config/` and is imported via the `@config/*` alias — never with relative paths. See the **Configuration** section below.
+
+## Configuration
+
+Everything that is *static, non-code, shipped at build time* lives in `config/` and is imported via the `@config/*` alias (configured in `tsconfig.json` paths). One file per concern; never a kitchen-sink JSON.
+
+| File | Holds | Imported by |
+|---|---|---|
+| `config/finca.json` | Estate identity — name, subtitle, est, check-in/out times, description, amenities, location, hosts. | Landing/Title/HostsSpotlight, /finca, /finca/[slug], SelectionActionModal, checkout/success, ICS route, DebugFincaPanel. |
+| `config/socials.json` | Contact channels + every external link the estate publishes — phone, email, website, airbnb, facebook, instagram, whatsapp. | Footer, AboutSection, checkout/success, ICS route, DebugFincaPanel, actions/checkout. |
+| `config/travel.json` | How guests get here — airports + strait/ferry info. Pure travel logistics, no estate identity. | AboutSection, PropertyView. |
+| `config/payments.json` | The 4 named payment-policy presets + `default_key`. Pure data — the labels, descriptions, deposit_pct, balance_days_before, method. | `src/lib/payment.ts` only — every other consumer goes through `PAYMENT_PRESETS` / `FALLBACK_POLICY_KEY` exported from there. |
+
+Rules:
+- **Never** import a config JSON with a relative path. Always `@config/<name>.json`. Anyone who reaches for `../../../config/finca.json` is fighting the alias.
+- **Don't merge files.** If a new concern needs config, add a new file (`vendors.json`, `seo.json`, etc.) rather than growing `finca.json`. The split is the value.
+- **JSON is data, TS is logic.** Resolvers, validators, computed selectors live in TS modules (see `src/lib/payment.ts` for the canonical shape). The JSON ships the values; the TS module gives them types, defaults, and runtime checks.
+- **Keys pinned in SQL or types must stay in lockstep.** `payments.json` preset keys must match the `PaymentPolicyKey` union AND the `system_settings.active_payment_policy_key` CHECK constraint in `db/schema.sql`. Add a key in one place → add it in all three + `bun db:init`.
+- **Validate on load, not on first use.** `src/lib/payment.ts:loadPresetsFromConfig` is the pattern — if the JSON is malformed, throw at module init with a clear message. Don't lazy-validate.
 
 ## Database
 

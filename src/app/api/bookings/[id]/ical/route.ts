@@ -2,7 +2,8 @@ import 'server-only';
 import type { NextRequest } from 'next/server';
 import { sql } from '@db/client';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
-import finca from '../../../../../../finca.json';
+import finca from '@config/finca.json';
+import socials from '@config/socials.json';
 
 // /api/bookings/[id]/ical
 //
@@ -50,8 +51,8 @@ export async function GET(
   const descriptionLines = [
     `Booking #${booking.id}`,
     booking.user_name ? `Guest: ${booking.user_name}` : null,
-    `Contact: ${finca.contact.email} · ${finca.contact.phone}`,
-    finca.contact.website,
+    `Contact: ${socials.email} · ${socials.phone}`,
+    socials.website,
   ].filter(Boolean) as string[];
 
   const ics = [

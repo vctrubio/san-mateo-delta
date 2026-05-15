@@ -115,7 +115,7 @@ function StateMachineDiagram({ counts }: { counts: Record<BookingStatus, number>
 const WIRED: Array<{ title: string; sub: string; href?: string }> = [
   { title: 'Schema + seed (10 tables, 7 enums, 2 exclusion constraints)', sub: 'db/schema.sql · db/seed.ts · property_blocks added',         href: '/debug' },
   { title: 'Pricing model with seasonal rates',                          sub: 'docs/rates.md · 8 rate rows · selection in lib/bookings#computeQuote' },
-  { title: 'Estate config in JSON (no DB row)',                          sub: '/finca.json amenities — change without a migration' },
+  { title: 'Estate config in JSON (no DB row)',                          sub: '/config/finca.json amenities — change without a migration' },
   { title: 'Public landing + /finca + /finca/[slug] reading from DB',    sub: 'PropertyShowcase via listProperties()',                       href: '/finca' },
   { title: 'PropertyView — inline guest booking on /finca/[slug]',       sub: 'requestBooking: upsert user, insert booking → createCheckoutSession(deposit) → Stripe → /user/[id]', href: '/finca/levante' },
   { title: 'Admin estate dashboard (upcoming-only)',                     sub: 'EstateOverview · GanttStrip · PerPropertyFutureStrip · per-property Calendar · /admin', href: '/admin' },

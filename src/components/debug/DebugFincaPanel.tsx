@@ -12,7 +12,8 @@ import {
   Phone,
   type LucideIcon,
 } from 'lucide-react';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
+import socials from '@config/socials.json';
 
 // Visual mapping only — labels come from finca.json. Adding "BBQ" to the JSON
 // renders fine without touching this map; map a new key here if you want a
@@ -67,11 +68,11 @@ function EstateMeta() {
         <div className="space-y-1.5 text-[12px]">
           <div className="flex items-center gap-2">
             <Mail className="w-3.5 h-3.5 text-ocean" />
-            <span className="text-slate-700 font-mono">{fincaData.contact.email}</span>
+            <span className="text-slate-700 font-mono">{socials.email}</span>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-3.5 h-3.5 text-ocean" />
-            <span className="text-slate-700 font-mono">{fincaData.contact.phone}</span>
+            <span className="text-slate-700 font-mono">{socials.phone}</span>
           </div>
         </div>
       </div>
@@ -98,7 +99,7 @@ export default function DebugFincaPanel() {
         <div className="flex items-baseline justify-between mb-1 flex-wrap gap-2">
           <h2 className="text-sm font-mono uppercase tracking-widest text-slate-400">Debug Finca</h2>
           <span className="text-[10px] font-mono text-slate-400">
-            source: <code className="px-1 rounded bg-white border border-slate-200">/finca.json</code>
+            source: <code className="px-1 rounded bg-white border border-slate-200">/config/finca.json</code>
           </span>
         </div>
         <p className="text-xs text-slate-500 mb-6">

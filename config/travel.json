@@ -1,0 +1,20 @@
+{
+  "airports": [
+    {
+      "name": "Malaga (AGP)",
+      "distance": "150 km",
+      "time": "1h 45m drive"
+    },
+    {
+      "name": "Sevilla (SVQ)",
+      "distance": "200 km",
+      "time": "2h 15m drive"
+    }
+  ],
+  "strait": {
+    "name": "Tangier (TNG)",
+    "country": "Morocco",
+    "time": "45m Ferry Crossing",
+    "difference": "1 Hour Time Difference"
+  }
+}

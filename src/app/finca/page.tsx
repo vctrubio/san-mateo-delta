@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { listProperties } from '@/lib/properties';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
 
 // ============================================================================
 // /finca — public collection page. Banner lives in `src/app/finca/layout.tsx`,

@@ -40,7 +40,7 @@ import {
 } from '@/lib/payment';
 import { todayYmd } from '@/lib/dates';
 import PaymentPolicyPresetPicker from '@/components/admin/PaymentPolicyPresetPicker';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
 
 // ============================================================================
 // SelectionActionModal — opens after the admin completes a date range on the

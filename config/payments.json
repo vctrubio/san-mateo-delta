@@ -1,0 +1,25 @@
+{
+  "default_key": "split_14",
+  "presets": {
+    "split_14": {
+      "label": "50% now · balance 14 days before",
+      "description": "Standard split. Half the total clears on Stripe at booking, the rest 14 days before arrival.",
+      "policy": { "deposit_pct": 50, "balance_days_before": 14, "method": "stripe" }
+    },
+    "split_7": {
+      "label": "50% now · balance 7 days before",
+      "description": "Same split, tighter balance window. Useful when bookings are typically last-minute.",
+      "policy": { "deposit_pct": 50, "balance_days_before": 7, "method": "stripe" }
+    },
+    "full_now": {
+      "label": "100% upfront · card",
+      "description": "Full payment cleared at booking. No outstanding balance to chase later.",
+      "policy": { "deposit_pct": 100, "balance_days_before": 0, "method": "stripe" }
+    },
+    "cash": {
+      "label": "0% now · pay on arrival in cash",
+      "description": "No card collected at booking. Admin records the guest's cash payment when they arrive.",
+      "policy": { "deposit_pct": 0, "balance_days_before": 0, "method": "cash" }
+    }
+  }
+}

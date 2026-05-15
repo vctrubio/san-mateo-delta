@@ -4,6 +4,7 @@
   "est": "2002",
   "check_in_time": "16:00",
   "check_out_time": "11:00",
+  "description": "A coastal haven in the south of Spain, perfect for surf and wind lovers. Surrounded by nature and the Atlantic Ocean.",
   "amenities": [
     "Starlink WiFi",
     "Smart TV",
@@ -13,19 +14,12 @@
     "Private Parking",
     "Washer"
   ],
-  "description": "A coastal haven in the south of Spain, perfect for surf and wind lovers. Surrounded by nature and the Atlantic Ocean.",
   "location": {
     "city": "Tarifa",
     "region": "Cádiz",
     "country": "Spain",
     "timezone": "Europe/Madrid",
     "description": "As the windy capital of the world, Tarifa isn't just a location—it's an energy. A sanctuary where the elements dictate the pace of life."
-  },
-  "contact": {
-    "phone": "+34 600 000 000",
-    "email": "hello@fincasanmateo.com",
-    "website": "https://fincasanmateo.com",
-    "airbnb": "https://www.airbnb.es/users/profile/1467030082869236380?previous_page_name=PdpHomeMarketplace"
   },
   "hosts": [
     {
@@ -42,25 +36,5 @@
       "image": "/images/tano.png",
       "haloClass": "bg-sky-100"
     }
-  ],
-  "travel": {
-    "airports": [
-      {
-        "name": "Malaga (AGP)",
-        "distance": "150 km",
-        "time": "1h 45m drive"
-      },
-      {
-        "name": "Sevilla (SVQ)",
-        "distance": "200 km",
-        "time": "2h 15m drive"
-      }
-    ],
-    "strait": {
-      "name": "Tangier (TNG)",
-      "country": "Morocco",
-      "time": "45m Ferry Crossing",
-      "difference": "1 Hour Time Difference"
-    }
-  }
+  ]
 }

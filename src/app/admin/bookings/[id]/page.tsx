@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, User, Wallet, XCircle } from 'lucide-react';
-import fincaData from '../../../../../finca.json';
+import fincaData from '@config/finca.json';
 import AdminTable, { type AdminTableColumn } from '@/components/admin/AdminTable';
 import {
   BookingSummaryCard,

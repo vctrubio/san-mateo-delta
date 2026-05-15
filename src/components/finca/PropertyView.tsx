@@ -29,7 +29,8 @@ import {
   type PaymentPolicy,
 } from '@/lib/payment';
 import { todayYmd } from '@/lib/dates';
-import fincaData from '../../../finca.json';
+import fincaData from '@config/finca.json';
+import travel from '@config/travel.json';
 import { HostsSpotlight } from '@/components/landing/HostsSpotlight';
 
 // ============================================================================
@@ -952,8 +953,8 @@ function ReceiptRow({
 
 function LocationCard() {
   const tarifa = fincaData.location;
-  const airports = fincaData.travel.airports;
-  const strait = fincaData.travel.strait;
+  const airports = travel.airports;
+  const strait = travel.strait;
   return (
     <section className="rounded-2xl bg-slate-900 text-white p-6 overflow-hidden relative">
       <div aria-hidden className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-sky-900/40 blur-3xl pointer-events-none" />
