@@ -10,7 +10,10 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        // /api/wind powers the public hero ticker — explicitly allowed so the
+        // blanket /api/ disallow below doesn't block crawlers from rendering
+        // pages that fetch it. More-specific Allow wins per the robots spec.
+        allow: ['/', '/api/wind'],
         disallow: [
           '/admin',
           '/admin/',

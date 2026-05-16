@@ -13,7 +13,8 @@
     "db:fullseason": "bun --env-file=.env.local run db/fullseason.ts",
     "db:history": "bun --env-file=.env.local run db/history.ts",
     "db:smoke-stripe": "bun --env-file=.env.local run db/smoke_stripe.ts",
-    "cloudinary:sync": "bun --env-file=.env.local run scripts/cloudinary-sync.ts"
+    "cloudinary:sync": "bun --env-file=.env.local run scripts/cloudinary-sync.ts",
+    "og:generate": "bun run scripts/og-generate.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -36,6 +37,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

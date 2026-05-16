@@ -11,6 +11,7 @@ import { PropertyStickers } from '@/components/finca/PropertyStickers';
 import { PropertyPhotosWireframe } from '@/components/finca/PropertyPhotosWireframe';
 import { PropertySectionTabs } from '@/components/finca/PropertySectionTabs';
 import { PropertyPrices } from '@/components/finca/PropertyPrices';
+import { PropertyJsonLd } from '@/components/finca/PropertyJsonLd';
 import fincaData from '@config/finca.json';
 
 export const dynamic = 'force-dynamic';
@@ -24,20 +25,30 @@ export async function generateMetadata(
   if (!property) return {};
 
   const label = PROPERTY_LABELS[property.slug as PropertySlug] ?? property.slug;
-  const title = `${label} · ${property.title}`;
-  const description = property.description;
+  // Lead the title and description with the Punta Paloma hook so this page
+  // ranks for "<property> Punta Paloma" queries as well as estate-level
+  // ones. The root template ("· Finca San Mateo") fills in the suffix.
+  const title = `${label} · ${property.title} · 300 m from Punta Paloma`;
+  const description = `${property.title} — ${property.max_guests}-guest holiday rental 300 metres from Punta Paloma Beach, ${fincaData.subtitle}. ${property.description}`;
   const canonical = absoluteUrl(`/finca/${slug}`);
   const image = propertyImageUrl(slug);
+  const keywords = [
+    `${label} Punta Paloma`,
+    `${label} ${fincaData.subtitle}`,
+    `Punta Paloma rental ${property.max_guests} guests`,
+    ...property.features.slice(0, 3).map((f) => `${f} ${fincaData.subtitle}`),
+  ];
 
   return {
     title,
     description,
+    keywords,
     alternates: { canonical },
     openGraph: {
       title: `${title} · Finca ${fincaData.name}`,
       description,
       url: canonical,
-      images: [{ url: image, alt: `${label} — Finca ${fincaData.name}` }],
+      images: [{ url: image, width: 1200, height: 630, alt: `${label} — ${property.title}, Finca ${fincaData.name}` }],
     },
     twitter: {
       card: 'summary_large_image',
@@ -82,6 +93,7 @@ export default async function PropertyDetailsPage({
 
   return (
     <>
+      <PropertyJsonLd property={selected} />
       {/* FincaLead wraps the nav-gallery as children so its sticky title
           + stickers stay anchored to the top while the description and
           the gallery scroll past. The pin releases when PropertySectionTabs

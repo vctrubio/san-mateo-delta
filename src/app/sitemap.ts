@@ -5,8 +5,11 @@ import { absoluteUrl } from '@/lib/site';
 // Public sitemap. Reads property slugs from the DB so new properties show
 // up without code changes. Admin/debug/forms/checkout/api are deliberately
 // excluded — only customer-facing surface goes in the index.
+//
+// Filtered to `public: true` properties — private listings (admin-only,
+// invite-flow units) shouldn't be in Google's index.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const properties = await listProperties();
+  const properties = await listProperties({ publicOnly: true });
   const now = new Date();
 
   return [

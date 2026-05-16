@@ -1,97 +1,176 @@
 // Shared site/metadata helpers — single source of truth for the canonical
-// URL, the default `<title>` template, the default Open Graph card, and
-// the LodgingBusiness JSON-LD shape.
+// URL, the default <title> template, the default Open Graph card, and the
+// LodgingBusiness JSON-LD shape.
 //
-// Every route's `generateMetadata` should compose from `defaultMetadata()`
-// rather than build its own from scratch — otherwise the OG image, locale,
-// and `metadataBase` drift across routes.
+// Every route's generateMetadata composes from baseMetadata() rather than
+// building its own; otherwise the OG image, locale, and metadataBase drift
+// across routes.
 
 import type { Metadata } from 'next';
 import finca from '@config/finca.json';
+import socials from '@config/socials.json';
 
 const FALLBACK_URL = 'http://localhost:3000';
 
-/** Canonical, scheme-included site URL. Reads `NEXT_PUBLIC_APP_URL`. */
+// Punta Paloma sits ~300 m from the estate. This is our primary SEO hook
+// and shows up in title, meta description, and JSON-LD. Long-tail, low
+// competition — by far the highest-leverage phrase we can rank on.
+const PUNTA_PALOMA_HOOK = '300 m from Punta Paloma';
+
+const SEO_DESCRIPTION =
+  `Finca ${finca.name} — a privately-hosted coastal estate 300 metres from Punta Paloma Beach in ${finca.subtitle}. Wind, surf, and quiet luxury at Europe's southernmost point.`;
+
+const SEO_KEYWORDS = [
+  'Punta Paloma',
+  'Punta Paloma villa',
+  'Tarifa vacation rental',
+  'villa Tarifa',
+  'kitesurf accommodation Tarifa',
+  'Cádiz holiday home',
+  `Finca ${finca.name}`,
+];
+
+function ensureScheme(value: string): string {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+/**
+ * Canonical, scheme-included site URL.
+ *
+ * Resolution order:
+ *   1. NEXT_PUBLIC_APP_URL — explicit override (recommended in production)
+ *   2. https://VERCEL_PROJECT_PRODUCTION_URL — Vercel auto-injects the
+ *      canonical production domain on every build (scheme-less)
+ *   3. https://VERCEL_URL — preview deployments (scheme-less)
+ *   4. http://localhost:3000 — dev fallback
+ *
+ * Whatever it resolves to is normalised: a missing scheme gets `https://`
+ * prepended, trailing slashes are stripped, and `new URL()` is wrapped in
+ * try/catch so a malformed env value falls back to localhost instead of
+ * crashing the entire build (which was the failure mode behind the red
+ * Vercel deploy at 3c5ee81).
+ */
 export function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? FALLBACK_URL;
+  const raw =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : undefined) ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+    FALLBACK_URL;
+  const normalised = trimTrailingSlash(ensureScheme(raw));
+  try {
+    new URL(normalised);
+    return normalised;
+  } catch {
+    console.warn(
+      `[site] Invalid resolved siteUrl "${normalised}" — falling back to ${FALLBACK_URL}`,
+    );
+    return FALLBACK_URL;
+  }
 }
 
 /** Join a path onto the site URL. Tolerates leading slash or not. */
 export function absoluteUrl(path: string): string {
-  const base = siteUrl().replace(/\/$/, '');
+  const base = siteUrl();
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${base}${p}`;
 }
 
-/** Property-image URL by slug, suitable for OG cards. */
+/**
+ * Per-property OG card. Cards are generated locally via
+ * `bun og:generate` and committed to public/og/{slug}.jpg at 1200×630.
+ * Source format is normalised to .jpg so we don't have to track which
+ * properties are .png vs .jpg.
+ */
 export function propertyImageUrl(slug: string): string {
-  return absoluteUrl(`/images/${slug}.png`);
+  return absoluteUrl(`/og/${slug}.jpg`);
 }
 
-/** Estate-wide default OG image — the villa shot until a real OG asset lands. */
+/** Estate-wide default OG image — cropped from FincaBanner. */
 export function defaultOgImageUrl(): string {
-  return propertyImageUrl('levante');
+  return absoluteUrl('/og/finca.jpg');
+}
+
+/**
+ * External profile URLs used for the LodgingBusiness `sameAs` field.
+ * Drops `kind: 'action'` entries (e.g. the share button) since those
+ * aren't crawlable profiles.
+ */
+export function socialProfileUrls(): string[] {
+  return socials.links
+    .filter((l): l is typeof l & { url: string } => l.kind === 'link')
+    .map((l) => l.url);
 }
 
 /**
  * Base metadata applied at the root layout. Per-route `generateMetadata`
- * picks this up via Next's metadata merging — we only need to set the
- * overriding fields (title, description, image, canonical).
+ * picks this up via Next's metadata merging — only override the fields
+ * you actually need to change.
  */
 export function baseMetadata(): Metadata {
   const url = siteUrl();
   const name = `Finca ${finca.name}`;
-  const description =
-    finca.description ??
-    `${name} — a coastal estate in ${finca.subtitle}, ${finca.location.country}.`;
+  const title = `${name} · Vacation rental ${PUNTA_PALOMA_HOOK}, ${finca.subtitle}`;
   return {
     metadataBase: new URL(url),
     title: {
-      default: `${name} · ${finca.subtitle}`,
+      default: title,
       template: `%s · ${name}`,
     },
-    description,
+    description: SEO_DESCRIPTION,
+    keywords: SEO_KEYWORDS,
     applicationName: name,
+    alternates: { canonical: '/' },
     openGraph: {
       type: 'website',
       siteName: name,
-      title: `${name} · ${finca.subtitle}`,
-      description,
+      title,
+      description: SEO_DESCRIPTION,
       url,
       locale: 'en_US',
       images: [
         {
           url: defaultOgImageUrl(),
           width: 1200,
-          height: 1200,
-          alt: `${name} — ${finca.subtitle}`,
+          height: 630,
+          alt: `${name} — ${PUNTA_PALOMA_HOOK}, ${finca.subtitle}`,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${name} · ${finca.subtitle}`,
-      description,
+      title,
+      description: SEO_DESCRIPTION,
       images: [defaultOgImageUrl()],
     },
     robots: { index: true, follow: true },
+    verification: process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : undefined,
   };
 }
 
 /**
  * schema.org `LodgingBusiness` JSON-LD for the homepage.
  *
- * Only fields with confirmed values land here — `geo` is deliberately
- * omitted until we have real coordinates. Better to ship less structured
- * data than to ship wrong structured data; Google penalises the latter.
+ * `priceRange` is the only field that needs runtime data; the caller
+ * (src/app/page.tsx) computes the cheapest/most-expensive nightly rate
+ * from listProperties() and passes it in. The rest is config-driven.
  */
-export function lodgingBusinessJsonLd(): Record<string, unknown> {
+export function lodgingBusinessJsonLd(
+  opts: { priceRange?: string } = {},
+): Record<string, unknown> {
   const name = `Finca ${finca.name}`;
   return {
     '@context': 'https://schema.org',
     '@type': 'LodgingBusiness',
     name,
-    description: finca.description,
+    description: SEO_DESCRIPTION,
     url: siteUrl(),
     image: defaultOgImageUrl(),
     telephone: finca.contact.phone,
@@ -102,6 +181,11 @@ export function lodgingBusinessJsonLd(): Record<string, unknown> {
       addressRegion: finca.location.region,
       addressCountry: finca.location.country,
     },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: finca.location.coords.lat,
+      longitude: finca.location.coords.lon,
+    },
     checkinTime: finca.check_in_time,
     checkoutTime: finca.check_out_time,
     petsAllowed: finca.amenities.some((a) => a.name === 'Pets Allowed'),
@@ -109,5 +193,20 @@ export function lodgingBusinessJsonLd(): Record<string, unknown> {
       '@type': 'LocationFeatureSpecification',
       name,
     })),
+    sameAs: socialProfileUrls(),
+    nearbyAttraction: [
+      {
+        '@type': 'TouristAttraction',
+        name: 'Punta Paloma Beach',
+        description:
+          '300 metres from the estate — wide white-sand cove with the famous Punta Paloma dune.',
+      },
+      {
+        '@type': 'TouristAttraction',
+        name: 'Strait of Gibraltar',
+        description: 'The 13-km channel between Europe and Africa.',
+      },
+    ],
+    ...(opts.priceRange ? { priceRange: opts.priceRange } : {}),
   };
 }
