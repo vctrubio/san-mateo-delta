@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import fincaData from '@config/finca.json';
 import socials from '@config/socials.json';
+import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 
 // ============================================================================
 // Footer — brand · social row · location strip (with the wind ticker).
@@ -82,20 +83,62 @@ export default function Footer({ tone = 'transparent' }: { tone?: Tone } = {}) {
     };
   }, []);
 
+  // Feedback chip that briefly replaces the Share label after a click.
+  // Native share targets (iOS / Android / Edge) get "Shared"; the desktop
+  // clipboard fallback gets "Copied". Auto-resets after 1.6s so the footer
+  // returns to its idle state without the user having to mouse off.
+  const [shareFeedback, setShareFeedback] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!shareFeedback) return;
+    const t = setTimeout(() => setShareFeedback(null), 1600);
+    return () => clearTimeout(t);
+  }, [shareFeedback]);
+
   const runAction = React.useCallback((action: string) => {
-    if (action === 'share') {
-      const url = typeof window !== 'undefined' ? window.location.href : '';
-      if (navigator.share) {
-        navigator
-          .share({
-            title: fincaData.name,
-            text: `Discover this coastal sanctuary in ${fincaData.subtitle}.`,
-            url,
-          })
-          .catch(() => { /* user cancelled — silent */ });
-      } else if (navigator.clipboard && url) {
-        navigator.clipboard.writeText(url);
-      }
+    if (action !== 'share') return;
+    if (typeof window === 'undefined') return;
+
+    // Share copy is page-aware: on /finca/<slug> we share that specific
+    // property; everywhere else (/, /finca) we share the estate. We don't
+    // try to read document.title — the SEO title has template suffixes
+    // and the Punta Paloma tail baked in, which reads weirdly in a share
+    // sheet. Building the copy from finca.json + the slug stays cleaner.
+    const path = window.location.pathname;
+    const url = window.location.href;
+    const slugMatch = path.match(/^\/finca\/([^/?#]+)/);
+    const slug = slugMatch ? slugMatch[1] : null;
+    const estate = `Finca ${fincaData.name}`;
+    const where = `${fincaData.subtitle}, ${fincaData.location.country}`;
+    const hook = '300 m from Punta Paloma Beach';
+
+    const label = slug
+      ? (PROPERTY_LABELS[slug as PropertySlug] ?? slug.charAt(0).toUpperCase() + slug.slice(1))
+      : null;
+
+    const share = label
+      ? {
+          title: `${label} · ${estate}`,
+          text: `Check out ${label} at ${estate} in ${where} — a vacation rental ${hook}.`,
+          url,
+        }
+      : {
+          title: estate,
+          text: `Check out ${estate} in ${where} — a vacation rental ${hook}.`,
+          url,
+        };
+
+    if (navigator.share) {
+      navigator
+        .share(share)
+        .then(() => setShareFeedback('Shared'))
+        .catch(() => { /* user cancelled — silent */ });
+      return;
+    }
+    if (navigator.clipboard) {
+      // Recipient platforms (Slack/WhatsApp/iMessage) unfurl the URL into
+      // a rich OG card on paste, so the bare URL is the right clipboard
+      // payload — pasting "Check out … URL" double-prints the text.
+      navigator.clipboard.writeText(url).then(() => setShareFeedback('Copied'));
     }
   }, []);
 
@@ -118,7 +161,12 @@ export default function Footer({ tone = 'transparent' }: { tone?: Tone } = {}) {
             entry.kind === 'link' ? (
               <SocialLink key={entry.platform} entry={entry} />
             ) : (
-              <SocialAction key={entry.platform} entry={entry} onRun={runAction} />
+              <SocialAction
+                key={entry.platform}
+                entry={entry}
+                onRun={runAction}
+                feedback={entry.action === 'share' ? shareFeedback : null}
+              />
             ),
           )}
         </div>
@@ -179,18 +227,27 @@ function SocialLink({ entry }: { entry: LinkEntry }) {
 function SocialAction({
   entry,
   onRun,
+  feedback,
 }: {
   entry: ActionEntry;
   onRun: (action: string) => void;
+  feedback: string | null;
 }) {
+  // When feedback is active, force the row to full opacity so the
+  // transient "Copied" / "Shared" chip is unmissable even if the user's
+  // cursor has already moved away.
+  const isFeedback = !!feedback;
   return (
     <button
       type="button"
       onClick={() => onRun(entry.action)}
-      className="group flex items-center gap-2 opacity-30 hover:opacity-100 transition-all duration-500"
+      aria-live="polite"
+      className={`group flex items-center gap-2 transition-all duration-500 ${
+        isFeedback ? 'opacity-100' : 'opacity-30 hover:opacity-100'
+      }`}
     >
       <SocialIcon icon={entry.icon} hoverColor={entry.hoverColor} />
-      <SocialLabel label={entry.label} hoverColor={entry.hoverColor} />
+      <SocialLabel label={feedback ?? entry.label} hoverColor={entry.hoverColor} />
     </button>
   );
 }
