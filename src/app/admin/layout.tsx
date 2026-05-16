@@ -1,7 +1,18 @@
+import type { Metadata } from 'next';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { getAdminAlerts } from '@/lib/adminAlerts';
 import { listBookings } from '@/lib/bookings';
 import { toBookingChipSource } from '@/lib/bookingAdapters';
+
+// Metadata for every /admin/* page. `absolute` bypasses the root template
+// (which would otherwise append "· Finca San Mateo") so the browser tab
+// reads cleanly as "Admin · San Mateo". noindex/nofollow is belt-and-
+// suspenders alongside the existing robots.txt disallow — auth is still
+// TODO and we don't want Google indexing dashboard pages in the meantime.
+export const metadata: Metadata = {
+  title: { absolute: 'Admin · San Mateo' },
+  robots: { index: false, follow: false },
+};
 
 // Async because the admin shell hydrates two server-fetched datasets that
 // every admin route needs:
