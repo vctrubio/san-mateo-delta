@@ -1,5 +1,3 @@
-import Link from 'next/link';
-import { ArrowDown } from 'lucide-react';
 import { Title } from './Title';
 
 function Wireframe() {
@@ -58,16 +56,6 @@ export default function HeroLanding() {
     <section className="h-screen flex flex-col items-center justify-center text-center px-4 bg-background relative overflow-hidden">
       <Wireframe />
       <Title size="hero" />
-      {/* Hero CTA — orients first-time visitors. The wireframe is decorative;
-          without a verb, guests don't know what they can do here. Anchor link
-          smooth-scrolls to the property collection just below. */}
-      <Link
-        href="#homes"
-        className="relative z-10 mt-10 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-slate-900 text-white text-[10px] font-mono uppercase tracking-[0.3em] font-bold hover:bg-ocean hover:shadow-xl hover:shadow-ocean/30 transition-all"
-      >
-        See the homes
-        <ArrowDown className="w-3.5 h-3.5" />
-      </Link>
     </section>
   );
 }

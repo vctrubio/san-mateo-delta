@@ -7,22 +7,21 @@ import {
 } from '@/lib/calendar';
 import { getEstateOverview } from '@/lib/dashboard';
 import {
+  listProperties,
   listFuturePropertyData,
   type FuturePropertyData,
+  type Property,
 } from '@/lib/properties';
 import type { SelectionUserOption } from '@/components/shared/SelectionActionModal';
 import { getActivePaymentPolicy } from '@/lib/systemSettings';
 
 export const dynamic = 'force-dynamic';
 
-// max_guests is needed by SelectionActionModal so it can validate party size
-// before submitting createAdminBooking.
-type PropertyRow = { id: string; slug: string; max_guests: number };
-
 export default async function AdminDashboardPage() {
-  const properties = await sql<PropertyRow>(
-    `SELECT id::text, slug, max_guests::int FROM properties ORDER BY id`,
-  );
+  // Full Property[] (not just id/slug/max_guests) — the per-property card on
+  // the dashboard mounts a PropertyEditModal that needs every editable field
+  // including rates and features.
+  const properties = await listProperties();
 
   // 6-month forward window — same lens as the per-property strip.
   const { from, to } = windowFor(new Date(), 6);
@@ -59,6 +58,11 @@ export default async function AdminDashboardPage() {
   const futureBySlug: Record<string, FuturePropertyData> = {};
   for (const row of futureRows) futureBySlug[row.slug] = row;
 
+  // Full property record keyed by slug, for the PropertyEditModal mounted
+  // off the Edit pencil on each per-property card.
+  const propertyBySlug: Record<string, Property> = {};
+  for (const p of properties) propertyBySlug[p.slug] = p;
+
   const ganttProperties = properties.map((p) => ({
     id: p.id,
     slug: p.slug,
@@ -71,6 +75,7 @@ export default async function AdminDashboardPage() {
       properties={ganttProperties}
       itemsBySlug={itemsBySlug}
       futureBySlug={futureBySlug}
+      propertyBySlug={propertyBySlug}
       overview={overview}
       users={users}
       defaultPaymentPolicyKey={activePolicy.key}

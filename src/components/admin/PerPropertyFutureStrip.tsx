@@ -1,17 +1,20 @@
 'use client';
 
-import { ChevronRight } from 'lucide-react';
-import type { FuturePropertyData } from '@/lib/properties';
+import { useState } from 'react';
+import { ChevronRight, Eye, EyeOff, Pencil } from 'lucide-react';
+import type { FuturePropertyData, Property } from '@/lib/properties';
 import { BOOKING_STATUS_STYLES, PROPERTY_BLOCK_STYLE } from '@/lib/colors';
 import { fmtDate } from '@/lib/dates';
 import type { BookingStatus } from '@db/enums';
 import { eur } from '@/lib/format';
+import { PropertyEditModal } from './PropertyEditModal';
 
 // ============================================================================
-// PerPropertyFutureStrip — four cards, one per property.
+// PerPropertyFutureStrip — one card per property, five across at lg+.
 //
 // Layout per card:
 //   ┌─ LEVANTE                       ● confirmed ─┐
+//   │ PUBLIC   €185 / night · MAY              ✎  │
 //   │                                              │
 //   │ ┌─ BOOKINGS  › ┐  ┌─ PAYMENTS  › ┐           │
 //   │ │ 7            │  │ €8,607       │           │
@@ -25,16 +28,29 @@ import { eur } from '@/lib/format';
 //
 // Click targets:
 //   - The whole card                  → toggle the property as active
+//   - Today-status pill (header)      → opens today's booking / block
 //   - Bookings sub-card               → opens BookingsListModal
 //   - Payments sub-card               → opens PaymentsListModal
+//   - Pencil affordance (top right of the meta row)
+//                                    → opens PropertyEditModal (the single
+//                                       admin surface for editing a
+//                                       property: title, description,
+//                                       features, beds, m², visibility,
+//                                       cleaning, + the season-based rate
+//                                       editor). There is no /admin/properties
+//                                       route anymore.
 //
 // Header right side shows a today-status dot — amber (request), violet
-// (invite), ocean (held), slate (available) — driven by
-// `today_indicator_status` from listFuturePropertyData.
+// (invite), ocean (held), slate (available), slate-800 (block). The
+// meta row underneath is editorial chrome: publicity + the current
+// month's nightly rate so the host can sanity-check pricing at a glance.
 // ============================================================================
 
 export type PerPropertyFutureStripProps = {
   rows: FuturePropertyData[];
+  /** Full Property records keyed by slug. Used by the Edit pencil on each
+   *  card to mount a PropertyEditModal preloaded with every field. */
+  propertyBySlug: Record<string, Property>;
   activeSlug: string | null;
   onToggleProperty: (slug: string | null) => void;
   onOpenBookings: (slug: string) => void;
@@ -46,33 +62,51 @@ export type PerPropertyFutureStripProps = {
 
 export default function PerPropertyFutureStrip({
   rows,
+  propertyBySlug,
   activeSlug,
   onToggleProperty,
   onOpenBookings,
   onOpenPayments,
   onOpenToday,
 }: PerPropertyFutureStripProps) {
+  // The edit modal lives at the strip level so dismissing it doesn't have
+  // to fight with each card's mounting; only one is ever open at a time.
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const editingProperty = editingSlug ? propertyBySlug[editingSlug] : null;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      {rows.map((r) => {
-        const isActive = r.slug === activeSlug;
-        return (
-          <Card
-            key={r.slug}
-            row={r}
-            isActive={isActive}
-            onToggleActive={() => onToggleProperty(isActive ? null : r.slug)}
-            onOpenBookings={() => onOpenBookings(r.slug)}
-            onOpenPayments={() => onOpenPayments(r.slug)}
-            onOpenToday={() => onOpenToday(r.slug)}
-          />
-        );
-      })}
-    </div>
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        {rows.map((r) => {
+          const isActive = r.slug === activeSlug;
+          return (
+            <Card
+              key={r.slug}
+              row={r}
+              isActive={isActive}
+              onToggleActive={() => onToggleProperty(isActive ? null : r.slug)}
+              onOpenBookings={() => onOpenBookings(r.slug)}
+              onOpenPayments={() => onOpenPayments(r.slug)}
+              onOpenToday={() => onOpenToday(r.slug)}
+              onOpenEdit={() => setEditingSlug(r.slug)}
+            />
+          );
+        })}
+      </div>
+
+      {editingProperty && (
+        <PropertyEditModal
+          property={editingProperty}
+          onClose={() => setEditingSlug(null)}
+        />
+      )}
+    </>
   );
 }
 
 // ----------------------------------------------------------------------------
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function Card({
   row,
@@ -81,6 +115,7 @@ function Card({
   onOpenBookings,
   onOpenPayments,
   onOpenToday,
+  onOpenEdit,
 }: {
   row: FuturePropertyData;
   isActive: boolean;
@@ -88,9 +123,11 @@ function Card({
   onOpenBookings: () => void;
   onOpenPayments: () => void;
   onOpenToday: () => void;
+  onOpenEdit: () => void;
 }) {
   const totalUpcoming = row.pending_count + row.confirmed_count;
   const fullyPaid = row.outstanding_count === 0;
+  const monthLabel = MONTH_LABELS[new Date().getMonth()];
 
   return (
     <div
@@ -117,6 +154,13 @@ function Card({
         todayBlocked={row.today_blocked}
         todayIndicator={row.today_indicator_status}
         onOpenToday={onOpenToday}
+      />
+
+      <MetaRow
+        isPublic={row.is_public}
+        rateCents={row.rate_current_cents}
+        monthLabel={monthLabel}
+        onOpenEdit={onOpenEdit}
       />
 
       <div className="grid grid-cols-2 gap-2 mt-3 mb-3">
@@ -186,6 +230,88 @@ function Header({
         onClick={onOpenToday}
       />
     </div>
+  );
+}
+
+// MetaRow — the chrome between the title and the metric sub-cards.
+// Three slots:
+//   left   → public / private chip (read-only here; toggle lives in the modal)
+//   middle → current month's nightly rate (the "cool price" — a host
+//            often wants to remind themselves what new bookings price at)
+//   right  → pencil button → opens PropertyEditModal
+//
+// The pencil stops propagation so it doesn't toggle the card's active
+// state, and the modal opens above the dashboard so the gantt stays in
+// view behind the dim.
+function MetaRow({
+  isPublic,
+  rateCents,
+  monthLabel,
+  onOpenEdit,
+}: {
+  isPublic: boolean;
+  rateCents: number;
+  monthLabel: string;
+  onOpenEdit: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+      <div className="flex items-center gap-2 min-w-0">
+        <VisibilityChip isPublic={isPublic} />
+        <RateBadge cents={rateCents} monthLabel={monthLabel} />
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenEdit();
+        }}
+        aria-label="Edit property"
+        title="Edit property"
+        className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-ocean hover:bg-ocean/5 transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function VisibilityChip({ isPublic }: { isPublic: boolean }) {
+  if (isPublic) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-mono uppercase tracking-widest"
+        title="Listed on the public /finca routes"
+      >
+        <Eye className="w-2.5 h-2.5" /> Public
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[9px] font-mono uppercase tracking-widest"
+      title="Hidden from public routes (admin can still book)"
+    >
+      <EyeOff className="w-2.5 h-2.5" /> Private
+    </span>
+  );
+}
+
+function RateBadge({ cents, monthLabel }: { cents: number; monthLabel: string }) {
+  if (cents <= 0) {
+    return (
+      <span className="text-[10px] font-mono text-slate-400 italic truncate">
+        rate not set
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-baseline gap-1 text-[11px] font-mono text-slate-600 truncate">
+      <span className="font-semibold tabular-nums text-slate-900">{eur(cents)}</span>
+      <span className="text-slate-400">/ night</span>
+      <span className="text-slate-300">·</span>
+      <span className="uppercase tracking-widest text-slate-400">{monthLabel}</span>
+    </span>
   );
 }
 

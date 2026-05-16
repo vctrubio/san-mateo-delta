@@ -18,7 +18,7 @@ import SelectionActionModal, {
 import type { CalendarBooking, CalendarBlock, CalendarItem } from '@/lib/calendar';
 import { BLOCKING_BOOKING_STATUSES } from '@/lib/colors';
 import { parseYmd, startOfDay } from '@/components/calendar/dateUtils';
-import type { FuturePropertyData } from '@/lib/properties';
+import type { FuturePropertyData, Property } from '@/lib/properties';
 import type { EstateOverview as EstateOverviewData } from '@/lib/dashboard';
 import type { BookingStatus } from '@db/enums';
 import type { PaymentPolicyKey } from '@/lib/payment';
@@ -48,6 +48,9 @@ export type AdminCalendarViewProps = {
   properties: (GanttProperty & { id: string; max_guests: number })[];
   itemsBySlug: Record<string, CalendarItem[]>;
   futureBySlug: Record<string, FuturePropertyData>;
+  /** Full Property records, keyed by slug. Used by the Edit pencil on the
+   *  per-property card to open the PropertyEditModal with all fields. */
+  propertyBySlug: Record<string, Property>;
   overview: EstateOverviewData;
   users: SelectionUserOption[];
   /** Active estate-wide policy key. Preselects the per-booking preset picker
@@ -59,6 +62,7 @@ export default function AdminCalendarView({
   properties,
   itemsBySlug,
   futureBySlug,
+  propertyBySlug,
   overview,
   users,
   defaultPaymentPolicyKey,
@@ -191,6 +195,7 @@ export default function AdminCalendarView({
       <AdminSection eyebrow="Properties" hint="Click a card to focus · a section to drill in">
         <PerPropertyFutureStrip
           rows={futureRows}
+          propertyBySlug={propertyBySlug}
           activeSlug={activeSlug}
           onToggleProperty={handleToggleProperty}
           onOpenBookings={(slug) => setOpenListModal({ type: 'bookings', slug })}

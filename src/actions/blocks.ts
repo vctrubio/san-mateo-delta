@@ -133,9 +133,7 @@ export async function createBlock(formData: FormData): Promise<CreateBlockResult
 
     if (resolvedSlug) {
       revalidatePath(`/finca/${resolvedSlug}`);
-      revalidatePath(`/admin/properties/${resolvedSlug}`);
     }
-    revalidatePath('/admin/properties');
     revalidatePath('/admin');
 
     return { ok: true, blockId };
@@ -167,8 +165,6 @@ export async function deleteBlock(formData: FormData): Promise<DeleteBlockResult
   if (!slug) return { ok: false, error: `Block ${blockId} not found.` };
 
   revalidatePath(`/finca/${slug}`);
-  revalidatePath(`/admin/properties/${slug}`);
-  revalidatePath('/admin/properties');
   revalidatePath('/admin');
 
   return { ok: true };

@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local image-sync staging (not for git)
 /scripts/.test-photos/
+
+# editor / agent local settings (per-machine, not for the repo)
+/.claude/

@@ -18,7 +18,6 @@ import type { Property } from '@/lib/properties';
 //   - /finca cards         (under each property title)
 //   - /finca/[slug]        (next to the FincaLead heading)
 //   - PropertyShowcaseGrid (inside the modal on the homepage)
-//   - /admin/properties    (the Spec column)
 //
 // Two flavours of sticker, selected via the `kind` prop:
 //

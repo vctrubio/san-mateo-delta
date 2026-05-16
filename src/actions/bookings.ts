@@ -47,7 +47,6 @@ function revalidateForBooking(bookingId: string, userId: string | null) {
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath(`/admin/bookings/${bookingId}`);
-  revalidatePath('/admin/properties');
   revalidatePath('/admin/payments');
   if (userId) {
     revalidatePath(`/user/${userId}`);

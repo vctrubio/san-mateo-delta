@@ -62,6 +62,15 @@ export type PropertyStats = {
 export type FuturePropertyData = {
   property_id: string;
   slug: string;
+  // --- Listing visibility + headline rate (joined from the property row) ---
+  /** Mirrors properties.public — drives the public/private chip on the
+   *  admin dashboard card. */
+  is_public: boolean;
+  /** Per-night rate for the current calendar month, in EUR cents. The
+   *  admin card surfaces it so the host can sanity-check the rate before
+   *  pricing inquiries; clicking the card's Edit affordance opens the
+   *  full 12-month rate editor. */
+  rate_current_cents: number;
   // --- Today's stay (held booking covering today, if any) ---
   today_occupied: boolean;
   today_status: string | null;
@@ -108,6 +117,14 @@ export async function listFuturePropertyData(): Promise<FuturePropertyData[]> {
     SELECT
       p.id::text AS property_id,
       p.slug     AS slug,
+      p.public   AS is_public,
+      -- Per-night rate for the current month, in cents. rates is a JSONB
+      -- object keyed by '1'..'12'; pick the current month deterministically
+      -- so the card label reflects what a new booking would price at today.
+      COALESCE(
+        (p.rates ->> (EXTRACT(MONTH FROM CURRENT_DATE)::int::text))::int,
+        0
+      ) AS rate_current_cents,
 
       -- Today occupancy: any held booking whose [check_in, check_out) covers today.
       EXISTS (

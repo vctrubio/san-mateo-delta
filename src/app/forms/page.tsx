@@ -3,8 +3,6 @@ import UserSignUpForm from '@/components/shared/UserSignUpForm';
 import BookingActionButtons from '@/components/admin/BookingActionButtons';
 import PaymentActionButtons from '@/components/admin/PaymentActionButtons';
 import CancelBookingForm from '@/components/admin/CancelBookingForm';
-import PropertyEditForm from '@/components/admin/PropertyEditForm';
-import PropertyRateForm from '@/components/admin/PropertyRateForm';
 import Calendar from '@/components/calendar/Calendar';
 import type { Property } from '@/lib/properties';
 import type { CalendarItem } from '@/lib/calendar';
@@ -102,7 +100,7 @@ export default function FormsPreviewPage() {
           <Section
             title="Calendar · admin mode (4 months default, toggle 4/8/12)"
             file="src/components/calendar/Calendar.tsx"
-            usedOn="/admin/properties/[slug]"
+            usedOn="/admin (per-property focused calendar)"
             note="Every booking colored by status. Click an empty range to auto-open SelectionActionModal (chooser → block dates OR create new booking). Click a booking to open BookingActionModal — same modal kit, with inline status actions and a register-cash-payment section when there's an outstanding balance. Click a block to remove it."
           >
             <Calendar admin slug={MOCK_PROPERTY.slug} monthsDefault={4} items={MOCK_CALENDAR_ITEMS} />
@@ -185,23 +183,10 @@ export default function FormsPreviewPage() {
             <CancelBookingForm bookingId="MOCK-1" status="confirmed" cancelledBy="guest" />
           </Section>
 
-          <Section
-            title="PropertyEditForm"
-            file="src/components/admin/PropertyEditForm.tsx"
-            usedOn="/admin/properties/[slug]"
-            note="Edit title / description / features / characteristics / cleaning fee. Cleaning fee is the default for new bookings; existing bookings keep their snapshotted value."
-          >
-            <PropertyEditForm property={MOCK_PROPERTY} />
-          </Section>
-
-          <Section
-            title="PropertyRateForm · 12-month grid"
-            file="src/components/admin/PropertyRateForm.tsx"
-            usedOn="/admin/properties/[slug]"
-            note="One €/night value per calendar month. Two presets — flat rate, low/high split (Jun-Aug = high). Submits updatePropertyRates which writes the JSONB column. CHECK constraint enforces all 12 keys present. See docs/rates.md."
-          >
-            <PropertyRateForm slug={MOCK_PROPERTY.slug} rates={MOCK_PROPERTY.rates} />
-          </Section>
+          {/* PropertyEditModal isn't previewed here — it portals to <body>
+              and uses live edit-mode state, which fights the
+              <fieldset disabled> wrapper this showcase relies on. See it
+              on /admin → click the Edit pencil on any property card. */}
 
         </div>
       </div>

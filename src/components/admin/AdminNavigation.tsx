@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Building2,
   CalendarRange,
   Users,
   Wallet,
@@ -36,9 +35,10 @@ type Route = {
   icon: LucideIcon;
 };
 
+// Properties are edited via the PropertyEditModal launched from the Edit
+// pencil on each dashboard card — there is no /admin/properties route.
 const NAV: Route[] = [
   { href: '/admin',            label: 'Finca',       icon: LayoutDashboard },
-  // { href: '/admin/properties', label: 'Properties',  icon: Building2 },
   { href: '/admin/bookings',   label: 'Bookings',    icon: CalendarRange },
   { href: '/admin/payments',   label: 'Payments',    icon: Wallet },
   { href: '/admin/users',      label: 'Users',       icon: Users },

@@ -24,8 +24,6 @@ function featuresFromForm(form: FormData): string[] {
 
 function revalidateForSlug(slug: string) {
   revalidatePath('/admin');
-  revalidatePath('/admin/properties');
-  revalidatePath(`/admin/properties/${slug}`);
   revalidatePath('/finca');
   revalidatePath(`/finca/${slug}`);
   revalidatePath('/');
