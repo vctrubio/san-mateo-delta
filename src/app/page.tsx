@@ -37,7 +37,7 @@ export default async function Home() {
       <HeroLanding />
       <PropertyShowcase />
       <AboutSection />
-      <Footer tone="white" />
+      <Footer />
     </main>
   );
 }

@@ -29,11 +29,14 @@ export default async function PropertyShowcase() {
   );
 
   return (
-    <section id="homes" className="py-24 px-4 bg-white overflow-hidden scroll-mt-8">
+    <section id="homes" className="py-24 px-4 overflow-hidden scroll-mt-8">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex flex-col items-center mb-20 text-center">
-          <span className="text-xs font-mono uppercase tracking-[0.3em] text-ocean mb-4">
-          300 m from Punta Paloma Beach
+          {/* Eyebrow — mirrors the sea labels in the hero map: sans-serif
+              (not mono), wider 0.4em tracking, responsive shrink on
+              small screens so it never overflows the column on mobile. */}
+          <span className="text-[10px] sm:text-xs lg:text-sm font-sans uppercase tracking-[0.4em] text-ocean mb-4">
+            300 m from Punta Paloma Beach
           </span>
           <h2 className="text-4xl md:text-6xl font-bold text-slate-900 tracking-tighter max-w-2xl text-balance">
             Discover your sanctuary at Finca San Mateo

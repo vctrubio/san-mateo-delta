@@ -20,21 +20,46 @@ function Wireframe() {
           aria-hidden="true"
           preserveAspectRatio="xMidYMid slice"
         >
-          {/* Sea labels — oversized italic across the strait, low opacity
-              so they read as atmosphere, not foreground. */}
+          {/* Sea labels — straight (non-italic) sans-serif across the
+              strait, low opacity so they read as atmosphere. Size shrinks
+              on small screens so "MEDITERRANEAN" doesn't overflow the
+              viewport on mobile. font-size on the parent <g> cascades
+              into the <text> children. */}
           <g
             fill="#0369a1"
             fontFamily="var(--font-sans)"
-            fontStyle="italic"
             opacity="0.16"
-            letterSpacing="0.4em"
+            letterSpacing="0.2em"
+            className="text-[20px] sm:text-[32px] lg:text-[44px]"
           >
-            <text x="600" y="80" textAnchor="middle" dominantBaseline="hanging" fontSize="44">
+            <text x="620" y="80" textAnchor="middle" dominantBaseline="hanging">
               MEDITERRANEAN
             </text>
-            <text x="600" y="720" textAnchor="middle" fontSize="44">
+            <text x="600" y="720" textAnchor="middle">
               ATLANTIC
             </text>
+          </g>
+
+          {/* Mobile-only poetic prefixes — together with the sea labels
+              they read as "Where the MEDITERRANEAN meets the ATLANTIC".
+              Treatment mirrors the "FINCA" divider in <Title>: tiny mono
+              uppercase + slate-400 hairlines flanking on each side, so it
+              speaks the same visual language as the title block instead
+              of fighting it. Hidden from `sm` upwards. */}
+          <g className="sm:hidden" fontFamily="var(--font-mono)" fill="#94a3b8">
+            {/* "Where the" — above MEDITERRANEAN */}
+            <line x1="430" y1="58" x2="520" y2="58" stroke="#cbd5e1" strokeWidth="1" />
+            <text x="600" y="62" textAnchor="middle" fontSize="11" letterSpacing="0.45em">
+              WHERE THE
+            </text>
+            <line x1="680" y1="58" x2="770" y2="58" stroke="#cbd5e1" strokeWidth="1" />
+
+            {/* "meets the" — above ATLANTIC */}
+            <line x1="430" y1="694" x2="520" y2="694" stroke="#cbd5e1" strokeWidth="1" />
+            <text x="600" y="698" textAnchor="middle" fontSize="11" letterSpacing="0.45em">
+              MEETS THE
+            </text>
+            <line x1="680" y1="694" x2="770" y2="694" stroke="#cbd5e1" strokeWidth="1" />
           </g>
 
           {/* ===== TARIFA — left landmass ===== */}
