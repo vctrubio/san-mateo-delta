@@ -9,17 +9,19 @@ import { Title } from './Title';
 // pointer-events-none so it never intercepts hero CTAs.
 function Wireframe() {
   return (
-    <>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-sky-100/30 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-sand/30 rounded-full -ml-48 -mb-48 blur-3xl opacity-30" />
-
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <svg
-          className="h-full w-full"
-          viewBox="0 0 1200 800"
-          aria-hidden="true"
-          preserveAspectRatio="xMidYMid slice"
-        >
+    <div className="pointer-events-none absolute inset-0 z-0">
+      <svg
+        className="h-full w-full"
+        viewBox="0 0 1200 800"
+        role="img"
+        aria-labelledby="hero-map-title"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <title id="hero-map-title">
+          Map of the Strait of Gibraltar — Tarifa on the European side, Tangier
+          on the African side, with Finca San Mateo marked between Valdevaqueros
+          and Punta Paloma.
+        </title>
           {/* Sea labels — straight (non-italic) sans-serif across the
               strait, low opacity so they read as atmosphere. Size shrinks
               on small screens so "MEDITERRANEAN" doesn't overflow the
@@ -303,9 +305,8 @@ function Wireframe() {
               </text>
             </g>
           </g>
-        </svg>
-      </div>
-    </>
+      </svg>
+    </div>
   );
 }
 
