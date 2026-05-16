@@ -190,7 +190,7 @@ function Wireframe() {
             </g>
 
             {/* Tanger Med — container stack (the marker itself) */}
-            <g transform="translate(120, 60)">
+            <g transform="translate(120, 80)">
               <rect x="0"  y="0"   width="14" height="8" fill="#0369a1" />
               <rect x="16" y="0"   width="14" height="8" fill="#dc2626" />
               <rect x="0"  y="-10" width="14" height="8" fill="#fbbf24" />
@@ -207,7 +207,7 @@ function Wireframe() {
                 x="245" y="716" fontSize="10" fontStyle="italic" fill="#64748b"
                 fontFamily="var(--font-mono)"
               >
-                where the legends sleep
+                where the legend sleep
               </text>
 
               <circle cx="60" cy="600" r="6" fill="#334155" />
