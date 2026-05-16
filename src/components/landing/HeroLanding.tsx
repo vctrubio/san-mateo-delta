@@ -1,5 +1,12 @@
 import { Title } from './Title';
 
+// Wireframe — decorative background for the hero section.
+//
+// A hand-drawn-ish map of the Strait of Gibraltar: Tarifa on the left,
+// Tangier on the right, with the named landmarks that situate the estate.
+// San Mateo is the only highlighted (emerald) marker — everything else is
+// slate text so the visitor's eye lands on us. The SVG is decorative and
+// pointer-events-none so it never intercepts hero CTAs.
 function Wireframe() {
   return (
     <>
@@ -13,37 +20,253 @@ function Wireframe() {
           aria-hidden="true"
           preserveAspectRatio="xMidYMid slice"
         >
-          <defs>
-            <linearGradient id="wireframeStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0f172a" stopOpacity="0.2" />
-              <stop offset="50%" stopColor="#0369a1" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.2" />
-            </linearGradient>
-          </defs>
-
-          <g fill="none" stroke="url(#wireframeStroke)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M 294 88 L 344 142 L 370 208 L 388 276 L 438 328 L 510 360 L 600 368 L 690 350 L 756 312 L 810 258 L 834 194 L 850 132" />
-            <path d="M 570 370 L 556 412 L 568 456" strokeOpacity="0.62" />
-
-            <path d="M 892 724 L 838 668 L 808 602 L 790 548 L 738 506 L 664 482 L 576 474 L 490 488 L 420 518 L 370 564 L 336 622 L 310 688" />
-            <path d="M 636 474 L 646 518 L 636 564" strokeOpacity="0.58" />
-
-            <path d="M 570 458 L 636 564" strokeDasharray="8 8" strokeWidth="1.9" />
-            <path d="M 542 472 L 664 550" strokeDasharray="6 10" strokeWidth="1.2" strokeOpacity="0.55" />
+          {/* Sea labels — oversized italic across the strait, low opacity
+              so they read as atmosphere, not foreground. */}
+          <g
+            fill="#0369a1"
+            fontFamily="var(--font-sans)"
+            fontStyle="italic"
+            opacity="0.16"
+            letterSpacing="0.4em"
+          >
+            <text x="600" y="80" textAnchor="middle" dominantBaseline="hanging" fontSize="44">
+              MEDITERRANEAN
+            </text>
+            <text x="600" y="720" textAnchor="middle" fontSize="44">
+              ATLANTIC
+            </text>
           </g>
 
-          <g fill="#0f172a" opacity="0.6" fontFamily="var(--font-mono)" fontSize="16" letterSpacing="0.08em">
-            <text x="702" y="126" fontSize="12" opacity="0.75">EUROPE</text>
-            <text x="716" y="738" fontSize="12" opacity="0.75">AFRICA</text>
-            <text x="620" y="602">TANGIER</text>
-            <text x="706" y="630" fontSize="12" opacity="0.7">MOROCCO</text>
-            <text x="654" y="500" fontSize="10" opacity="0.6">STRAIT OF GIBRALTAR</text>
-            <text x="656" y="526" fontSize="10" opacity="0.65">13 KM</text>
+          {/* ===== TARIFA — left landmass ===== */}
+          <g id="tarifa">
+            {/* Waves dotted along the coastline */}
+            <g
+              fill="none"
+              stroke="#0369a1"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.45"
+            >
+              <path d="M 250,600 Q 260,590 270,600 T 290,600" />
+              <path d="M 320,400 Q 330,390 340,400 T 360,400" />
+              <path d="M 300,100 Q 310,90 320,100 T 340,100" />
+              <path d="M 150,700 Q 160,690 170,700 T 190,700" />
+            </g>
+
+            {/* Landmass — warm cream fill with a hairline slate outline */}
+            <path
+              d="M 60,800
+                 C 60,720 80,680 100,650
+                 C 50,620 40,590 50,560
+                 C 70,530 120,520 160,480
+                 L 280,300
+                 C 300,270 320,240 330,220
+                 L 350,240
+                 A 20 20 0 1 0 360,200
+                 L 340,210
+                 C 330,150 320,50 300,0
+                 L 0,0 L 0,800 Z"
+              fill="#f8f5f0"
+              stroke="#334155"
+              strokeWidth="1.5"
+              strokeOpacity="0.32"
+              strokeLinejoin="round"
+            />
+
+            {/* Lighthouse — beams + striped tower */}
+            <g transform="translate(370, 205)">
+              <polygon points="0,-10 -60,-40 -60,20" fill="#fbbf24" opacity="0.35" />
+              <polygon points="0,-10 60,-40 60,20" fill="#fbbf24" opacity="0.35" />
+              <rect x="-10" y="0" width="20" height="30" fill="#ffffff" stroke="#334155" strokeWidth="0.6" />
+              <rect x="-10" y="5"  width="20" height="5" fill="#dc2626" />
+              <rect x="-10" y="15" width="20" height="5" fill="#dc2626" />
+              <rect x="-10" y="25" width="20" height="5" fill="#dc2626" />
+              <polygon points="-15,0 15,0 0,-20" fill="#dc2626" />
+            </g>
+
+            {/* ----- Points & labels (Tarifa) ----- */}
+            <g fontFamily="var(--font-sans)">
+              {/* Valdevaqueros */}
+              <circle cx="65" cy="540" r="6" fill="#334155" />
+              <text x="80" y="545" fontSize="12" fontWeight="700" fill="#334155">
+                Valdevaqueros
+              </text>
+              <text
+                x="80" y="558" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                our playground
+              </text>
+
+              {/* San Mateo — the only highlighted marker (emerald, with a halo) */}
+              <circle cx="45" cy="590" r="13" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.4" />
+              <circle cx="45" cy="590" r="7" fill="#10b981" />
+              <text x="60" y="595" fontSize="13" fontWeight="800" fill="#10b981" letterSpacing="0.04em">
+                San Mateo
+              </text>
+
+              {/* Punta Paloma */}
+              <circle cx="90" cy="650" r="6" fill="#334155" />
+              <text x="105" y="655" fontSize="12" fontWeight="700" fill="#334155">
+                Punta Paloma
+              </text>
+              <text
+                x="105" y="668" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                where the dunes rise
+              </text>
+
+              {/* Los Lances — rotated to follow the coastline */}
+              <circle cx="240" cy="360" r="6" fill="#334155" />
+              <text
+                x="160" y="350" fontSize="12" fontWeight="700" fill="#334155"
+                transform="rotate(-57 240 360)"
+              >
+                Los Lances
+              </text>
+              <text
+                x="160" y="375" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)" transform="rotate(-57 240 360)"
+              >
+                where the horizon never ends
+              </text>
+
+              {/* Tarifa — the town itself */}
+              <circle cx="330" cy="225" r="6" fill="#334155" />
+              <text x="260" y="235" fontSize="12" fontWeight="700" fill="#334155">
+                Tarifa
+              </text>
+              <text
+                x="204" y="248" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                Europe&apos;s southern edge
+              </text>
+            </g>
           </g>
 
-          <g fill="#0369a1" opacity="0.6">
-            <circle cx="570" cy="458" r="4" />
-            <circle cx="636" cy="564" r="4" />
+          {/* ===== TANGIER — right landmass ===== */}
+          <g id="tangier" transform="translate(800, 0)">
+            <g
+              fill="none"
+              stroke="#0369a1"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.45"
+            >
+              <path d="M 50,650 Q 60,640 70,650 T 90,650" />
+              <path d="M 120,380 Q 130,370 140,380 T 160,380" />
+              <path d="M 40,200 Q 50,190 60,200 T 80,200" />
+              <path d="M 200,750 Q 210,740 220,750 T 240,750" />
+            </g>
+
+            <path
+              d="M 400,750 L 150,700
+                 C 80,690 50,650 60,600
+                 L 100,450
+                 C 120,420 180,380 180,320
+                 C 180,270 120,220 80,200
+                 C 50,180 60,150 100,100
+                 L 200,0
+                 L 400,0 L 400,800 Z"
+              fill="#f8f5f0"
+              stroke="#334155"
+              strokeWidth="1.5"
+              strokeOpacity="0.32"
+              strokeLinejoin="round"
+            />
+
+            {/* Caves of Hercules — stone with dark mouth */}
+            <g transform="translate(130, 680)">
+              <path
+                d="M 0,0 C -15,-20 15,-30 30,-15 C 40,0 20,10 0,0 Z"
+                fill="#94a3b8"
+              />
+              <path
+                d="M 5,-5 C 5,-15 15,-20 20,-10 C 25,0 10,5 5,-5 Z"
+                fill="#1e293b"
+              />
+            </g>
+
+            {/* Tanger Med — container stack (the marker itself) */}
+            <g transform="translate(120, 60)">
+              <rect x="0"  y="0"   width="14" height="8" fill="#0369a1" />
+              <rect x="16" y="0"   width="14" height="8" fill="#dc2626" />
+              <rect x="0"  y="-10" width="14" height="8" fill="#fbbf24" />
+              <rect x="16" y="-10" width="14" height="8" fill="#0369a1" />
+              <rect x="8"  y="-20" width="14" height="8" fill="#dc2626" />
+            </g>
+
+            <g fontFamily="var(--font-sans)">
+              <circle cx="150" cy="700" r="6" fill="#334155" />
+              <text x="165" y="705" fontSize="12" fontWeight="700" fill="#334155">
+                Caves of Hercules
+              </text>
+              <text
+                x="245" y="716" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                where the legends sleep
+              </text>
+
+              <circle cx="60" cy="600" r="6" fill="#334155" />
+              <text x="75" y="605" fontSize="12" fontWeight="700" fill="#334155">
+                Cap Spartel
+              </text>
+              <text
+                x="75" y="618" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                the last light of the Mediterranean
+              </text>
+
+              <circle cx="180" cy="320" r="6" fill="#334155" />
+              <text x="195" y="325" fontSize="12" fontWeight="700" fill="#334155">
+                Tangier
+              </text>
+              <text
+                x="195" y="338" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                espionage hotspot during WWII
+              </text>
+
+              {/* Tanger Med — labels float above the container stack */}
+              <text x="165" y="85" fontSize="12" fontWeight="700" fill="#334155">
+                Tanger Med
+              </text>
+              <text
+                x="165" y="98" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                biggest African port
+              </text>
+
+              {/* Monte Musa — concentric topo contours */}
+              <g
+                transform="translate(230, 180)"
+                fill="none"
+                stroke="#334155"
+                strokeWidth="0.8"
+                strokeLinecap="round"
+                opacity="0.55"
+              >
+                <path d="M -35,25 C -20,15 -10,25 0,15 C 10,5 20,15 35,25" />
+                <path d="M -25,15 C -15,5 -5,15 0,5 C 5,-5 15,5 25,15" />
+                <path d="M -15,5 C -5,-5 0,5 0,-5 C 0,-15 10,-5 15,5" />
+                <path d="M -5,-5 C 0,-15 5,-15 5,-5" />
+              </g>
+              <text x="260" y="185" fontSize="12" fontWeight="700" fill="#334155">
+                Monte Musa
+              </text>
+              <text
+                x="260" y="198" fontSize="10" fontStyle="italic" fill="#64748b"
+                fontFamily="var(--font-mono)"
+              >
+                Altitude: 851 m
+              </text>
+            </g>
           </g>
         </svg>
       </div>
