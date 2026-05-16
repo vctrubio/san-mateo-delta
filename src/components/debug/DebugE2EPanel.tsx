@@ -117,7 +117,7 @@ const WIRED: Array<{ title: string; sub: string; href?: string }> = [
   { title: 'Pricing model with seasonal rates',                          sub: 'docs/rates.md · 8 rate rows · selection in lib/bookings#computeQuote' },
   { title: 'Estate config in JSON (no DB row)',                          sub: '/config/finca.json amenities — change without a migration' },
   { title: 'Public landing + /finca + /finca/[slug] reading from DB',    sub: 'PropertyShowcase via listProperties()',                       href: '/finca' },
-  { title: 'PropertyView — inline guest booking on /finca/[slug]',       sub: 'requestBooking: upsert user, insert booking → createCheckoutSession(deposit) → Stripe → /user/[id]', href: '/finca/levante' },
+  { title: '/book — single guest booking surface',                      sub: 'requestBooking: upsert user, insert booking → createCheckoutSession(deposit) → Stripe → /user/[id]. Entry points: showcase modal on /, Book button on /finca/[slug] Availability tab — both deep-link with ?slug&from&to.', href: '/finca/levante' },
   { title: 'Admin estate dashboard (upcoming-only)',                     sub: 'EstateOverview · GanttStrip · PerPropertyFutureStrip · per-property Calendar · /admin', href: '/admin' },
   { title: 'Admin one-click status transitions',                          sub: '/admin/bookings → filterable + paginated · inline buttons per row', href: '/admin/bookings' },
   { title: 'Guest dashboard with grouped bookings',                       sub: 'pending / upcoming / past / cancelled · Pay buttons appear once confirmed', href: '/user' },
@@ -259,7 +259,7 @@ function NextStepsPanel() {
 
 function TryItPanel() {
   const STEPS = [
-    { n: 1, label: 'As a guest, request a booking',     href: '/finca/levante',      desc: 'On /finca/levante, click "Book your stay" in the sidebar Pricing card → calendar + guests + identity reveal inline → submit pays the 50% deposit on Stripe → land on /user/[id].' },
+    { n: 1, label: 'As a guest, request a booking',     href: '/finca/levante',      desc: 'On /finca/levante, switch to Availability, pick a range, click the ocean Book button → /book opens with the dates pre-filled. Fill identity → submit pays the 50% deposit on Stripe → land on /user/[id]. The showcase modal on / is an alternate entry point with the same destination.' },
     { n: 2, label: 'See the request as the guest',      href: '/user',                desc: 'Find the user you just signed up. Their dashboard shows the request as "pending host approval".' },
     { n: 3, label: 'Confirm it as the admin',           href: '/admin/bookings',      desc: 'New request is at the top. Click "Confirm". This revalidates both views.' },
     { n: 4, label: 'Pay deposit as the guest',          href: '/user',                desc: 'Reload the user dashboard. "Pay deposit" / "Pay full" buttons now appear under the booking.' },

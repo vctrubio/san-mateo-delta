@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { listProperties } from '@/lib/properties';
 import { getActivePaymentPolicy } from '@/lib/systemSettings';
+import { getCalendarItems, windowFor } from '@/lib/calendar';
 import { todayYmd } from '@/lib/dates';
 import { DEFAULT_GUESTS } from '@/lib/guests';
 import { ReservationClient } from '@/components/book/ReservationClient';
@@ -62,13 +63,26 @@ export default async function BookPage({
   const today = todayYmd();
   if (from < today) redirect(fallbackUrl);
 
-  // Fetch property + estate-wide active policy in parallel.
+  // Fetch property + estate-wide active policy in parallel; we look up the
+  // property out of the list first so we have its id for the calendar fetch.
   const [properties, activePolicy] = await Promise.all([
     listProperties({ publicOnly: true }),
     getActivePaymentPolicy(),
   ]);
   const property = properties.find((p) => p.slug === slug);
   if (!property) notFound();
+
+  // Calendar items for the inline "Change dates" picker. Same 6-month
+  // public-mode window as the slug page — held bookings + blocks are
+  // unselectable, so the guest can't pick a range that the server would
+  // reject at submit time.
+  const { from: winFrom, to: winTo } = windowFor(new Date(), 6);
+  const calendarItems = await getCalendarItems({
+    propertyId: property.id,
+    from: winFrom,
+    to: winTo,
+    mode: 'public',
+  });
 
   const adults   = intParam(sp.adults,   DEFAULT_GUESTS.adults);
   const children = intParam(sp.children, DEFAULT_GUESTS.children);
@@ -87,5 +101,5 @@ export default async function BookPage({
     identity: EMPTY_IDENTITY,
   };
 
-  return <ReservationClient ctx={ctx} initial={initial} />;
+  return <ReservationClient ctx={ctx} initial={initial} calendarItems={calendarItems} />;
 }

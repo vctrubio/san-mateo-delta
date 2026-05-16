@@ -8,15 +8,36 @@ import { isSameDay, isWithinClosed, isWithinHalfOpen, parseYmd } from './dateUti
 // One day in the calendar grid. Decides its own visual state from the items
 // that cover it. Pure presentational + a single onClick.
 //
+// Two modes share this component:
+//
+//   ADMIN — wants to know *why* a day is held. Property block → hatched
+//   dark; held booking → its status color (ocean for confirmed,
+//   emerald for checked_in, slate for checked_out); non-blocking
+//   booking → muted status color.
+//
+//   PUBLIC — the guest has no business reading status colors. Every
+//   held day (block or any blocking booking) renders as a single
+//   "unavailable" hatch, matching the legend's three states:
+//   Selected / Available / Unavailable. No corner dots, no per-status
+//   tinting — just "you can't pick this day".
+//
 // Visual hierarchy (most → least important):
-//   1. Property block       → hatched dark fill
-//   2. Held booking          → status color from BOOKING_STATUS_STYLES.cell
-//   3. Non-blocking booking  → admin only: muted status color (request, invite, cancelled)
-//   4. Selection range       → ring overlay
-//   5. Selection start/end   → solid ocean dot
-//   6. Past day              → low-opacity, not-allowed
-//   7. Plain available       → hover ring
+//   1. Property block / public-mode held → hatched dark fill (unavailable)
+//   2. Admin held booking          → status color from BOOKING_STATUS_STYLES.cell
+//   3. Admin non-blocking booking  → muted status color (request, invite, cancelled)
+//   4. Selection range             → ring overlay
+//   5. Selection start/end         → solid ocean dot
+//   6. Past day                    → low-opacity, not-allowed
+//   7. Plain available             → hover ring
 // ============================================================================
+
+// Public-mode unavailable cell — same diagonal hatch the block uses, but
+// keyed off the slate palette so it reads as a hard "no" without
+// pretending to be a host-imposed block. One look for every reason a
+// day is held: confirmed, checked_in, checked_out, block — all the
+// same to the guest.
+const PUBLIC_UNAVAILABLE_CELL =
+  'bg-slate-200 text-slate-400 [background-image:repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(148,163,184,0.45)_3px,rgba(148,163,184,0.45)_6px)]';
 
 export type DayCellProps = {
   day: Date;
@@ -88,14 +109,21 @@ export default function DayCell({
   if (isPast) {
     text = 'text-slate-300';
     cursor = 'cursor-not-allowed';
+  } else if (!admin && isHeld) {
+    // Public mode: collapse every "held" reason (block, confirmed,
+    // checked_in, checked_out) into a single unavailable look. Guests
+    // don't read status colors.
+    bg = PUBLIC_UNAVAILABLE_CELL;
+    text = '';
+    cursor = 'cursor-not-allowed';
   } else if (block) {
     bg = PROPERTY_BLOCK_STYLE.cell;
     text = 'text-white';
-    cursor = admin ? 'cursor-pointer' : 'cursor-not-allowed';
+    cursor = 'cursor-pointer';
   } else if (heldBooking && heldBooking.kind === 'booking') {
     const s = BOOKING_STATUS_STYLES[heldBooking.status];
     bg = s.cell;
-    cursor = admin ? 'cursor-pointer' : 'cursor-not-allowed';
+    cursor = 'cursor-pointer';
   } else if (visibleSoft && visibleSoft.kind === 'booking') {
     // soft (request/invite/cancelled) only shows in admin mode, with reduced intensity
     const s = BOOKING_STATUS_STYLES[visibleSoft.status];
@@ -143,8 +171,9 @@ export default function DayCell({
       }
     >
       <span>{day.getDate()}</span>
-      {/* tiny corner dot for held days, in case bg color contrast is too soft */}
-      {isHeld && !isStart && !isEnd && (
+      {/* Admin-only corner dot for held days, in case bg color contrast
+          is too soft. Public mode already has the hatch — no extra mark. */}
+      {admin && isHeld && !isStart && !isEnd && (
         <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-current opacity-60" />
       )}
     </button>

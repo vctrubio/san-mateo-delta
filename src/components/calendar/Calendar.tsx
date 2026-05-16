@@ -21,8 +21,9 @@ import {
 //   Default 2 months. Held items (confirmed/checked_in/checked_out) and blocks
 //   are unselectable; everything else (request, invite, cancelled) is invisible
 //   to the guest. Two-click range selection. When a valid range is set, fires
-//   `onSelectRange(start, end)` so the parent (PropertyView / admin shells) can drive its
-//   hidden inputs + re-quote.
+//   `onSelectRange(start, end)` so the parent (PropertySectionTabs on the
+//   slug page, the showcase modal on the landing page, the inline picker
+//   on /book, or any admin shell) can mirror the range into its own state.
 //
 // ADMIN (admin = true)
 //   Default 4 months, with toggle (4 / 8 / 12). Every booking renders in its

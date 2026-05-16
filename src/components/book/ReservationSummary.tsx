@@ -1,35 +1,51 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
 import Image from 'next/image';
-import { Calendar, Users, ArrowLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, X } from 'lucide-react';
+import Calendar from '@/components/calendar/Calendar';
+import { ymd } from '@/components/calendar/dateUtils';
 import { PROPERTY_LABELS, type PropertySlug } from '@/lib/colors';
 import { eur } from '@/lib/format';
 import { fmtDateRange } from '@/lib/dates';
 import { describePolicy } from '@/lib/payment';
-import { formatGuests } from '@/lib/guests';
+import { nightsBetween, type ReservationCtx } from '@/lib/reservation';
+import type { CalendarItem } from '@/lib/calendar';
 import { type UseReservationReturn } from './useReservation';
-import type { ReservationCtx } from '@/lib/reservation';
 
 // ============================================================================
-// ReservationSummary — left pane of the /book "open book". A frozen view of
-// what's about to be reserved: property photo + name, picked dates,
-// guests, line-item receipt, deposit policy. The pane is read-only; the
-// only interaction is a "Change dates" link back to /finca/[slug].
+// ReservationSummary — left pane of the /book "open book".
 //
-// Everything renders off the useReservation return — no local state.
+// A read-mostly view of what's about to be reserved. The one
+// interaction is the "Change dates" affordance: clicking it expands an
+// inline `<Calendar>` below the date row; picking a new range writes
+// to the reservation state and the receipt updates instantly.
+//
+// Drops the guest-count row from the previous version — guests are
+// explicit in the form on the right. Adds `nights` + "days until
+// check-in" so the guest can sanity-check the math at a glance.
 // ============================================================================
 
 export function ReservationSummary({
   ctx,
   rv,
+  calendarItems,
 }: {
   ctx: ReservationCtx;
   rv: UseReservationReturn;
+  calendarItems: CalendarItem[];
 }) {
   const label = PROPERTY_LABELS[ctx.property.slug as PropertySlug] ?? ctx.property.slug.toUpperCase();
   const { quote, resolvedPolicy, total, deposit } = rv;
   const balance = total - deposit;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Drive the Calendar's selectedRange from rv.state so reopening
+  // shows the currently picked dates highlighted.
+  const selectedRange = rv.state.range
+    ? { start: new Date(`${rv.state.range.from}T00:00:00Z`), end: new Date(`${rv.state.range.to}T00:00:00Z`) }
+    : undefined;
 
   return (
     <aside className="rounded-3xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col">
@@ -58,26 +74,39 @@ export function ReservationSummary({
             <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-400">
               Your stay
             </p>
-            <Link
-              href={`/finca/${ctx.property.slug}`}
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-expanded={pickerOpen}
               className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-slate-500 hover:text-ocean transition-colors"
             >
-              <ArrowLeft className="w-3 h-3" />
-              Change dates
-            </Link>
+              {pickerOpen ? (
+                <>
+                  <X className="w-3 h-3" /> Close
+                </>
+              ) : (
+                <>
+                  <CalendarIcon className="w-3 h-3" /> Change dates
+                </>
+              )}
+            </button>
           </header>
-          <ul className="space-y-2 text-sm text-slate-700">
-            <li className="flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-              {rv.state.range
-                ? <span>{fmtDateRange(rv.state.range.from, rv.state.range.to)}</span>
-                : <span className="italic text-slate-400">No dates picked.</span>}
-            </li>
-            <li className="flex items-center gap-2.5">
-              <Users className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>{formatGuests(rv.state.guests) || 'No guests yet'}</span>
-            </li>
-          </ul>
+
+          <StayDetails ctx={ctx} rv={rv} />
+
+          {pickerOpen && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-3">
+              <Calendar
+                slug={ctx.property.slug}
+                items={calendarItems}
+                selectedRange={selectedRange}
+                onSelectRange={(start, end) => {
+                  rv.setRange({ from: ymd(start), to: ymd(end) });
+                }}
+                onClearRange={() => rv.setRange(null)}
+              />
+            </div>
+          )}
         </section>
 
         {/* Receipt */}
@@ -145,6 +174,35 @@ export function ReservationSummary({
       </div>
     </aside>
   );
+}
+
+// ─── Stay details (date row + nights + days-to-check-in) ──────────────────
+
+function StayDetails({ ctx, rv }: { ctx: ReservationCtx; rv: UseReservationReturn }) {
+  if (!rv.state.range) {
+    return <p className="text-sm italic text-slate-400">No dates picked.</p>;
+  }
+  const nights = nightsBetween(rv.state.range.from, rv.state.range.to);
+  const daysUntil = nightsBetween(ctx.today, rv.state.range.from);
+
+  return (
+    <div className="flex items-start gap-2.5 text-sm text-slate-700">
+      <CalendarIcon className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+      <div>
+        <p>{fmtDateRange(rv.state.range.from, rv.state.range.to)}</p>
+        <p className="text-[11px] font-mono uppercase tracking-widest text-slate-400 mt-1">
+          {nights} night{nights === 1 ? '' : 's'} · {formatDaysUntil(daysUntil)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function formatDaysUntil(days: number): string {
+  if (days < 0) return 'check-in has passed';
+  if (days === 0) return 'check-in is today';
+  if (days === 1) return 'check-in tomorrow';
+  return `${days} days until check-in`;
 }
 
 function ReceiptRow({ label, value }: { label: string; value: string }) {

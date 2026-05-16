@@ -65,10 +65,11 @@ function Header() {
 
 function Flow() {
   const steps = [
-    { label: '/',                       body: 'HeroLanding + PropertyShowcase. Guest scrolls, clicks a property card.' },
-    { label: 'Property modal',          body: 'Two CTAs: Book now (primary, → /finca/[slug]#book) · View full property (secondary).' },
-    { label: '/finca/[slug]',           body: 'PropertyView: hero + carousel · characteristics · about · features · sidebar PricingCard (rates + deposit policy) · LocationCard.' },
-    { label: 'Click "Book your stay"',  body: 'PricingCard flips to Receipt mode; main column swaps "What\'s included" for the Calendar; guests + identity reveal inline below.' },
+    { label: '/',                       body: 'HeroLanding + PropertyShowcase bento. Guest scrolls, clicks a property tile.' },
+    { label: 'Showcase modal',          body: 'Phase A — summary with the slug-page voice (accentedTitle + PropertyStickers both). Two CTAs: Book now (→ Phase B) · View property (→ /finca/[slug]).' },
+    { label: 'Phase B — pick dates',    body: 'Inline <Calendar> with the same public-mode 6-month window the slug page uses. Picking a valid range enables "Continue to booking" → /book?slug=…&from=…&to=….' },
+    { label: '/finca/[slug]',           body: 'PropertyNavigationGallery + PropertySectionTabs (Property · Availability · Prices). Availability is the same <Calendar>; tabs own the picked range; Book button on the right of the nav navigates to /book once the range is valid.' },
+    { label: '/book',                   body: 'Two-pane reservation page. Left: ReservationSummary (photo, dates + inline "Change dates" calendar, receipt, payment terms). Right: ReservationForm (GuestConfig + identity + submit). useReservation hook owns state.' },
     { label: 'Submit',                  body: 'requestBooking → upsert user, insert booking (status=request, payment_policy snapshot), revalidate /admin. If the snapshotted policy charges card at booking, createCheckoutSession(\'deposit\') opens Stripe; cash / 0% policies skip Stripe and redirect straight to /user/[id].' },
     { label: 'Stripe Checkout',         body: 'Hosted page charges the deposit (50%/100% depending on policy). Webhook flips pending → succeeded. Balance, when applicable, is due N days before arrival per the booking\'s snapshotted policy — manual today; scheduled charge is a follow-up.' },
     { label: '/user/[id]',              body: 'UserDashboard, grouped by state. Fresh booking shows under Pending host approval.' },
@@ -93,11 +94,11 @@ function Flow() {
 }
 
 const SHIPPED = [
-  'Two-CTA property modal on / (Book now + View full property) — dismisses before navigation',
+  'Two-phase showcase modal on / — Phase A summary (slug-page voice: accentedTitle + PropertyStickers) with Book now + View property CTAs · Phase B inline <Calendar> + "Continue to booking" → /book',
   'Persistent /finca banner with shared <Title> from the homepage hero (cream surface + back pill)',
-  '/finca/[slug] rebuilt: hero photo + 4-property carousel · characteristics · about · what\'s included · sidebar PricingCard + LocationCard · hosts (souls of San Mateo)',
-  'Inline booking flow (no modal): click "Book your stay" → calendar replaces features, guests + identity slide in below, sidebar flips to detailed Receipt that adapts to the resolved policy',
-  '#book hash auto-opens the booking flow and scrolls the calendar into view — homepage "Book now" CTA works end-to-end',
+  '/finca/[slug] rebuilt: PropertyNavigationGallery (photo lightbox) · PropertySectionTabs (Property · Availability · Prices) · sticky FincaLead with stickers · ocean Book button that lights up once a range is picked in Availability',
+  'Single guest booking path: /book is the only reservation surface. Two-pane "open book" — ReservationSummary (left: photo + dates + inline change-dates calendar + receipt + payment terms) + ReservationForm (right: GuestConfig + identity + submit). useReservation hook owns state.',
+  'Cloudinary-backed property photos with folder-based sections (interior/exterior/bedroom/N/bathroom/N/terrace) and a fullscreen lightbox; empty folders auto-hide so studios surface cleanly',
   'Runtime-switchable payment policy at /admin/payments (4 presets: split_14, split_7, full_now, cash). Each booking snapshots the resolved policy onto bookings.payment_policy at creation; switches never reach back into existing bookings. Too-close split policies auto-collapse to 100% upfront with a plain-English notice.',
   'Per-booking policy override on the admin calendar modal — preset picker preselects the estate-wide default, override snapshots independently',
   'Payments HQ replaces /admin/settings: policy switcher + Outstanding · Upcoming balance · Recent payments · Stale Stripe sessions sections (derived state only, no payments-summary table)',
@@ -128,7 +129,7 @@ function Shipped() {
 type PlanItem = { title: string; body: string };
 
 const STORY_ITEMS: PlanItem[] = [
-  { title: 'Real auth',                     body: 'Today /user/[id] is URL-typeable and /user is sign-up only. Once auth lands, /user resolves to the logged-in user. PropertyView has `// FUTURE — auth gate` comments marking the spot.' },
+  { title: 'Real auth',                     body: 'Today /user/[id] is URL-typeable and /user is sign-up only. Once auth lands, /user resolves to the logged-in user. /book has a `TODO(auth)` stub at the top — redirect to /login when no session and prefill identity from the user record.' },
   { title: 'Upcoming-booking banner',       body: 'On /finca/[slug], when the logged-in user has an upcoming booking for this property, show it so they don\'t re-book the same dates. Depends on auth.' },
 ];
 
@@ -173,7 +174,11 @@ function Files() {
     ['src/app/finca/layout.tsx',                        'Persistent /finca banner (Title from HeroLanding) + back pill'],
     ['src/app/finca/[slug]/page.tsx',                   'Server shell: fetches properties + calendar items + active payment policy'],
     ['src/app/admin/payments/page.tsx',                 'Payments HQ — policy switcher + outstanding/upcoming/recent/stale sections'],
-    ['src/components/finca/PropertyView.tsx',           'Client: hero + carousel + Calendar + booking form + Pricing/Location sidebar; resolves policy against picked dates'],
+    ['src/components/finca/PropertyNavigationGallery.tsx', 'Client: editorial photo gallery + lightbox for the slug page'],
+    ['src/components/finca/PropertySectionTabs.tsx',    'Client: Property/Availability/Prices tabs; owns picked range; ocean Book button → /book'],
+    ['src/app/book/page.tsx',                           'Server: /book — validates query, fetches property + active policy + calendar window in parallel, hands seed ctx + state to ReservationClient'],
+    ['src/components/book/useReservation.ts',           'React hook: owns reservation state, memoizes quote / resolved policy / total / deposit; submit() routes through requestBooking + createCheckoutSession'],
+    ['src/components/book/ReservationClient.tsx',       'Client: back-link strip + two-pane "open book" layout (ReservationSummary + ReservationForm)'],
     ['src/components/landing/HeroLanding.tsx',          '"See the homes ↓" hero CTA + brand stamp'],
     ['src/components/admin/PaymentPolicyCard.tsx',      'Preset tile on /admin/payments'],
     ['src/components/admin/PaymentPolicyPresetPicker.tsx', '2×2 preset picker in SelectionActionModal (per-booking override)'],

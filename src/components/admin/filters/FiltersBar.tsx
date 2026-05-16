@@ -1,6 +1,6 @@
 // Server component shell. Doesn't itself drive URL state — that's the
 // children's job. This is just the layout: a row that wraps any combination
-// of SearchInput, FilterChips, DateRangePicker, SortSelect, ResetButton.
+// of SearchInput, FilterChips, SortSelect, ResetButton, and Pagination.
 
 export default function FiltersBar({ children }: { children: React.ReactNode }) {
   return (

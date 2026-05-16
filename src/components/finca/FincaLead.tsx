@@ -19,23 +19,33 @@ export function FincaLead({
   description,
   meta,
   sticky = false,
+  children,
 }: {
   heading: ReactNode;
   description: ReactNode;
   /**
    * Optional content rendered directly below the heading (PropertyStickers
    * on slug pages). When `sticky` is true, the heading + meta block pins
-   * to the top of the viewport on scroll while the description stays in
-   * the normal flow.
+   * to the top of the viewport on scroll while the description and any
+   * `children` stay in the normal flow.
    */
   meta?: ReactNode;
   /**
    * Pin the heading + meta to top:0 as the user scrolls past the banner.
-   * Only the description scrolls out. Used on /finca/[slug] so the
-   * property title + stickers stay visible while the photo lightbox or
-   * the prices tab unfurl below.
+   * The pin holds until the lead's *containing block* (this component's
+   * outer wrapper) exits the viewport — so anything you pass via
+   * `children` extends the range. On /finca/[slug] the
+   * PropertyNavigationGallery is passed as children so the title +
+   * stickers stay anchored all the way down to the section tabs.
    */
   sticky?: boolean;
+  /**
+   * Optional content rendered inside the sticky containing block, below
+   * the description. Use this to extend how far the sticky head pins —
+   * the head stays in view until the bottom of the outer wrapper passes
+   * the top of the viewport.
+   */
+  children?: ReactNode;
 }) {
   // The sticky container needs a backdrop so content scrolling behind it
   // doesn't bleed through. slate-50/95 matches FincaLayout's page bg with
@@ -62,6 +72,7 @@ export function FincaLead({
       <p className="text-slate-500 text-lg leading-relaxed mt-2">
         {description}
       </p>
+      {children}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Home, CalendarDays, Euro, BookOpen, type LucideIcon } from 'lucide-react';
+import { Home, CalendarDays, Euro, ArrowRight, type LucideIcon } from 'lucide-react';
 import Calendar from '@/components/calendar/Calendar';
 import { ymd } from '@/components/calendar/dateUtils';
 import type { CalendarItem } from '@/lib/calendar';
@@ -119,7 +119,12 @@ export function PropertySectionTabs({
   );
 }
 
-// ─── Book button ───────────────────────────────────────────────────────────
+// ─── Book CTA ──────────────────────────────────────────────────────────────
+// Deliberately different shape + weight from the section tabs — those are
+// browsing chrome; this is the page's primary verb. Active uses the
+// ocean accent with a glow that lifts on hover; disabled tells the user
+// what's missing ("Pick dates") and is still clickable to flip to
+// Availability where they can do it.
 
 function BookButton({
   bookUrl,
@@ -128,17 +133,14 @@ function BookButton({
   bookUrl: string | null;
   onPickDates: () => void;
 }) {
-  const baseClass =
-    'inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-mono uppercase tracking-widest transition-all';
-
   if (bookUrl) {
     return (
       <Link
         href={bookUrl}
-        className={`${baseClass} bg-ocean text-white shadow-md shadow-ocean/20 hover:shadow-xl hover:shadow-ocean/30`}
+        className="group inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] text-white bg-ocean shadow-lg shadow-ocean/30 hover:shadow-2xl hover:shadow-ocean/40 hover:-translate-y-[1px] transition-all duration-200"
       >
-        <BookOpen className="w-3.5 h-3.5" />
         Book
+        <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
       </Link>
     );
   }
@@ -147,11 +149,11 @@ function BookButton({
       type="button"
       onClick={onPickDates}
       aria-disabled
-      title="Pick your dates to enable"
-      className={`${baseClass} bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-700 cursor-pointer`}
+      title="Pick your dates to enable booking"
+      className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] text-slate-400 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors duration-200"
     >
-      <BookOpen className="w-3.5 h-3.5" />
-      Book
+      <CalendarDays className="w-4 h-4" />
+      Pick dates
     </button>
   );
 }

@@ -93,8 +93,8 @@ export default function FormsPreviewPage() {
           <Section
             title="Calendar · public mode (2 months)"
             file="src/components/calendar/Calendar.tsx"
-            usedOn="/finca/[slug] (inside PropertyView)"
-            note="Two-click date range selection. Held bookings + property blocks render as unavailable (hatched / colored). Cancelled / request / invite bookings are invisible to the public. Selection drives the parent form's hidden date inputs."
+            usedOn="/finca/[slug] Availability tab · /book inline 'Change dates' picker · landing showcase modal Phase B"
+            note="Two-click date range selection. Held bookings + property blocks render as unavailable (hatched / colored). Cancelled / request / invite bookings are invisible to the public. Selection drives the parent's range state."
           >
             <Calendar monthsDefault={2} items={MOCK_CALENDAR_ITEMS} />
           </Section>

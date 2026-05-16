@@ -56,8 +56,9 @@ function revalidateForBooking(bookingId: string, userId: string | null) {
 }
 
 // ---------------------------------------------------------------------------
-// requestBooking — entry point from /finca/[slug] PropertyView's inline
-// booking flow (sidebar PricingCard "Book your stay" → calendar + form).
+// requestBooking — entry point from /book (the single guest reservation
+// surface). Invoked by ReservationForm.submit via useReservation; the form
+// data is assembled by buildRequestBookingFormData(ctx, state).
 // Snapshots the price components onto the booking row so future fee edits
 // don't alter past totals (see memory/snapshots_principle.md).
 // ---------------------------------------------------------------------------

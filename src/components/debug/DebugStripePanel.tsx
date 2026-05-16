@@ -121,8 +121,8 @@ function Story() {
           on <code className="font-mono">payment_refunds</code>. CHECK constraint forces stripe rows to carry a session id.
         </li>
         <li>
-          <strong>Guest UX:</strong> <code className="font-mono">PropertyView</code>&apos;s inline booking flow on
-          <code className="font-mono">/finca/[slug]</code> is card-only — submit creates the booking
+          <strong>Guest UX:</strong> the <code className="font-mono">/book</code> route&apos;s ReservationForm
+          (driven by <code className="font-mono">useReservation</code>) is card-only — submit creates the booking
           (<code className="font-mono">status=request</code>) and redirects to Stripe Checkout for the 50% deposit.
           Cash is admin-only — recorded from <code className="font-mono">/admin/bookings/[id]</code> after the guest pays in person.
         </li>
@@ -415,7 +415,9 @@ function Files() {
     ['src/app/api/webhooks/stripe/route.ts', 'webhook handler (4 events, idempotent)'],
     ['src/app/checkout/success/page.tsx', 'post-Stripe success page (auto-refresh on pending)'],
     ['src/app/checkout/cancel/page.tsx', 'post-Stripe cancel page'],
-    ['src/components/finca/PropertyView.tsx', 'inline booking flow (PricingCard → calendar → guests → submit) + Stripe redirect'],
+    ['src/app/book/page.tsx',                 '/book server: validates query, fetches property + active policy + calendar window'],
+    ['src/components/book/useReservation.ts', 'Reservation hook: quote/policy/total/deposit + submit() → requestBooking → Stripe redirect'],
+    ['src/components/book/ReservationForm.tsx','Right pane: GuestConfig + identity + submit button with policy-aware label'],
     ['src/components/admin/PaymentsTable.tsx', 'Method/Status badges + Stripe Dashboard link'],
     ['db/seed_fullseason.ts', '60/40 stripe/cash mix with realistic ids'],
     ['docs/stripe.md', 'env vars, webhooks, test cards, idempotency'],

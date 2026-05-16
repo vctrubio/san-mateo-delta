@@ -82,14 +82,20 @@ export default async function PropertyDetailsPage({
 
   return (
     <>
+      {/* FincaLead wraps the nav-gallery as children so its sticky title
+          + stickers stay anchored to the top while the description and
+          the gallery scroll past. The pin releases when PropertySectionTabs
+          (the next sibling, outside the lead) comes into view. */}
       <FincaLead
         heading={accentedTitle(selected.title)}
         description={selected.description}
         meta={<PropertyStickers property={selected} size="md" kind="both" />}
         sticky
-      />
-
-      <PropertyNavigationGallery properties={properties} currentSlug={slug} />
+      >
+        <div className="mt-8">
+          <PropertyNavigationGallery properties={properties} currentSlug={slug} />
+        </div>
+      </FincaLead>
 
       <PropertySectionTabs
         slug={selected.slug}

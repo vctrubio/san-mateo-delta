@@ -6,9 +6,9 @@ import fincaData from '@config/finca.json';
 // ============================================================================
 // HostsSpotlight — the "Souls of San Mateo" host portraits.
 //
-// Same component on the landing /  page (`AboutSection`) and inside the
-// property page (`PropertyView`, below "What's included") so the brand
-// voice for the people behind the finca stays consistent.
+// Shared between the landing page (`AboutSection`) and the /finca shell
+// (`HostsRow`) so the brand voice for the people behind the finca stays
+// consistent across the homepage and every property page.
 // ============================================================================
 
 export type Host = {

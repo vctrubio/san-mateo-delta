@@ -68,7 +68,11 @@ export default async function FincaIndexPage() {
                   </div>
 
                   <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-baseline justify-between gap-3 mb-1">
+                    {/* Order mirrors the showcase modal + slug page:
+                        title → stickers (characteristics + features) →
+                        description. Description sits last so the
+                        scannable facts read first. */}
+                    <div className="flex items-baseline justify-between gap-3 mb-3">
                       <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
                         {label}
                       </h2>
@@ -76,26 +80,14 @@ export default async function FincaIndexPage() {
                         {p.title}
                       </span>
                     </div>
+
+                    <div className="mb-4">
+                      <PropertyStickers property={p} size="sm" kind="both" />
+                    </div>
+
                     <p className="text-sm text-slate-500 leading-relaxed mb-4">
                       {p.description}
                     </p>
-
-                    {p.features.length > 0 && (
-                      <ul className="flex flex-wrap gap-1.5 mb-4">
-                        {p.features.map((f) => (
-                          <li
-                            key={f}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full bg-ocean/5 text-ocean text-xs font-mono"
-                          >
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    <div className="mb-4">
-                      <PropertyStickers property={p} size="sm" />
-                    </div>
 
                     <span className="mt-auto inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-ocean group-hover:gap-2.5 transition-all">
                       Open <MoveRight className="w-3.5 h-3.5" />
