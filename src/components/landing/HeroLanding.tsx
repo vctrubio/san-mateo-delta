@@ -163,10 +163,10 @@ function Wireframe() {
                 Tarifa
               </text>
               <text
-                x="204" y="248" fontSize="10" fontStyle="italic" fill="#64748b"
+                x="234" y="248" fontSize="10" fontStyle="italic" fill="#64748b"
                 fontFamily="var(--font-mono)"
               >
-                Europe&apos;s southern edge
+                Europe&apos;s tip
               </text>
             </g>
           </g>
@@ -188,8 +188,10 @@ function Wireframe() {
 
             <path
               d="M 400,750 L 150,700
-                 C 80,690 50,650 60,600
-                 L 100,450
+                 C 90,695 40,683 0,665
+                 C -25,650 -35,625 -30,595
+                 C -25,570 0,535 30,510
+                 C 60,485 90,465 100,450
                  C 120,420 180,380 180,320
                  C 180,270 120,220 80,200
                  C 50,180 60,150 100,100
@@ -201,18 +203,6 @@ function Wireframe() {
               strokeOpacity="0.32"
               strokeLinejoin="round"
             />
-
-            {/* Caves of Hercules — stone with dark mouth */}
-            <g transform="translate(130, 680)">
-              <path
-                d="M 0,0 C -15,-20 15,-30 30,-15 C 40,0 20,10 0,0 Z"
-                fill="#94a3b8"
-              />
-              <path
-                d="M 5,-5 C 5,-15 15,-20 20,-10 C 25,0 10,5 5,-5 Z"
-                fill="#1e293b"
-              />
-            </g>
 
             {/* Tanger Med — container stack (the marker itself) */}
             <g transform="translate(120, 80)">
@@ -235,12 +225,34 @@ function Wireframe() {
                 where the legend sleep
               </text>
 
-              <circle cx="60" cy="600" r="6" fill="#334155" />
-              <text x="75" y="605" fontSize="12" fontWeight="700" fill="#334155">
+              {/* Cap Spartel — Moorish lighthouse monument replacing the
+                  simple dot. White tower + sand accents, sitting on a cape
+                  that's part of the main Tangier landmass (the coast path
+                  above bulges west to make room). Positioned so the tower
+                  peeks into the right edge of mobile — mirroring how the
+                  Tarifa lighthouse beam peeks in from the left. */}
+
+              {/* Tower courtyard — small white step at the base */}
+              <rect x="-34" y="592" width="22" height="8" fill="#ffffff" stroke="#334155" strokeWidth="0.7" />
+              {/* Main tower body — tall white square */}
+              <rect x="-28" y="562" width="10" height="30" fill="#ffffff" stroke="#334155" strokeWidth="0.7" />
+              {/* Gallery / observation deck — slim sand band */}
+              <rect x="-30" y="559" width="14" height="3" fill="#f8f5f0" stroke="#334155" strokeWidth="0.5" />
+              {/* Lantern room */}
+              <rect x="-26" y="551" width="8" height="8" fill="#ffffff" stroke="#334155" strokeWidth="0.6" />
+              {/* Lantern window — single dark slit hinting at the light */}
+              <rect x="-24.5" y="553" width="5" height="4" fill="#334155" />
+              {/* Cap dome */}
+              <polygon points="-26,551 -18,551 -22,546" fill="#f8f5f0" stroke="#334155" strokeWidth="0.5" />
+              {/* Finial spike + ball */}
+              <line x1="-22" y1="546" x2="-22" y2="542" stroke="#334155" strokeWidth="0.8" />
+              <circle cx="-22" cy="542" r="0.9" fill="#334155" />
+
+              <text x="1" y="605" fontSize="12" fontWeight="700" fill="#334155">
                 Cap Spartel
               </text>
               <text
-                x="75" y="618" fontSize="10" fontStyle="italic" fill="#64748b"
+                x="0" y="618" fontSize="10" fontStyle="italic" fill="#64748b"
                 fontFamily="var(--font-mono)"
               >
                 the last light of the Mediterranean
