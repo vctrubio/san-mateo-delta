@@ -144,13 +144,13 @@ function Wireframe() {
               {/* Los Lances — rotated to follow the coastline */}
               <circle cx="240" cy="360" r="6" fill="#334155" />
               <text
-                x="160" y="350" fontSize="12" fontWeight="700" fill="#334155"
+                x="169" y="350" fontSize="12" fontWeight="700" fill="#334155"
                 transform="rotate(-57 240 360)"
               >
                 Los Lances
               </text>
               <text
-                x="160" y="375" fontSize="10" fontStyle="italic" fill="#64748b"
+                x="160" y="377" fontSize="10" fontStyle="italic" fill="#64748b"
                 fontFamily="var(--font-mono)" transform="rotate(-57 240 360)"
               >
                 where the horizon never ends
