@@ -23,12 +23,68 @@ const SEO_DESCRIPTION =
 const SEO_KEYWORDS = [
   'Punta Paloma',
   'Punta Paloma villa',
+  'Valdevaqueros',
+  'Valdevaqueros villa',
+  'Valdevaqueros kitesurf',
+  'Los Lances Tarifa',
   'Tarifa vacation rental',
   'villa Tarifa',
   'kitesurf accommodation Tarifa',
+  'Strait of Gibraltar vacation rental',
   'Cádiz holiday home',
+  'Cape Spartel view',
   `Finca ${finca.name}`,
 ];
+
+// Surrounding landmarks the map calls out. Each entry becomes a
+// TouristAttraction in the LodgingBusiness JSON-LD, with geocoordinates
+// so Google's vacation-rental rich result can place the estate in
+// context. Lat/lon are approximate but accurate enough for "things to
+// do nearby" reasoning. Keep the order roughly by relevance — Punta
+// Paloma first because it's the brand hook.
+const NEARBY_ATTRACTIONS = [
+  {
+    name: 'Punta Paloma Beach',
+    description:
+      '300 metres from the estate — wide white-sand cove with the famous Punta Paloma dune.',
+    lat: 36.0716,
+    lon: -5.7236,
+  },
+  {
+    name: 'Valdevaqueros',
+    description:
+      'Legendary kitesurf and windsurf bay just east of the estate; "the playground" for the Tarifa wind scene.',
+    lat: 36.0735,
+    lon: -5.6975,
+  },
+  {
+    name: 'Los Lances Beach',
+    description:
+      'Tarifa\'s 7-km town beach — flat-water mornings, kite-friendly afternoons, sunset views to Morocco.',
+    lat: 36.0307,
+    lon: -5.6072,
+  },
+  {
+    name: 'Tarifa',
+    description:
+      "The southernmost town on the European mainland — old Moorish quarter, ferry port to Tangier, sunset over the Atlantic.",
+    lat: 36.0143,
+    lon: -5.6044,
+  },
+  {
+    name: 'Strait of Gibraltar',
+    description: 'The 13-km channel between Europe and Africa — whale and dolphin migration corridor.',
+    lat: 36.0,
+    lon: -5.6,
+  },
+  {
+    name: 'Cape Spartel',
+    description:
+      "Morocco's northwest tip across the strait — Moorish lighthouse marking where the Atlantic meets the Mediterranean.",
+    lat: 35.7884,
+    lon: -5.9201,
+  },
+] as const;
 
 function ensureScheme(value: string): string {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
@@ -194,19 +250,16 @@ export function lodgingBusinessJsonLd(
       name,
     })),
     sameAs: socialProfileUrls(),
-    nearbyAttraction: [
-      {
-        '@type': 'TouristAttraction',
-        name: 'Punta Paloma Beach',
-        description:
-          '300 metres from the estate — wide white-sand cove with the famous Punta Paloma dune.',
+    nearbyAttraction: NEARBY_ATTRACTIONS.map((a) => ({
+      '@type': 'TouristAttraction',
+      name: a.name,
+      description: a.description,
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: a.lat,
+        longitude: a.lon,
       },
-      {
-        '@type': 'TouristAttraction',
-        name: 'Strait of Gibraltar',
-        description: 'The 13-km channel between Europe and Africa.',
-      },
-    ],
+    })),
     ...(opts.priceRange ? { priceRange: opts.priceRange } : {}),
   };
 }
