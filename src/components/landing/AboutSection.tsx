@@ -132,7 +132,7 @@ function ContactCard() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-ocean" />
-            <span className="text-sm">{fincaData.subtitle}, {fincaData.location.country}</span>
+            <span className="text-sm">Crt. A-2325 KM 1, Punta Paloma</span>
           </div>
           <div className="flex items-center gap-3">
             <Mail className="w-4 h-4 text-ocean" />
